@@ -32,6 +32,7 @@ var Change = {
   onLoad: function Change_onLoad() {
     /* Load labels */
     let introText = document.getElementById("introText");
+    let introText2 = document.getElementById("introText2");
     let warningText = document.getElementById("warningText");
 
     // load some other elements & info from the window
@@ -69,7 +70,6 @@ var Change = {
         else {
           document.getElementById("generatePassphraseButton").hidden = false;
           document.getElementById("passphraseBackupButtons").hidden = false;
-          this._passphraseBox.setAttribute("readonly", "true");
           let pp = Weave.Service.identity.syncKey;
           if (Weave.Utils.isPassphrase(pp))
              pp = Weave.Utils.hyphenatePassphrase(pp);
@@ -120,7 +120,7 @@ var Change = {
   _updateStatus: function Change__updateStatus(str, state) {
      this._updateStatusWithString(this._str(str), state);
   },
-
+  
   _updateStatusWithString: function Change__updateStatusWithString(string, state) {
     this._statusRow.hidden = false;
     this._status.value = string;
@@ -141,10 +141,11 @@ var Change = {
       case "UpdatePassphrase":
       case "ResetPassphrase":
         return this.doChangePassphrase();
+        break;
       case "ChangePassword":
         return this.doChangePassword();
+        break;
     }
-    return undefined;
   },
 
   doGeneratePassphrase: function () {
@@ -212,10 +213,10 @@ var Change = {
         [valid, errorString] = gSyncUtils.validatePassword(this._firstBox, this._secondBox);
     }
     else {
-      if (!this._updatingPassphrase)
-        return;
-
-      valid = this._passphraseBox.value != "";
+      //Pale Moon: Enforce minimum length of 8 for allowed custom passphrase
+      //and don't restrict it to "out of sync" situations only. People who
+      //go to this page generally know what they are doing ;)
+      valid = this._passphraseBox.value.length >= 8;
     }
 
     if (errorString == "")

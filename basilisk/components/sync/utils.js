@@ -14,13 +14,6 @@ var gSyncUtils = {
     return this.bundle = Services.strings.createBundle("chrome://browser/locale/syncSetup.properties");
   },
 
-  get fxAccountsEnabled() {
-    let service = Components.classes["@mozilla.org/weave/service;1"]
-                            .getService(Components.interfaces.nsISupports)
-                            .wrappedJSObject;
-    return service.fxAccountsEnabled;
-  },
-
   // opens in a new window if we're in a modal prefwindow world, in a new tab otherwise
   _openLink: function (url) {
     let thisDocEl = document.documentElement,
@@ -77,22 +70,16 @@ var gSyncUtils = {
     this._openLink(Weave.Service.pwResetURL);
   },
 
-  get tosURL() {
-    let root = this.fxAccountsEnabled ? "fxa." : "";
-    return  Weave.Svc.Prefs.get(root + "termsURL");
-  },
-
   openToS: function () {
-    this._openLink(this.tosURL);
-  },
-
-  get privacyPolicyURL() {
-    let root = this.fxAccountsEnabled ? "fxa." : "";
-    return  Weave.Svc.Prefs.get(root + "privacyURL");
+    this._openLink(Weave.Svc.Prefs.get("termsURL"));
   },
 
   openPrivacyPolicy: function () {
-    this._openLink(this.privacyPolicyURL);
+    this._openLink(Weave.Svc.Prefs.get("privacyURL"));
+  },
+
+  openFirstSyncProgressPage: function () {
+    this._openLink("about:sync-progress");
   },
 
   /**
@@ -134,7 +121,7 @@ var gSyncUtils = {
 
   /**
    * Print passphrase backup document.
-   *
+   * 
    * @param elid : ID of the form element containing the passphrase.
    */
   passphrasePrint: function(elid) {
@@ -162,7 +149,7 @@ var gSyncUtils = {
 
   /**
    * Save passphrase backup document to disk as HTML file.
-   *
+   * 
    * @param elid : ID of the form element containing the passphrase.
    */
   passphraseSave: function(elid) {
@@ -200,7 +187,7 @@ var gSyncUtils = {
    *
    * @param el1 : the first textbox element in the form
    * @param el2 : the second textbox element, if omitted it's an update form
-   *
+   * 
    * returns [valid, errorString]
    */
   validatePassword: function (el1, el2) {

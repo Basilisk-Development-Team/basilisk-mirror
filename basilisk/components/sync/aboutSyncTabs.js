@@ -11,22 +11,12 @@ Cu.import("resource://gre/modules/PlacesUtils.jsm", this);
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
-XPCOMUtils.defineLazyModuleGetter(this, "Promise",
-                                  "resource://gre/modules/Promise.jsm");
-
-#ifdef MOZ_SERVICES_CLOUDSYNC
-XPCOMUtils.defineLazyModuleGetter(this, "CloudSync",
-                                  "resource://gre/modules/CloudSync.jsm");
-#endif
-
 var RemoteTabViewer = {
   _tabsList: null,
 
   init: function () {
     Services.obs.addObserver(this, "weave:service:login:finish", false);
     Services.obs.addObserver(this, "weave:engine:sync:finish", false);
-
-    Services.obs.addObserver(this, "cloudsync:tabs:update", false);
 
     this._tabsList = document.getElementById("tabsList");
 
@@ -36,14 +26,12 @@ var RemoteTabViewer = {
   uninit: function () {
     Services.obs.removeObserver(this, "weave:service:login:finish");
     Services.obs.removeObserver(this, "weave:engine:sync:finish");
-
-    Services.obs.removeObserver(this, "cloudsync:tabs:update");
   },
 
-  createItem: function (attrs) {
+  createItem: function(attrs) {
     let item = document.createElement("richlistitem");
 
-    // Copy the attributes from the argument into the item.
+    // Copy the attributes from the argument into the item
     for (let attr in attrs) {
       item.setAttribute(attr, attrs[attr]);
     }
@@ -55,7 +43,7 @@ var RemoteTabViewer = {
     return item;
   },
 
-  filterTabs: function (event) {
+  filterTabs: function(event) {
     let val = event.target.value.toLowerCase();
     let numTabs = this._tabsList.getRowCount();
     let clientTabs = 0;
@@ -65,7 +53,7 @@ var RemoteTabViewer = {
       let item = this._tabsList.getItemAtIndex(i);
       let hide = false;
       if (item.getAttribute("type") == "tab") {
-        if (!item.getAttribute("url").toLowerCase().includes(val) &&
+        if (!item.getAttribute("url").toLowerCase().includes(val) && 
             !item.getAttribute("title").toLowerCase().includes(val)) {
           hide = true;
         } else {
@@ -88,10 +76,10 @@ var RemoteTabViewer = {
     }
   },
 
-  openSelected: function () {
+  openSelected: function() {
     let items = this._tabsList.selectedItems;
     let urls = [];
-    for (let i = 0; i < items.length; i++) {
+    for (let i = 0;i < items.length;i++) {
       if (items[i].getAttribute("type") == "tab") {
         urls.push(items[i].getAttribute("url"));
         let index = this._tabsList.getIndexOfItem(items[i]);
@@ -104,7 +92,7 @@ var RemoteTabViewer = {
     }
   },
 
-  bookmarkSingleTab: function () {
+  bookmarkSingleTab: function() {
     let item = this._tabsList.selectedItems[0];
     let uri = Weave.Utils.makeURI(item.getAttribute("url"));
     let title = item.getAttribute("title");
@@ -119,10 +107,10 @@ var RemoteTabViewer = {
                                      }, window.top);
   },
 
-  bookmarkSelectedTabs: function () {
+  bookmarkSelectedTabs: function() {
     let items = this._tabsList.selectedItems;
     let URIs = [];
-    for (let i = 0; i < items.length; i++) {
+    for (let i = 0;i < items.length;i++) {
       if (items[i].getAttribute("type") == "tab") {
         let uri = Weave.Utils.makeURI(items[i].getAttribute("url"));
         if (!uri) {
@@ -157,7 +145,7 @@ var RemoteTabViewer = {
 
   _buildListRequested: false,
 
-  buildList: function (forceSync) {
+  buildList: function (force) {
     if (this._waitingForBuildList) {
       this._buildListRequested = true;
       return;
@@ -168,37 +156,27 @@ var RemoteTabViewer = {
 
     this._clearTabList();
 
-    if (Weave.Service.isLoggedIn) {
-      this._refetchTabs(forceSync);
+    if (Weave.Service.isLoggedIn && this._refetchTabs(force)) {
       this._generateWeaveTabList();
     } else {
-      // XXXzpao We should say something about not being logged in & not having data
+      //XXXzpao We should say something about not being logged in & not having data
       //        or tell the appropriate condition. (bug 583344)
     }
 
-    let complete = () => {
+    function complete() {
       this._waitingForBuildList = false;
       if (this._buildListRequested) {
         CommonUtils.nextTick(this.buildList, this);
       }
     }
 
-#ifdef MOZ_SERVICES_CLOUDSYNC
-    if (CloudSync && CloudSync.ready && CloudSync().tabsReady && CloudSync().tabs.hasRemoteTabs()) {
-      this._generateCloudSyncTabList()
-          .then(complete, complete);
-    } else {
-      complete();
-    }
-#else
     complete();
-#endif
   },
 
   _clearTabList: function () {
     let list = this._tabsList;
 
-    // Clear out existing richlistitems.
+    // Clear out existing richlistitems
     let count = list.getRowCount();
     if (count > 0) {
       for (let i = count - 1; i >= 0; i--) {
@@ -214,7 +192,7 @@ var RemoteTabViewer = {
     let seenURLs = new Set();
     let localURLs = engine.getOpenURLs();
 
-    for (let [, client] of Object.entries(engine.getAllClients())) {
+    for (let [guid, client] in Iterator(engine.getAllClients())) {
       // Create the client node, but don't add it in-case we don't show any tabs
       let appendClient = true;
 
@@ -248,37 +226,7 @@ var RemoteTabViewer = {
     }
   },
 
-  _generateCloudSyncTabList: function () {
-    let updateTabList = function (remoteTabs) {
-      let list = this._tabsList;
-
-      for (let client of remoteTabs) {
-        let clientAttrs = {
-          type: "client",
-          clientName: client.name,
-        };
-
-        let clientEnt = this.createItem(clientAttrs);
-        list.appendChild(clientEnt);
-
-        for (let tab of client.tabs) {
-          let tabAttrs = {
-            type: "tab",
-            title: tab.title,
-            url: tab.url,
-            icon: this.getIcon(tab.icon),
-          };
-          let tabEnt = this.createItem(tabAttrs);
-          list.appendChild(tabEnt);
-        }
-      }
-    }.bind(this);
-
-    return CloudSync().tabs.getRemoteTabs()
-                           .then(updateTabList, Promise.reject.bind(Promise));
-  },
-
-  adjustContextMenu: function (event) {
+  adjustContextMenu: function(event) {
     let mode = "all";
     switch (this._tabsList.selectedItems.length) {
       case 0:
@@ -303,7 +251,7 @@ var RemoteTabViewer = {
     }
   },
 
-  _refetchTabs: function (force) {
+  _refetchTabs: function(force) {
     if (!force) {
       // Don't bother refetching tabs if we already did so recently
       lastFetch = Services.prefs.getIntPref("services.sync.lastTabFetch", 0);
@@ -314,39 +262,39 @@ var RemoteTabViewer = {
       }
     }
 
-    // Ask Sync to just do the tabs engine if it can.
-    Weave.Service.sync(["tabs"]);
+    // if Clients hasn't synced yet this session, we need to sync it as well.
+    if (Weave.Service.clientsEngine.lastSync == 0) {
+      Weave.Service.clientsEngine.sync();
+    }
+
+    // Force a sync only for the tabs engine
+    let engine = Weave.Service.engineManager.get("tabs");
+    engine.lastModified = null;
+    engine.sync();
     Services.prefs.setIntPref("services.sync.lastTabFetch",
                               Math.floor(Date.now() / 1000));
 
     return true;
   },
 
-  observe: function (subject, topic, data) {
+  observe: function(subject, topic, data) {
     switch (topic) {
       case "weave:service:login:finish":
-        // A login has finished, which means that a Sync is about to start and
-        // we will eventually get to the "tabs" engine - but try and force the
-        // tab engine to sync first by passing |true| for the forceSync param.
         this.buildList(true);
         break;
       case "weave:engine:sync:finish":
-        if (data == "tabs") {
-          // The tabs engine just finished, so re-build the list without
-          // forcing a new sync of the tabs engine.
+        if (subject == "tabs") {
           this.buildList(false);
         }
-        break;
-      case "cloudsync:tabs:update":
-        this.buildList(false);
         break;
     }
   },
 
-  handleClick: function (event) {
+  handleClick: function(event) {
     if (event.target.getAttribute("type") != "tab") {
       return;
     }
+
 
     if (event.button == 1) {
       let url = event.target.getAttribute("url");
@@ -356,3 +304,4 @@ var RemoteTabViewer = {
     }
   }
 }
+

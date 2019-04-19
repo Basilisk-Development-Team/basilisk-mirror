@@ -43,7 +43,7 @@
       &pairDevice.dialog.description.label;
       <label class="text-link"
              value="&addDevice.showMeHow.label;"
-             href="https://services.mozilla.com/sync/help/add-device"/>
+             href="http://www.palemoon.org/sync/help/easy-setup.shtml"/>
     </description>
     <separator class="groove-thin"/>
     <description>
@@ -183,12 +183,12 @@
                          onclick="document.getElementById('tos').focus();
                                   document.getElementById('tos').click()">
               &setup.tosAgree1.label;
-              <label class="text-link"
+              <label class="text-link inline-link"
                      onclick="event.stopPropagation();gSyncUtils.openToS();">
                 &setup.tosLink.label;
               </label>
               &setup.tosAgree2.label;
-              <label class="text-link"
+              <label class="text-link inline-link"
                      onclick="event.stopPropagation();gSyncUtils.openPrivacyPolicy();">
                 &setup.ppLink.label;
               </label>
@@ -221,7 +221,7 @@
       &pairDevice.setup.description.label;
       <label class="text-link"
              value="&addDevice.showMeHow.label;"
-             href="https://services.mozilla.com/sync/help/easy-setup"/>
+             href="http://www.palemoon.org/sync/help/easy-setup.shtml"/>
     </description>
     <label value="&addDevice.setup.enterCode.label;"
            control="easySetupPIN1"/>
@@ -340,7 +340,7 @@
       <description>
         &existingRecoveryKey.description;
         <label class="text-link"
-               href="https://services.mozilla.com/sync/help/manual-setup">
+               href="http://www.palemoon.org/sync/help/recoverykey.shtml">
           &addDevice.showMeHow.label;
         </label>
         <spacer id="passphraseHelpSpacer"/>
@@ -359,7 +359,7 @@
     <grid>
       <columns>
         <column/>
-        <column flex="1" style="margin-inline-end: 2px"/>
+        <column flex="1" style="-moz-margin-end: 2px"/>
       </columns>
       <rows>
         <row align="center">
@@ -375,7 +375,8 @@
             <checkbox label="&engine.addons.label;"
                       accesskey="&engine.addons.accesskey;"
                       id="engine.addons"
-                      checked="true"/>
+                      checked="false"
+                      hidden="true"/>
             <checkbox label="&engine.bookmarks.label;"
                       accesskey="&engine.bookmarks.accesskey;"
                       id="engine.bookmarks"

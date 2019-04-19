@@ -67,7 +67,7 @@
           <label id="generatePassphraseButton"
                  hidden="true"
                  value="&syncGenerateNewKey.label;"
-                 class="text-link"
+                 class="text-link inline-link"
                  onclick="event.stopPropagation();
                           Change.doGeneratePassphrase();"/>
         </hbox>
@@ -105,7 +105,7 @@
       <description>
         &existingRecoveryKey.description;
         <label class="text-link"
-               href="https://services.mozilla.com/sync/help/manual-setup">
+               href="http://www.palemoon.org/sync/help/recoverykey.shtml">
           &addDevice.showMeHow.label;
         </label>
       </description>
