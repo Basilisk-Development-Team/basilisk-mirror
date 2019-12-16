@@ -24,9 +24,9 @@ DEFINES['APP_VERSION'] = CONFIG['MOZ_APP_VERSION']
 
 LOCAL_INCLUDES += [
     '!/build',
-    '/toolkit/xre',
-    '/xpcom/base',
-    '/xpcom/build',
+    '/platform/toolkit/xre',
+    '/platform/xpcom/base',
+    '/platform/xpcom/build',
 ]
 
 USE_LIBS += [

@@ -3,49 +3,49 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 installer:
-	@$(MAKE) -C application/basilisk/installer installer
+	@$(MAKE) -C basilisk/installer installer
 
 package:
-	@$(MAKE) -C application/basilisk/installer make-archive
+	@$(MAKE) -C basilisk/installer make-archive
 
 l10n-package:
-	@$(MAKE) -C application/basilisk/installer make-langpack
+	@$(MAKE) -C basilisk/installer make-langpack
 
 mozpackage:
-	@$(MAKE) -C application/basilisk/installer
+	@$(MAKE) -C basilisk/installer
 
 package-compare:
-	@$(MAKE) -C application/basilisk/installer package-compare
+	@$(MAKE) -C basilisk/installer package-compare
 
 stage-package:
-	@$(MAKE) -C application/basilisk/installer stage-package make-buildinfo-file
+	@$(MAKE) -C basilisk/installer stage-package make-buildinfo-file
 
 sdk:
-	@$(MAKE) -C application/basilisk/installer make-sdk
+	@$(MAKE) -C basilisk/installer make-sdk
 
 install::
-	@$(MAKE) -C application/basilisk/installer install
+	@$(MAKE) -C basilisk/installer install
 
 clean::
-	@$(MAKE) -C application/basilisk/installer clean
+	@$(MAKE) -C basilisk/installer clean
 
 distclean::
-	@$(MAKE) -C application/basilisk/installer distclean
+	@$(MAKE) -C basilisk/installer distclean
 
 source-package::
-	@$(MAKE) -C application/basilisk/installer source-package
+	@$(MAKE) -C basilisk/installer source-package
 
 upload::
-	@$(MAKE) -C application/basilisk/installer upload
+	@$(MAKE) -C basilisk/installer upload
 
 source-upload::
-	@$(MAKE) -C application/basilisk/installer source-upload
+	@$(MAKE) -C basilisk/installer source-upload
 
 hg-bundle::
-	@$(MAKE) -C application/basilisk/installer hg-bundle
+	@$(MAKE) -C basilisk/installer hg-bundle
 
 l10n-check::
-	@$(MAKE) -C application/basilisk/locales l10n-check
+	@$(MAKE) -C basilisk/locales l10n-check
 
 ifdef ENABLE_TESTS
 # Implemented in testing/testsuite-targets.mk

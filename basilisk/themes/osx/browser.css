@@ -2958,8 +2958,8 @@ toolbarbutton.chevron > .toolbarbutton-menu-dropmarker {
 
 %include ../shared/fullscreen/warning.inc.css
 %include ../shared/ctrlTab.inc.css
-%include ../../../../devtools/client/themes/responsivedesign.inc.css
-%include ../../../../devtools/client/themes/commandline.inc.css
+%include ../../../platform/devtools/client/themes/responsivedesign.inc.css
+%include ../../../platform/devtools/client/themes/commandline.inc.css
 %include ../shared/plugin-doorhanger.inc.css
 
 %include downloads/indicator.css

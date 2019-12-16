@@ -81,7 +81,7 @@ DIST_SUBDIRS = $(DIST_SUBDIR)
 
 include $(topsrcdir)/config/rules.mk
 
-include $(topsrcdir)/toolkit/locales/l10n.mk
+include $(MOZILLA_SRCDIR)/toolkit/locales/l10n.mk
 
 $(list-json): $(call mkdir_deps,$(SEARCHPLUGINS_PATH)) $(if $(IS_LANGUAGE_REPACK),FORCE)
 	$(call py_action,generate_searchjson,$(srcdir)/search/list.json $(AB_CD) $(list-json))
@@ -101,7 +101,6 @@ ifdef MOZ_SERVICES_SYNC
 	@$(MAKE) -C $(DEPTH)/services/sync/locales AB_CD=$* XPI_NAME=locale-$*
 endif
 	@$(MAKE) -C $(DEPTH)/extensions/spellcheck/locales AB_CD=$* XPI_NAME=locale-$*
-# 	@$(MAKE) -C ../extensions/pocket/locale AB_CD=$* XPI_NAME=locale-$*
 	@$(MAKE) -C $(DEPTH)/intl/locales AB_CD=$* XPI_NAME=locale-$*
 	@$(MAKE) -C $(DEPTH)/devtools/client/locales AB_CD=$* XPI_NAME=locale-$* XPI_ROOT_APPID='$(XPI_ROOT_APPID)'
 	@$(MAKE) -B searchplugins AB_CD=$* XPI_NAME=locale-$*
@@ -193,5 +192,5 @@ l10n-check::
 	@# on MOZ_SIMPLE_PACKAGE_NAME not being reset, overwriting the value it
 	@# would get with MOZ_SIMPLE_PACKAGE_NAME reset.
 	$(MAKE) installers-x-test L10NBASEDIR='$(PWD)' LOCALE_MERGEDIR='$(PWD)/mergedir' ZIP_IN='$(ZIP_IN)' MOZ_SIMPLE_PACKAGE_NAME= UNIVERSAL_BINARY=
-	$(PYTHON) $(topsrcdir)/toolkit/mozapps/installer/unpack.py $(DIST)/l10n-stage/$(MOZ_PKG_DIR)$(_RESPATH)
+	$(PYTHON) $(MOZILLA_SRCDIR)/toolkit/mozapps/installer/unpack.py $(DIST)/l10n-stage/$(MOZ_PKG_DIR)$(_RESPATH)
 	cd $(DIST)/l10n-stage && test $$(cat $(MOZ_PKG_DIR)$(_RESPATH)/update.locale) = x-test

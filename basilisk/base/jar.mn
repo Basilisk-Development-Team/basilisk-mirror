@@ -153,7 +153,7 @@ browser.jar:
         content/browser/webrtcIndicator.js            (content/webrtcIndicator.js)
 #endif
 # the following files are browser-specific overrides
-*       content/browser/license.html                  (/toolkit/content/license.html)
+*       content/browser/license.html                  (/platform/toolkit/content/license.html)
 % override chrome://global/content/license.html chrome://browser/content/license.html
 #ifdef MOZ_SAFE_BROWSING
         content/browser/report-phishing-overlay.xul     (content/report-phishing-overlay.xul)
