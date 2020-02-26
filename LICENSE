@@ -1,14 +1,12 @@
-Please see the file toolkit/content/license.html for the copyright licensing
-conditions attached to this codebase, including copies of the licenses
-concerned.
-
-For more information about source code licensing, see:
-http://www.palemoon.org/licensing.shtml
+The majority of this code base is licensed under the Mozilla Public License 2.0.
+You can obtain a copy of this license at http://mozilla.org/MPL/2.0/
 
 You are not granted rights or licenses to the intellectual property or trademarks
-of the Mozilla Foundation, Moonchild Productions, or any other party, including
-without limitation the Pale Moon name or logo.
+contained in this repository.
+Please see the individual licensing documents in various directories for details
+about applicable licenses to branding materials and binaries containing such
+branding.
 
-Binary versions of Pale Moon are subject to the Pale Moon redistribution license.
-For more information, see: http://www.palemoon.org/redist.shtml
-
+Please note that the platform code that this application builds on has its own
+set of licenses that must be taken into account for use and distribution of the
+resulting binaries of this application.
