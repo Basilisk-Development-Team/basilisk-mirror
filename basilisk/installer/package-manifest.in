@@ -213,7 +213,6 @@
 @RESPATH@/components/dom_xhr.xpt
 @RESPATH@/components/dom_xpath.xpt
 @RESPATH@/components/dom_xul.xpt
-@RESPATH@/components/dom_presentation.xpt
 @RESPATH@/components/downloads.xpt
 @RESPATH@/components/editor.xpt
 @RESPATH@/components/embed_base.xpt
@@ -236,7 +235,7 @@
 @RESPATH@/components/jar.xpt
 @RESPATH@/components/jsdebugger.xpt
 @RESPATH@/components/jsdownloads.xpt
-@RESPATH@/browser/components/jsinspector.xpt
+@RESPATH@/components/jsinspector.xpt
 @RESPATH@/components/layout_base.xpt
 #ifdef NS_PRINTING
 @RESPATH@/components/layout_printing.xpt
@@ -527,13 +526,6 @@
 
 @RESPATH@/components/nsAsyncShutdown.manifest
 @RESPATH@/components/nsAsyncShutdown.js
-
-@RESPATH@/components/PresentationDeviceInfoManager.manifest
-@RESPATH@/components/PresentationDeviceInfoManager.js
-@RESPATH@/components/BuiltinProviders.manifest
-@RESPATH@/components/PresentationControlService.js
-@RESPATH@/components/PresentationDataChannelSessionTransport.js
-@RESPATH@/components/PresentationDataChannelSessionTransport.manifest
 
 ; InputMethod API
 @RESPATH@/components/MozKeyboard.js
