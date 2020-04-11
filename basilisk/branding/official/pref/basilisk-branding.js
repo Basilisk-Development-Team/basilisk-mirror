@@ -43,3 +43,6 @@ pref("general.useragent.compatMode.gecko",true);
 
 // Shared User Agent Overrides
 #include ../../shared/uaoverrides.inc
+
+// Geolocation
+pref("geo.wifi.uri", "https://pro.ip-api.com/json/?fields=lat,lon,status,message&key=jyVzd1rYPdkQCPC");
