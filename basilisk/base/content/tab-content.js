@@ -860,6 +860,10 @@ var RefreshBlocker = {
 
 RefreshBlocker.init();
 
+addEventListener("unload", () => {
+  RefreshBlocker.uninit();
+});
+
 addMessageListener("AllowScriptsToClose", () => {
   content.QueryInterface(Ci.nsIInterfaceRequestor)
          .getInterface(Ci.nsIDOMWindowUtils)
