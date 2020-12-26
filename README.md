@@ -11,4 +11,4 @@ The shared Unified XUL Platform source code is referenced here as a git submodul
 ## Resources
 
  * [Basilisk home page](http://www.basilisk-browser.org/)
- * [Code of Conduct, Contributing, and UXP Coding style](https://github.com/MoonchildProductions/UXP/tree/master/docs)
+ * [Code of Conduct, Contributing, and UXP Coding style](https://repo.palemoon.org/MoonchildProductions/UXP/src/branch/master/docs)
