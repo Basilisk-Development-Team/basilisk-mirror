@@ -123,11 +123,7 @@ VIAddVersionKey "OriginalFilename" "setup.exe"
 
 Name "${BrandFullName}"
 OutFile "setup.exe"
-!ifdef HAVE_64BIT_BUILD
-  InstallDir "$PROGRAMFILES64\${BrandFullName}\"
-!else
-  InstallDir "$PROGRAMFILES32\${BrandFullName}\"
-!endif
+InstallDir "$PROGRAMFILES64\${BrandFullName}\"
 ShowInstDetails nevershow
 
 ################################################################################
@@ -1061,14 +1057,12 @@ Function .onInit
     Quit
   ${EndIf}
 
-!ifdef HAVE_64BIT_BUILD
   ${Unless} ${RunningX64}
     MessageBox MB_OKCANCEL|MB_ICONSTOP "$(WARN_MIN_SUPPORTED_OSVER_MSG)" IDCANCEL +2
     ExecShell "open" "${URLSystemRequirements}"
     Quit
   ${EndUnless}
   SetRegView 64
-!endif
 
   ${InstallOnInitCommon} "$(WARN_MIN_SUPPORTED_OSVER_CPU_MSG)"
 

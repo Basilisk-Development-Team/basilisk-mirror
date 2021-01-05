@@ -61,14 +61,6 @@ function init(aEvent)
     document.getElementById("communityDesc").hidden = true;
   }
 
-  // Append "(32-bit)" or "(64-bit)" build architecture to the version number:
-  let bundle = Services.strings.createBundle("chrome://browser/locale/browser.properties");
-  let archResource = Services.appinfo.is64Bit
-                     ? "aboutDialog.architecture.sixtyFourBit"
-                     : "aboutDialog.architecture.thirtyTwoBit";
-  let arch = bundle.GetStringFromName(archResource);
-  versionField.textContent += ` (${arch})`;
-
   // Get Release Notes URL from Preferences
   let releaseNotesURL = Services.prefs.getCharPref("app.releaseNotesURL");
   document.getElementById("releasenotes").setAttribute("href", releaseNotesURL);

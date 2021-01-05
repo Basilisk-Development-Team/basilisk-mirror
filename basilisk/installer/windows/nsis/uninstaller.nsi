@@ -121,11 +121,7 @@ VIAddVersionKey "OriginalFilename" "helper.exe"
 
 Name "${BrandFullName}"
 OutFile "helper.exe"
-!ifdef HAVE_64BIT_BUILD
-  InstallDir "$PROGRAMFILES64\${BrandFullName}\"
-!else
-  InstallDir "$PROGRAMFILES32\${BrandFullName}\"
-!endif
+InstallDir "$PROGRAMFILES64\${BrandFullName}\"
 ShowUnInstDetails nevershow
 
 ################################################################################
