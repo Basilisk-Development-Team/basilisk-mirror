@@ -10,11 +10,6 @@ MOZ_AUSTRALIS=1
 MC_BASILISK=1
 MOZ_UPDATER=
 
-if test "$OS_ARCH" = "WINNT" -o \
-        "$OS_ARCH" = "Linux"; then
-  MOZ_BUNDLED_FONTS=1
-fi
-
 # For Basilisk we want to use 52.9.YYYY.MM.DD as MOZ_APP_VERSION in release
 # builds so add-on developers have something to target while maintaining
 # Firefox compatiblity.
