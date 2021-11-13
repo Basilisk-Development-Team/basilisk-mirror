@@ -8,6 +8,7 @@ MOZ_APP_VENDOR=Moonchild
 MOZ_PHOENIX=1
 MC_BASILISK=1
 MOZ_UPDATER=
+MOZ_BUNDLED_FONTS=1
 
 # For Basilisk we want to use 52.9.YYYY.MM.DD as MOZ_APP_VERSION in release
 # builds so add-on developers have something to target while maintaining
