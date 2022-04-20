@@ -502,11 +502,6 @@
 @RESPATH@/components/PeerConnection.manifest
 #endif
 
-@RESPATH@/chrome/marionette@JAREXT@
-@RESPATH@/chrome/marionette.manifest
-@RESPATH@/components/marionette.manifest
-@RESPATH@/components/marionette.js
-
 #ifdef MOZ_WEBSPEECH
 @RESPATH@/components/dom_webspeechsynth.xpt
 #endif
