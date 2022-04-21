@@ -398,8 +398,6 @@
               if (!aEngine) {
                 aEngine = this.currentEngine;
               }
-              BrowserSearch.recordOneoffSearchInTelemetry(aEngine, source, type,
-                                                          aWhere);
             }
           }
 
