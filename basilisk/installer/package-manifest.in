@@ -478,8 +478,6 @@
 @RESPATH@/components/SettingsManager.manifest
 @RESPATH@/components/AppsService.js
 @RESPATH@/components/AppsService.manifest
-@RESPATH@/components/recording-cmdline.js
-@RESPATH@/components/recording-cmdline.manifest
 @RESPATH@/components/htmlMenuBuilder.js
 @RESPATH@/components/htmlMenuBuilder.manifest
 
@@ -548,8 +546,6 @@
 @RESPATH@/browser/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/install.rdf
 @RESPATH@/chrome/toolkit@JAREXT@
 @RESPATH@/chrome/toolkit.manifest
-@RESPATH@/chrome/recording.manifest
-@RESPATH@/chrome/recording/*
 #ifdef MOZ_GTK
 @RESPATH@/browser/chrome/icons/default/default16.png
 @RESPATH@/browser/chrome/icons/default/default32.png
