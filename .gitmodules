@@ -1,0 +1,4 @@
+[submodule "platform"]
+	path = platform
+	url = https://repo.palemoon.org/MoonchildProductions/UXP.git
+	branch = release
