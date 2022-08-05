@@ -398,8 +398,6 @@
               if (!aEngine) {
                 aEngine = this.currentEngine;
               }
-              BrowserSearch.recordOneoffSearchInTelemetry(aEngine, source, type,
-                                                          aWhere);
             }
           }
 
@@ -444,7 +442,6 @@
             isSuggestion: (!aOneOff && telemetrySearchDetails),
             selection: telemetrySearchDetails
           };
-          BrowserSearch.recordSearchInTelemetry(engine, "searchbar", details);
           // null parameter below specifies HTML response for search
           let params = {
             postData: submission.postData,
@@ -1940,8 +1937,6 @@
                               aOpenUILinkParams &&
                               aOpenUILinkParams.inBackground;
           let where = tabBackground ? "tab-background" : aOpenUILinkWhere;
-          BrowserSearch.recordOneoffSearchInTelemetry(engine, source, type,
-                                                      where);
           return true;
         ]]></body>
       </method>

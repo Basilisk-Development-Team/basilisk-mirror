@@ -9,7 +9,7 @@
 # BrandFullNameInternal is used for some registry and file system values
 # instead of BrandFullName and typically should not be modified.
 !define BrandFullNameInternal "Basilisk"
-!define CompanyName           "Moonchild Productions"
+!define CompanyName           "Basilisk Development Team"
 !define URLInfoAbout          "https://www.basilisk-browser.org"
 !define URLUpdateInfo         "https://www.basilisk-browser.org/releasenotes.shtml"
 !define HelpLink              "https://www.basilisk-browser.org/contact.shtml"

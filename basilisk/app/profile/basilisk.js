@@ -943,10 +943,6 @@ pref("services.sync.prefs.sync.browser.link.open_newwindow", true);
 pref("services.sync.prefs.sync.browser.newtabpage.enabled", true);
 pref("services.sync.prefs.sync.browser.newtabpage.pinned", true);
 pref("services.sync.prefs.sync.browser.offline-apps.notify", true);
-#ifdef MOZ_SAFE_BROWSING
-pref("services.sync.prefs.sync.browser.safebrowsing.phishing.enabled", true);
-pref("services.sync.prefs.sync.browser.safebrowsing.malware.enabled", true);
-#endif
 pref("services.sync.prefs.sync.browser.search.update", true);
 pref("services.sync.prefs.sync.browser.sessionstore.restore_on_demand", true);
 pref("services.sync.prefs.sync.browser.startup.homepage", true);
@@ -991,8 +987,6 @@ pref("services.sync.prefs.sync.privacy.clearOnShutdown.sessions", true);
 pref("services.sync.prefs.sync.privacy.clearOnShutdown.siteSettings", true);
 pref("services.sync.prefs.sync.privacy.donottrackheader.enabled", true);
 pref("services.sync.prefs.sync.privacy.sanitize.sanitizeOnShutdown", true);
-pref("services.sync.prefs.sync.privacy.trackingprotection.enabled", true);
-pref("services.sync.prefs.sync.privacy.trackingprotection.pbmode.enabled", true);
 pref("services.sync.prefs.sync.security.OCSP.enabled", true);
 pref("services.sync.prefs.sync.security.OCSP.require", true);
 pref("services.sync.prefs.sync.security.default_personal_cert", true);
@@ -1196,23 +1190,13 @@ pref("media.gmp-widevinecdm.visible", true);
 pref("media.gmp-widevinecdm.enabled", true);
 #endif
 
-// Play with different values of the decay time and get telemetry,
+// Play with different values of the decay time,
 // 0 means to randomize (and persist) the experiment value in users' profiles,
 // -1 means no experiment is run and we use the preferred value for frecency (6h)
-pref("browser.cache.frecency_experiment", 0);
-
-// Telemetry settings.
-// Determines if Telemetry pings can be archived locally.
-pref("toolkit.telemetry.archive.enabled", true);
+pref("browser.cache.frecency_experiment", -1);
 
 // Enable GMP support in the addon manager.
 pref("media.gmp-provider.enabled", true);
-
-#ifdef NIGHTLY_BUILD
-pref("privacy.trackingprotection.ui.enabled", true);
-#else
-pref("privacy.trackingprotection.ui.enabled", false);
-#endif
 
 #ifndef RELEASE_OR_BETA
 // At the moment, autostart.2 is used, while autostart.1 is unused.
