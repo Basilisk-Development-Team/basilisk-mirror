@@ -1,5 +1,5 @@
 WIN32_MODULE_COMPANYNAME=Basilisk Development Team
-WIN32_MODULE_COPYRIGHT=�Basilisk and Mozilla Developers; available under the MPL 2 license.
+WIN32_MODULE_COPYRIGHT=©Basilisk and Mozilla Developers; available under the MPL 2 license.
 WIN32_MODULE_PRODUCTVERSION=@MOZ_APP_WINVERSION@
 WIN32_MODULE_PRODUCTVERSION_STRING=@MOZ_APP_VERSION@
 WIN32_MODULE_TRADEMARKS=Basilisk is a Trademark of the Basilisk Development Team.
