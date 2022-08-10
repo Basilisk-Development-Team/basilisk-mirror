@@ -9,9 +9,9 @@
 
 <preferences id="privacyPreferences" hidden="true" data-category="panePrivacy">
 
-  <!-- Global Privacy Control -->
-  <preference id="privacy.GPCheader.enabled"
-              name="privacy.GPCheader.enabled"
+  <!-- Tracking -->
+  <preference id="privacy.donottrackheader.enabled"
+              name="privacy.donottrackheader.enabled"
               type="bool"/>
 
   <!-- XXX button prefs -->
@@ -80,18 +80,18 @@
   <html:a class="help-button" target="_blank" aria-label="&helpButton.label;"></html:a>
 </hbox>
 
-<!-- Global Privacy Control -->
-<groupbox id="dataPrivacyGroup" data-category="panePrivacy" hidden="true">
-  <vbox id="privacygpcbox">
-    <caption><label>&dataPrivacy.label;</label></caption>
+<!-- Tracking -->
+<groupbox id="trackingGroup" data-category="panePrivacy" hidden="true">
+  <vbox id="donottrackbox">
+    <caption><label>&tracking.label;</label></caption>
     <hbox align="center">
-      <checkbox id="GPC"
-                preference="privacy.GPCheader.enabled"
-                accesskey="&GPC.accesskey;"
-                label="&GPCLabel.label;" />
+      <checkbox id="DoNotTrack"
+                preference="privacy.donottrackheader.enabled"
+                accesskey="&doNotTrack.accesskey;"
+                label="&doNotTrack.label;" />
       <label class="text-link"
-             value="&GPCLearnMore.label;"
-             href="https://www.palemoon.org/support/global-privacy-control"/>
+             value="&doNotTrackLearnMore.label;"
+             href="https://www.mozilla.org/dnt"/>
     </hbox>
   </vbox>
 </groupbox>
