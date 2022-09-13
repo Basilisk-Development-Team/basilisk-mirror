@@ -3252,14 +3252,6 @@
         <device>0x0046</device>
       </devices>
     </gfxBlacklistEntry>
-    <gfxBlacklistEntry blockID="g1216">
-      <os>WINNT 5.2</os>
-      <vendor>0x8086</vendor>
-      <feature>HARDWARE_VIDEO_DECODING</feature>
-      <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>
-      <driverVersion>10.18.10.3947</driverVersion>
-      <driverVersionComparator>EQUAL</driverVersionComparator>
-    </gfxBlacklistEntry>
     <gfxBlacklistEntry blockID="g1220">
       <os>WINNT 6.3</os>
       <vendor>0x8086</vendor>
@@ -3288,27 +3280,11 @@
       <driverVersion>8.982.0.0</driverVersion>
       <driverVersionComparator>EQUAL</driverVersionComparator>
     </gfxBlacklistEntry>
-    <gfxBlacklistEntry blockID="g511">
-      <os>WINNT 5.1</os>
-      <vendor>0x8086</vendor>
-      <feature>DIRECT3D_9_LAYERS</feature>
-      <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>
-      <driverVersion>6.14.10.5218</driverVersion>
-      <driverVersionComparator>LESS_THAN</driverVersionComparator>
-    </gfxBlacklistEntry>
     <gfxBlacklistEntry blockID="g230">
       <os>Darwin 10</os>
       <vendor>0x1002</vendor>
       <feature>WEBGL_MSAA</feature>
       <featureStatus>BLOCKED_DEVICE</featureStatus>
-    </gfxBlacklistEntry>
-    <gfxBlacklistEntry blockID="g1215">
-      <os>WINNT 5.1</os>
-      <vendor>0x8086</vendor>
-      <feature>HARDWARE_VIDEO_DECODING</feature>
-      <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>
-      <driverVersion>10.18.10.3947</driverVersion>
-      <driverVersionComparator>EQUAL</driverVersionComparator>
     </gfxBlacklistEntry>
     <gfxBlacklistEntry blockID="g192">
       <os>WINNT 6.2</os>
@@ -3454,14 +3430,6 @@
         <device>0x9807</device>
       </devices>
     </gfxBlacklistEntry>
-    <gfxBlacklistEntry blockID="g1217">
-      <os>WINNT 6.0</os>
-      <vendor>0x8086</vendor>
-      <feature>HARDWARE_VIDEO_DECODING</feature>
-      <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>
-      <driverVersion>10.18.10.3947</driverVersion>
-      <driverVersionComparator>EQUAL</driverVersionComparator>
-    </gfxBlacklistEntry>
     <gfxBlacklistEntry blockID="g202">
       <os>Darwin 12</os>
       <vendor>0x10de</vendor>
@@ -3551,15 +3519,6 @@
       <driverVersion>8.982.0.0</driverVersion>
       <driverVersionComparator>EQUAL</driverVersionComparator>
     </gfxBlacklistEntry>
-    <gfxBlacklistEntry blockID="g1251">
-      <os>WINNT 5.1</os>
-      <vendor>0x8086</vendor>
-      <feature>WEBGL_ANGLE</feature>
-      <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>
-      <driverVersion>6.14.10.5218</driverVersion>
-      <driverVersionComparator>LESS_THAN</driverVersionComparator>
-      <versionRange maxVersion="49.9"/>
-    </gfxBlacklistEntry>
     <gfxBlacklistEntry blockID="g974">
       <os>WINNT 10.0</os>
       <vendor>0x1002</vendor>
@@ -3597,14 +3556,6 @@
       <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>
       <driverVersion>8.15.10.2413</driverVersion>
       <driverVersionComparator>LESS_THAN_OR_EQUAL</driverVersionComparator>
-    </gfxBlacklistEntry>
-    <gfxBlacklistEntry blockID="g37">
-      <os>WINNT 5.1</os>
-      <vendor>0x10de</vendor>
-      <feature>DIRECT3D_9_LAYERS</feature>
-      <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>
-      <driverVersion>7.0.0.0</driverVersion>
-      <driverVersionComparator>GREATER_THAN_OR_EQUAL</driverVersionComparator>
     </gfxBlacklistEntry>
   </gfxItems>
 </blocklist>
