@@ -40,6 +40,7 @@ pref("app.update.url.details", "https://@BRANDING_SITEURL@/@BRANDING_RELNOTESPAT
 // Provide UA Gecko and Firefox slices for web compatibility
 pref("general.useragent.compatMode.firefox",true);
 pref("general.useragent.compatMode.gecko",true);
+pref("general.useragent.compatMode.version", "102.0");
 
 // Shared User Agent Overrides
 #include ../../shared/uaoverrides.inc

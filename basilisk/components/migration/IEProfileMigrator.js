@@ -477,7 +477,7 @@ IEProfileMigrator.prototype.getResources = function IE_getResources() {
     MSMigrationUtils.getCookiesMigrator(),
     new Settings(),
   ];
-  // Only support the form password migrator for Windows XP to 7.
+  // Only support the form password migrator for Windows 7.
   if (AppConstants.isPlatformAndVersionAtMost("win", "6.1")) {
     resources.push(new IE7FormPasswords());
   }

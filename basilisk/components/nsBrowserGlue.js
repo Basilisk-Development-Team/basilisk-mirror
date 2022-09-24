@@ -1524,7 +1524,7 @@ BrowserGlue.prototype = {
   },
 
   _migrateUI: function() {
-    const UI_VERSION = 43;
+    const UI_VERSION = 45;
     const BROWSER_DOCURL = "chrome://browser/content/browser.xul";
 
     let currentUIVersion;
@@ -1856,6 +1856,20 @@ BrowserGlue.prototype = {
       }
       Services.prefs.clearUserPref("layers.acceleration.disabled");
       Services.prefs.clearUserPref("layers.acceleration.force-enabled");
+    }
+
+    if (currentUIVersion < 44) {
+      // DoNotTrack is now GPC. Carry across user preference.
+      if (Services.prefs.prefHasUserValue("privacy.donottrackheader.enabled")) {
+        let DNTEnabled = Services.prefs.getBoolPref("privacy.donottrackheader.enabled");
+        Services.prefs.setBoolPref("privacy.GPCheader.enabled", DNTEnabled);
+        Services.prefs.clearUserPref("privacy.donottrackheader.enabled");
+      }
+    }
+
+    if (currentUIVersion < 45) {
+      // Clear hardware decoding failure flag to re-test. (UXP #1898)
+      Services.prefs.clearUserPref("media.hardware-video-decoding.failed");
     }
 
     // Update the migration version.
