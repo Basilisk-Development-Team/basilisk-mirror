@@ -116,7 +116,7 @@ pref("app.update.enabled", true);
 // If set to true, the Update Service will automatically download updates when
 // app updates are enabled per the app.update.enabled preference and if the user
 // can apply updates.
-pref("app.update.auto", false);
+pref("app.update.auto", true);
 
 // If set to true, the Update Service will present no UI for any event.
 pref("app.update.silent", false);
