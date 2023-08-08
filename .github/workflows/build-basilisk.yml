@@ -37,5 +37,5 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: basilisk-linux-x86_64
-          path: basilisk-mirror/obj-x86_64-pc-linux-gnu/dist/basilisk-*
+          name: basilisk-linux-x86_64-gtk3
+          path: obj-x86_64-pc-linux-gnu/dist/basilisk-*
