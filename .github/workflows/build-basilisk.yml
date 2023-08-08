@@ -8,12 +8,8 @@ on:
 
 jobs:
   build-basilisk:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
-
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -22,6 +18,13 @@ jobs:
           yasm libegl1-mesa-dev libasound2-dev libxt-dev zlib1g-dev libssl-dev \
           libsqlite3-dev libbz2-dev libpulse-dev libgconf2-dev libx11-xcb-dev \
           zip python2.7 python-dbus libgtk-3-dev autoconf2.13 -y
+
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: list files
+        run: 'ls -alh .'
 
       - name: Copy mozconfig
         run: cd basilisk-mirror && cp .github/workflows/build-basilisk/mozconfig-gtk3-x86_64 .mozconfig
