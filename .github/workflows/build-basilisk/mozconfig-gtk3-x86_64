@@ -8,8 +8,8 @@ _GTK_VERSION=3
 export BASILISK_VERSION=1
 
 # Set GCC 11
-export CC="ccache gcc-11"
-export CXX="ccache g++-11"
+export CC=gcc-11
+export CXX=g++-11
 
 # Standard build options for Basilisk
 ac_add_options --enable-application=basilisk
@@ -30,6 +30,8 @@ ac_add_options --disable-updater
 ac_add_options --with-pthreads
 ac_add_options --disable-gconf
 ac_add_options --enable-pie
+
+ac_add_options --with-ccache
 
 ac_add_options --disable-official-branding
 export MOZILLA_OFFICIAL=1
