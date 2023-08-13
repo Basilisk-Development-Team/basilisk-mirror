@@ -31,8 +31,6 @@ ac_add_options --with-pthreads
 ac_add_options --disable-gconf
 ac_add_options --enable-pie
 
-ac_add_options --with-ccache
-
 ac_add_options --disable-official-branding
 export MOZILLA_OFFICIAL=1
 
