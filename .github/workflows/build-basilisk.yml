@@ -8,16 +8,16 @@ on:
 
 jobs:
   build-basilisk:
-    name: Build Basilisk ${{ matrix.config.name }} x86_64
+    name: Build Basilisk ${{ matrix.config.name }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         config:
-        - name: GTK3-x86_64
+        - name: GTK3 x86_64
           gtk: gtk3
           arch: x86_64
-        - name: GTK2-x86_64
+        - name: GTK2 x86_64
           gtk: gtk2
           arch: x86_64
     steps:
