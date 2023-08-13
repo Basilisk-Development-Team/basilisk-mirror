@@ -8,7 +8,16 @@ on:
 
 jobs:
   build-basilisk:
+    name: Build Basilisk ${{ matrix.config.name }} x86_64
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - name: GTK3
+          gtk: gtk3
+        - name: GTK2
+          gtk: gtk2
     steps:
       - name: Install dependencies
         run: |
@@ -24,7 +33,7 @@ jobs:
           submodules: recursive
 
       - name: Copy mozconfig
-        run: cp .github/workflows/build-basilisk/mozconfig-gtk3-x86_64 .mozconfig
+        run: cp .github/workflows/build-basilisk/mozconfig-${{ matrix.config.gtk }}-x86_64 .mozconfig
 
       - name: mach configure
         run: ./mach configure
@@ -37,5 +46,5 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: basilisk-linux-x86_64-gtk3
+          name: basilisk-linux-x86_64-${{ matrix.config.name }}
           path: obj-x86_64-pc-linux-gnu/dist/basilisk-*
