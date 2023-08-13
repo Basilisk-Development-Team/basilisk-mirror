@@ -8,8 +8,8 @@ _GTK_VERSION=2
 export BASILISK_VERSION=1
 
 # Set GCC 11
-export CC=gcc-11
-export CXX=g++-11
+export CC="ccache gcc-11"
+export CXX="ccache g++-11"
 
 # Standard build options for Basilisk
 ac_add_options --enable-application=basilisk
