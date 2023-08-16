@@ -36,11 +36,10 @@ jobs:
         run: |
           sudo dpkg --add-architecture i386
           sudo apt-get update
-          sudo apt-get install gcc-multilib g++-multilib libxt-dev:i386 \
+          sudo apt-get install g++-9-i686-linux-gnu libxt-dev:i386 \
           libx11-xcb-dev:i386 libxext-dev:i386 libxcb-shm0-dev:i386 \
           libgtk2.0-dev:i386 libgtk-3-dev:i386 libasound2-dev:i386 \
-          libpulse-dev:i386 libdbus-glib-1-dev:i386 gcc-9-i686-linux-gnu \
-          g++-9-i686-linux-gnu
+          libpulse-dev:i386 libdbus-glib-1-dev:i386 gcc-9-i686-linux-gnu 
 
       - uses: actions/checkout@v3
         with:
