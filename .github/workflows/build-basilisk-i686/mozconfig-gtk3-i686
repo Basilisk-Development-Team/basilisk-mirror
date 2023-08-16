@@ -8,8 +8,8 @@ _GTK_VERSION=3
 export BASILISK_VERSION=1
 
 # Set GCC 9
-export CC=gcc-9
-export CXX=g++-9
+export CC=i686-linux-gnu-gcc-9
+export CXX=i686-linux-gnu-g++-9
 
 # Standard build options for Basilisk
 ac_add_options --enable-application=basilisk
