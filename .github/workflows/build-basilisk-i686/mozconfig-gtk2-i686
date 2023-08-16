@@ -1,8 +1,8 @@
 # Clear this if not a 64bit build
-_BUILD_64=1
+_BUILD_64=
 
 # Set GTK Version to 2 or 3
-_GTK_VERSION=3
+_GTK_VERSION=2
 
 # Set Basilisk version to date timestamp
 export BASILISK_VERSION=1
