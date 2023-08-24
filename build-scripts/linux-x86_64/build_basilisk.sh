@@ -10,6 +10,7 @@ if [ $(uname -s) != "Linux" ]; then
     exit
 fi
 
+# This probably isn't the best way to determine if we are in the Basilisk root directory but it works for now.
 if [ ! -f aclocal.m4 ]; then
     echo "This script must be ran from the root of the Basilisk codebase."
     exit
