@@ -17,8 +17,8 @@ wget http://www.linuxfromscratch.org/patches/blfs/svn/autoconf-2.13-consolidated
 sudo ./autoconf213.SlackBuild
 sudo upgradepkg --install-new /tmp/SBo/autoconf213-2.13-noarch-1.txz
 
-echo "Prepping file permissions..."
-groupadd -r -g $GID users
+echo "Prepping user and group inside docker container..."
+groupadd -r -g $GID $GROUPNAME
 useradd -u $UID $USERNAME -g $GID
 
 
