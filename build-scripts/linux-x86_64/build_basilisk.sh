@@ -25,5 +25,5 @@ fi
 
 echo "Starting Container..."
 
-# Slackware was selected because of the combination of stability and ease of use. Slackware 15 was specifically chosen because it comes with GCC 11.
-docker run -i -v $PWD:/share --rm -e UPDATEFIRST=$UPDATEFIRST -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t aclemons/slackware:15.0-full /share/build-scripts/linux-x86_64/build_basilisk_subscripts/run_inside_docker.sh
+# Slackware was selected because of the combination of stability and ease of use.
+docker run -i -v $PWD:/share --rm -e UPDATEFIRST=$UPDATEFIRST -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t basiliskdev/slackware14-uxp:latest /share/build-scripts/linux-x86_64/build_basilisk_subscripts/run_inside_docker.sh
