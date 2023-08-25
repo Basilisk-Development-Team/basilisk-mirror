@@ -7,10 +7,6 @@ _GTK_VERSION=2
 # Set Basilisk version to date timestamp
 export BASILISK_VERSION=1
 
-# Set GCC 9
-export CC=gcc-9
-export CXX=g++-9
-
 # Standard build options for Basilisk
 ac_add_options --enable-application=basilisk
 ac_add_options --enable-optimize="-O3 -march=x86-64 -w -msse2 -mfpmath=sse"
