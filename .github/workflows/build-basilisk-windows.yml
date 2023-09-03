@@ -1,0 +1,68 @@
+name: Build Basilisk Windows
+
+on:  
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - release
+
+jobs:
+  build-basilisk-win64:
+    name: Build Basilisk ${{ matrix.config.name }}
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - name: Windows-Win64
+          win: win64
+          arch: x86_64
+
+        - name: Windows-Win32
+          win: win32
+          arch: i686
+
+    steps:
+      # - name: "MSVC Developer Command Prompt"
+      #   uses: seanmiddleditch/gha-setup-vsdevenv@v4
+
+      - name: Install MozillaBuild
+        run: |
+          Invoke-WebRequest -Uri https://ftp.mozilla.org/pub/mozilla/libraries/win32/MozillaBuildSetup-3.4.exe -OutFile MozillaBuildSetup-3.4.exe
+          .\MozillaBuildSetup-3.4.exe /S /v/qn | Write-Output
+          del .\MozillaBuildSetup-3.4.exe
+        shell: pwsh
+
+      - uses: ChristopheLav/windows-sdk-install@v1
+        with:
+          version-sdk: 22621
+          features: 'OptionId.DesktopCPPx64,OptionId.DesktopCPPx86'
+
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Copy mozconfig
+        run: Copy-Item .github\workflows\build-basilisk-windows\mozconfig-${{ matrix.config.win }} -Destination .\.mozconfig
+        shell: pwsh
+
+      - name: mach configure
+        run: |
+          C:\mozilla-build\start-shell.bat /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} configure
+        shell: pwsh
+
+      - name: mach build
+        run: |
+          C:\mozilla-build\start-shell.bat /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} build
+        shell: pwsh
+
+      - name: mach package
+        run: |
+          C:\mozilla-build\start-shell.bat /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} package
+        shell: pwsh
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: basilisk-windows-${{ matrix.config.win }}
+          path: obj-${{ matrix.config.arch }}-pc-mingw32/dist/basilisk-*
