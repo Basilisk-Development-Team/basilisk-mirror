@@ -8,7 +8,7 @@ on:
       - release
 
 jobs:
-  build-basilisk-win64:
+  build-basilisk-windows:
     name: Build Basilisk ${{ matrix.config.name }}
     runs-on: windows-2022
     strategy:
