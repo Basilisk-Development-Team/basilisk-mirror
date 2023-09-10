@@ -128,7 +128,7 @@
           </description>
 #else
           <description class="text-blurb" id="communityDesc">
-			  Basilisk is community software released by <label class="text-link" href="https://basilisk-browser.org/">the Basilisk Browser team</label> and Mozilla developers. Learn <label class="text-link" useoriginprincipal="true" href="about:credits">who contributed</label> to this software. Basilisk was formerly developed by the <a href="https://www.palemoon.org">Pale Moon</a> team. Without them this project would not exist. Thank you to Moonchild and others for your work on Basilisk over the years.
+			  Basilisk is community software released by <label class="text-link" href="https://basilisk-browser.org/">the Basilisk Browser team</label> and Mozilla developers. Learn <label class="text-link" useoriginprincipal="true" href="about:credits">who contributed</label> to this software. Basilisk was formerly developed by the <a href="https://www.palemoon.org">Pale Moon</a> team.
           </description>
           <description class="text-blurb" id="contributeDesc">
               Want to help? Please consider <label class="text-link" href="https://www.palemoon.org/donations.shtml">donating to the Pale Moon project</label> or get involved with the <label class="text-link" href="https://repo.palemoon.org/MoonchildProductions/UXP">development</label> of the Unified XUL Platform.
