@@ -14,6 +14,9 @@ fi
 # Automatically clobber if CLOBBER was touched
 mk_add_options AUTOCLOBBER=1
 
+# Set Basilisk version to date timestamp
+export BASILISK_VERSION=1
+
 export MOZILLA_OFFICIAL=1
 
 # Standard build options for Basilisk
