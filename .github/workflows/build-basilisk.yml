@@ -22,6 +22,11 @@ jobs:
           gtk: gtk2
           arch: x86_64
     steps:
+      - name: Free Disk Space Prep
+        run: |
+          sudo apt-get update
+          sudo apt-get remove -y '^ dotnet -. *'
+
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
@@ -32,7 +37,7 @@ jobs:
           # all of these default to true, but feel free to set to
           # "false" if necessary for your workflow
           android: true
-          dotnet: false
+          dotnet: true
           haskell: true
           large-packages: true
           docker-images: false
