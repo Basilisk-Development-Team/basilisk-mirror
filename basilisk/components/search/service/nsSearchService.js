@@ -1798,24 +1798,6 @@ Engine.prototype = {
         uri = gChromeReg.convertChromeURL(uri);
       }
 
-      if (AppConstants.platform == "android") {
-        // On Android the omni.ja file isn't at the same path as the binary
-        // used to start the process. We tweak the path here so that the code
-        // shared with Desktop will correctly identify files from the omni.ja
-        // file as coming from the [app] folder.
-        let appPath = Services.io.getProtocolHandler("resource")
-                              .QueryInterface(Ci.nsIResProtocolHandler)
-                              .getSubstitution("android");
-        if (appPath) {
-          appPath = appPath.spec;
-          let spec = uri.spec;
-          if (spec.includes(appPath)) {
-            let appURI = Services.io.newFileURI(getDir(knownDirs["app"]));
-            uri = NetUtil.newURI(spec.replace(appPath, appURI.spec));
-          }
-        }
-      }
-
       if (uri instanceof Ci.nsINestedURI) {
         prefix = "jar:";
         suffix = "!" + packageName + "/" + leafName;
@@ -1989,8 +1971,7 @@ Engine.prototype = {
   // from nsISearchEngine
   getSubmission: function(aData, aResponseType, aPurpose) {
     if (!aResponseType) {
-      aResponseType = AppConstants.platform == "android" ? this._defaultMobileResponseType :
-                                                           URLTYPE_SEARCH_HTML;
+      aResponseType = URLTYPE_SEARCH_HTML;
     }
 
     if (aResponseType == URLTYPE_SEARCH_HTML &&
@@ -2042,8 +2023,7 @@ Engine.prototype = {
   // from nsISearchEngine
   getResultDomain: function(aResponseType) {
     if (!aResponseType) {
-      aResponseType = AppConstants.platform == "android" ? this._defaultMobileResponseType :
-                                                           URLTYPE_SEARCH_HTML;
+      aResponseType = URLTYPE_SEARCH_HTML;
     }
 
     LOG("getResultDomain: responseType: \"" + aResponseType + "\"");
@@ -2058,8 +2038,7 @@ Engine.prototype = {
    * Returns URL parsing properties used by _buildParseSubmissionMap.
    */
   getURLParsingInfo: function () {
-    let responseType = AppConstants.platform == "android" ? this._defaultMobileResponseType :
-                                                            URLTYPE_SEARCH_HTML;
+    let responseType = URLTYPE_SEARCH_HTML;
 
     LOG("getURLParsingInfo: responseType: \"" + responseType + "\"");
 
