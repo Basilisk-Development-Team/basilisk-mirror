@@ -305,7 +305,7 @@ pref("browser.download.loglevel", "Error");
 // feedback from their action.
 pref("browser.download.saveLinkAsFilenameTimeout", 4000);
 
-pref("browser.download.useDownloadDir", true);
+pref("browser.download.useDownloadDir", false);
 pref("browser.download.folderList", 1);
 pref("browser.download.manager.addToRecentDocs", true);
 pref("browser.download.manager.resumeOnWakeDelay", 10000);
