@@ -1287,18 +1287,6 @@ pref("print.use_simplify_page", true);
 // only strings) through webchannels.
 pref("webchannel.allowObject.urlWhitelist", "");
 
-// Whether or not the browser should scan for unsubmitted
-// crash reports, and then show a notification for submitting
-// those reports.
-pref("browser.crashReports.unsubmittedCheck.enabled", false);
-
-// chancesUntilSuppress is how many times we'll show the unsubmitted
-// crash report notification across different days and shutdown
-// without a user choice before we suppress the notification for
-// some number of days.
-pref("browser.crashReports.unsubmittedCheck.chancesUntilSuppress", 4);
-pref("browser.crashReports.unsubmittedCheck.autoSubmit2", false);
-
 // When a user cancels this number of authentication dialogs coming from
 // a single web page (eTLD+1) in a row, all following authentication dialogs
 // will be blocked (automatically canceled) for that page.
