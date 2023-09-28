@@ -39,7 +39,7 @@ jobs:
           version-sdk: 22621
           features: 'OptionId.DesktopCPPx64,OptionId.DesktopCPPx86'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
