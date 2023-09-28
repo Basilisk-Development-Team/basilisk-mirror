@@ -25,23 +25,8 @@ jobs:
       - name: Free Disk Space Prep
         run: |
           sudo apt-get update
-          sudo apt-get remove -y *dotnet*
-
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
-          tool-cache: false
-          
-          # all of these default to true, but feel free to set to
-          # "false" if necessary for your workflow
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: false
-          swap-storage: false
+          sudo apt-get remove -y *dotnet* *google-cloud* *aws* *php* google-chrome-stable firefox powershell mono-devel
+          sudo apt-get autoremove -y
 
       - uses: actions/checkout@v3
         with:
