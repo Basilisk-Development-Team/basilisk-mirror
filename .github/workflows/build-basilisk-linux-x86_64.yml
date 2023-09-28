@@ -22,7 +22,7 @@ jobs:
           gtk: gtk2
           arch: x86_64
     steps:
-      - name: Free Disk Space Prep
+      - name: Free Disk Space
         run: |
           sudo apt-get update
           sudo apt-get remove -y *dotnet* *google-cloud* *aws* *php* google-chrome-stable firefox powershell mono-devel
