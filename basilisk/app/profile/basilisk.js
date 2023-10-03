@@ -305,7 +305,7 @@ pref("browser.download.loglevel", "Error");
 // feedback from their action.
 pref("browser.download.saveLinkAsFilenameTimeout", 4000);
 
-pref("browser.download.useDownloadDir", true);
+pref("browser.download.useDownloadDir", false);
 pref("browser.download.folderList", 1);
 pref("browser.download.manager.addToRecentDocs", true);
 pref("browser.download.manager.resumeOnWakeDelay", 10000);
@@ -870,11 +870,7 @@ pref("browser.zoom.siteSpecific", true);
 pref("browser.zoom.updateBackgroundTabs", true);
 
 // The breakpad report server to link to in about:crashes
-pref("breakpad.reportURL", "https://crash-stats.mozilla.com/report/index/");
-
-// URL for "Learn More" for Crash Reporter
-pref("toolkit.crashreporter.infoURL",
-     "https://www.mozilla.org/legal/privacy/firefox.html#crash-reporter");
+pref("breakpad.reportURL", "");
 
 // base URL for web-based support pages
 pref("app.support.baseURL", "https://support.mozilla.org/1/firefox/%VERSION%/%OS%/%LOCALE%/");
@@ -1047,12 +1043,6 @@ pref("browser.newtabpage.rows", 3);
 // number of columns of newtab grid
 pref("browser.newtabpage.columns", 5);
 
-// directory tiles download URL
-pref("browser.newtabpage.directory.source", "https://tiles.services.mozilla.com/v3/links/fetch/%LOCALE%/%CHANNEL%");
-
-// endpoint to send newtab click and view pings
-pref("browser.newtabpage.directory.ping", "https://tiles.services.mozilla.com/v3/links/");
-
 // activates the remote-hosted newtab page
 pref("browser.newtabpage.remote", false);
 
@@ -1148,11 +1138,6 @@ pref("browser.uiCustomization.debug", false);
 // CustomizableUI state of the browser's user interface
 pref("browser.uiCustomization.state", "");
 
-// URLs for promo links to mobile browsers. Note that consumers are expected to
-// append a value for utm_campaign.
-pref("identity.mobilepromo.android", "https://www.mozilla.org/firefox/android/?utm_source=firefox-browser&utm_medium=firefox-browser&utm_campaign=");
-pref("identity.mobilepromo.ios", "https://www.mozilla.org/firefox/ios/?utm_source=firefox-browser&utm_medium=firefox-browser&utm_campaign=");
-
 // On GTK, we now default to showing the menubar only when alt is pressed:
 #ifdef MOZ_WIDGET_GTK
 pref("ui.key.menuAccessKeyFocuses", true);
@@ -1215,13 +1200,6 @@ pref("media.gmp-provider.enabled", true);
 pref("browser.tabs.remote.autostart.1", false);
 pref("browser.tabs.remote.autostart.2", true);
 #endif
-
-// For the about:tabcrashed page
-pref("browser.tabs.crashReporting.sendReport", true);
-pref("browser.tabs.crashReporting.includeURL", false);
-pref("browser.tabs.crashReporting.requestEmail", false);
-pref("browser.tabs.crashReporting.emailMe", false);
-pref("browser.tabs.crashReporting.email", "");
 
 // Enable e10s add-on interposition by default.
 pref("extensions.interposition.enabled", true);
@@ -1302,38 +1280,12 @@ pref("extensions.pocket.enabled", true);
 
 pref("signon.schemeUpgrades", true);
 
-// "Simplify Page" feature in Print Preview. This feature is disabled by default
-// in toolkit.
-//
-// This feature is only enabled on Nightly for Linux until bug 1306295 is fixed.
-// For non-Linux, this feature is only enabled up to early Beta.
-#ifdef UNIX_BUT_NOT_MAC
-#if defined(NIGHTLY_BUILD)
+// "Simplify Page" feature in Print Preview.
 pref("print.use_simplify_page", true);
-#endif
-#endif
 
 // Space separated list of URLS that are allowed to send objects (instead of
-// only strings) through webchannels. This list is duplicated in mobile/android/app/mobile.js
-pref("webchannel.allowObject.urlWhitelist", "https://accounts.firefox.com https://content.cdn.mozilla.net https://input.mozilla.org https://support.mozilla.org https://install.mozilla.org");
-
-// Whether or not the browser should scan for unsubmitted
-// crash reports, and then show a notification for submitting
-// those reports.
-pref("browser.crashReports.unsubmittedCheck.enabled", false);
-
-// chancesUntilSuppress is how many times we'll show the unsubmitted
-// crash report notification across different days and shutdown
-// without a user choice before we suppress the notification for
-// some number of days.
-pref("browser.crashReports.unsubmittedCheck.chancesUntilSuppress", 4);
-pref("browser.crashReports.unsubmittedCheck.autoSubmit2", false);
-
-#ifdef NIGHTLY_BUILD
-// Enable the (fairly costly) client/server validation on nightly only. The other prefs
-// controlling validation are located in /services/sync/services-sync.js
-pref("services.sync.validation.enabled", true);
-#endif
+// only strings) through webchannels.
+pref("webchannel.allowObject.urlWhitelist", "");
 
 // When a user cancels this number of authentication dialogs coming from
 // a single web page (eTLD+1) in a row, all following authentication dialogs

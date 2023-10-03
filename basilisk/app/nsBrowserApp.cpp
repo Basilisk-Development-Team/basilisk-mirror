@@ -34,7 +34,7 @@
 #include "mozilla/Sprintf.h"
 #include "mozilla/WindowsDllBlocklist.h"
 
-#if !defined(MOZ_WIDGET_COCOA) && !defined(MOZ_WIDGET_ANDROID)
+#if !defined(MOZ_WIDGET_COCOA)
 #define MOZ_BROWSER_CAN_BE_CONTENTPROC
 #include "../../ipc/contentproc/plugin-container.cpp"
 #endif

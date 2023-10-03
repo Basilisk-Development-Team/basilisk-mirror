@@ -1,4 +1,4 @@
-name: Build Basilisk i686
+name: Build Basilisk Linux i686
 
 on:  
   workflow_dispatch:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-basilisk:
-    name: Build Basilisk ${{ matrix.config.name }}
+    name: Build Basilisk Linux ${{ matrix.config.name }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -41,12 +41,12 @@ jobs:
           libgtk2.0-dev:i386 libgtk-3-dev:i386 libasound2-dev:i386 \
           libpulse-dev:i386 libdbus-glib-1-dev:i386 gcc-9-i686-linux-gnu 
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Copy mozconfig
-        run: cp .github/workflows/build-basilisk-i686/mozconfig-${{ matrix.config.gtk }}-${{ matrix.config.arch }} .mozconfig
+        run: cp .github/workflows/build-basilisk-linux-i686/mozconfig-${{ matrix.config.gtk }}-${{ matrix.config.arch }} .mozconfig
 
       - name: mach configure
         run: ./mach configure
