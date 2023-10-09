@@ -7,7 +7,7 @@ browser.jar:
     content/browser/preferences/applicationManager.js
 *   content/browser/preferences/colors.xul
 *   content/browser/preferences/cookies.xul
-    content/browser/preferences/cookies.js
+*   content/browser/preferences/cookies.js
 *   content/browser/preferences/connection.xul
     content/browser/preferences/connection.js
 *   content/browser/preferences/fonts.xul
