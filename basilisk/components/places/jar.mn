@@ -26,7 +26,7 @@ browser.jar:
 # ditto for the bookmarks sidebar
     content/browser/bookmarks/bookmarksPanel.xul         (content/bookmarksPanel.xul)
     content/browser/bookmarks/bookmarksPanel.js          (content/bookmarksPanel.js)
-    content/browser/bookmarks/sidebarUtils.js            (content/sidebarUtils.js)
+*   content/browser/bookmarks/sidebarUtils.js            (content/sidebarUtils.js)
     content/browser/places/moveBookmarks.xul             (content/moveBookmarks.xul)
     content/browser/places/moveBookmarks.js              (content/moveBookmarks.js)
     content/browser/places/editBookmarkOverlay.xul       (content/editBookmarkOverlay.xul)
