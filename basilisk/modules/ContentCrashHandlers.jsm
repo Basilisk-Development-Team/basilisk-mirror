@@ -17,8 +17,6 @@ Cu.import("resource://gre/modules/Services.jsm");
 
 XPCOMUtils.defineLazyModuleGetter(this, "CrashSubmit",
   "resource://gre/modules/CrashSubmit.jsm");
-XPCOMUtils.defineLazyModuleGetter(this, "AppConstants",
-  "resource://gre/modules/AppConstants.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "RemotePages",
   "resource://gre/modules/RemotePageManager.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "SessionStore",
