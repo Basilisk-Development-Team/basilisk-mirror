@@ -20,9 +20,6 @@ XPCOMUtils.defineLazyGetter(this, "gNavigatorBundle", function() {
   return Services.strings.createBundle(url);
 });
 
-XPCOMUtils.defineLazyModuleGetter(this, "AppConstants",
-  "resource://gre/modules/AppConstants.jsm");
-
 this.PluginContent = function (global) {
   this.init(global);
 }
