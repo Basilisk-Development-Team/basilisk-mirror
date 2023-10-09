@@ -3,8 +3,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+DEFINES['BASILISK_VERSION'] = CONFIG['BASILISK_VERSION']
+
 EXTRA_JS_MODULES += [
-    'AboutHome.jsm',
     'AboutNewTab.jsm',
     'AttributionCode.jsm',
     'ContentClick.jsm',
@@ -32,6 +33,10 @@ EXTRA_JS_MODULES += [
     'TransientPrefs.jsm',
     'URLBarZoom.jsm',
     'webrtcUI.jsm',
+]
+
+EXTRA_PP_JS_MODULES += [
+    'AboutHome.jsm',
 ]
 
 if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'windows':
