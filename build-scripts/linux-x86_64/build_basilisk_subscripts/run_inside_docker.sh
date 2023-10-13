@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [ -n "$UPDATEFIRST" ]; then
+if [ "$UPDATEFIRST" = "yes" ]; then
     echo "Updating Packages..."
     yes y | slackpkg -default_answer=yes -batch=on update gpg
     slackpkg -default_answer=yes -batch=on update
@@ -16,6 +16,11 @@ useradd -u $UID $USERNAME -g $GID
 
 echo "Building Basilisk..."
 cd /share
+
+if [ "$APPLYPATCHES" = "yes" ]; then
+    patch -p1 < patches/0001-goanna-disable-pref.diff
+fi
+
 su -c "./mach clobber" $USERNAME
 su -c "./mach configure" $USERNAME
 su -c "./mach build" $USERNAME
