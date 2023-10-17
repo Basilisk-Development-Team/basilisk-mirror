@@ -410,11 +410,3 @@
                 accesskey="&inspectContextMenu.accesskey;"
                 oncommand="gContextMenu.inspectNode();"/>
 #endif
-      <menuseparator id="context-media-eme-separator" hidden="true"/>
-      <menuitem id="context-media-eme-learnmore"
-                class="menuitem-iconic"
-                hidden="true"
-                label="&emeLearnMoreContextMenu.label;"
-                accesskey="&emeLearnMoreContextMenu.accesskey;"
-                oncommand="gContextMenu.drmLearnMore(event);"
-                onclick="checkForMiddleClick(this, event);"/>

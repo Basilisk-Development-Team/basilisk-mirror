@@ -425,8 +425,6 @@ nsContextMenu.prototype = {
     this.showItem("context-media-showcontrols", onMedia && !this.target.controls);
     this.showItem("context-media-hidecontrols", this.target.controls && (this.onVideo || (this.onAudio && !this.inSyntheticDoc)));
     this.showItem("context-video-fullscreen", this.onVideo && this.target.ownerDocument.fullscreenElement == null);
-    this.showItem("context-media-eme-learnmore", this.onDRMMedia);
-    this.showItem("context-media-eme-separator", this.onDRMMedia);
 
     // Disable them when there isn't a valid media source loaded.
     if (onMedia) {
@@ -451,7 +449,7 @@ nsContextMenu.prototype = {
       this.setItemAttr("context-media-showcontrols", "disabled", hasError);
       this.setItemAttr("context-media-hidecontrols", "disabled", hasError);
       if (this.onVideo) {
-        let canSaveSnapshot = !this.onDRMMedia && this.target.readyState >= this.target.HAVE_CURRENT_DATA;
+        let canSaveSnapshot = this.target.readyState >= this.target.HAVE_CURRENT_DATA;
         this.setItemAttr("context-video-saveimage",  "disabled", !canSaveSnapshot);
         this.setItemAttr("context-video-fullscreen", "disabled", hasError);
       }
@@ -569,7 +567,6 @@ nsContextMenu.prototype = {
     this.onCanvas          = false;
     this.onVideo           = false;
     this.onAudio           = false;
-    this.onDRMMedia        = false;
     this.onTextInput       = false;
     this.onNumeric         = false;
     this.onKeywordField    = false;
@@ -667,9 +664,6 @@ nsContextMenu.prototype = {
         if (this.isMediaURLReusable(mediaURL)) {
           this.mediaURL = mediaURL;
         }
-        if (this._isProprietaryDRM()) {
-          this.onDRMMedia = true;
-        }
         // Firefox always creates a HTMLVideoElement when loading an ogg file
         // directly. If the media is actually audio, be smarter and provide a
         // context menu with audio operations.
@@ -685,9 +679,6 @@ nsContextMenu.prototype = {
         let mediaURL = this.target.currentSrc || this.target.src;
         if (this.isMediaURLReusable(mediaURL)) {
           this.mediaURL = mediaURL;
-        }
-        if (this._isProprietaryDRM()) {
-          this.onDRMMedia = true;
         }
       }
       else if (editFlags & (SpellCheckHelper.INPUT | SpellCheckHelper.TEXTAREA)) {
@@ -906,11 +897,6 @@ nsContextMenu.prototype = {
     }
     // Otherwise make sure that nothing in the parent chain disables spellchecking
     return aNode.spellcheck;
-  },
-
-  _isProprietaryDRM: function() {
-    return this.target.isEncrypted && this.target.mediaKeys &&
-           this.target.mediaKeys.keySystem != "org.w3.clearkey";
   },
 
   _openLinkInParameters : function (extra) {
@@ -1672,17 +1658,6 @@ nsContextMenu.prototype = {
     var clipboard = Cc["@mozilla.org/widget/clipboardhelper;1"].
                     getService(Ci.nsIClipboardHelper);
     clipboard.copyString(this.mediaURL);
-  },
-
-  drmLearnMore: function(aEvent) {
-    let drmInfoURL = Services.urlFormatter.formatURLPref("app.support.baseURL") + "drm-content";
-    let dest = whereToOpenLink(aEvent);
-    // Don't ever want this to open in the same tab as it'll unload the
-    // DRM'd video, which is going to be a bad idea in most cases.
-    if (dest == "current") {
-      dest = "tab";
-    }
-    openUILinkIn(drmInfoURL, dest);
   },
 
   get imageURL() {

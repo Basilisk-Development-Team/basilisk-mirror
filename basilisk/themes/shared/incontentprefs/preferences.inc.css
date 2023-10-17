@@ -179,12 +179,6 @@ treecol {
 }
 
 /* Content pane */
-#playDRMContentLink {
-  /* Line up with the buttons in the other grid bits: */
-  margin-left: 4px !important;
-  margin-right: 4px !important;
-}
-
 #notificationsPolicyLearnMore {
   margin-inline-start: 1.5em !important;
 }

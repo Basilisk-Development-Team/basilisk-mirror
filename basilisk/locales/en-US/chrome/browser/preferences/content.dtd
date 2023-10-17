@@ -37,9 +37,3 @@
 <!ENTITY chooseLanguage.label         "Choose your preferred language for displaying pages">
 <!ENTITY chooseButton.label           "Choose…">
 <!ENTITY chooseButton.accesskey       "o">
-
-<!ENTITY  drmContent.label             "DRM content">
-
-<!ENTITY  playDRMContent.label         "Play DRM content">
-<!ENTITY  playDRMContent.accesskey     "P">
-<!ENTITY  playDRMContent.learnMore.label "Learn more">
