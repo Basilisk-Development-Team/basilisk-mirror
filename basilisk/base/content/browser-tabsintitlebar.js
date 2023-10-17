@@ -159,17 +159,17 @@ var TabsInTitlebar = {
       let captionButtonsBoxWidth = rect($("titlebar-buttonbox-container")).width;
 
       let secondaryButtonsWidth, menuHeight, fullMenuHeight, menuStyles;
-      if (AppConstants.platform == "macosx") {
-        secondaryButtonsWidth = rect($("titlebar-secondary-buttonbox")).width;
-        // No need to look up the menubar stuff on OS X:
-        menuHeight = 0;
-        fullMenuHeight = 0;
-      } else {
-        // Otherwise, get the height and margins separately for the menubar
-        menuHeight = rect(menubar).height;
-        menuStyles = window.getComputedStyle(menubar);
-        fullMenuHeight = verticalMargins(menuStyles) + menuHeight;
-      }
+#ifdef XP_MACOSX
+      secondaryButtonsWidth = rect($("titlebar-secondary-buttonbox")).width;
+      // No need to look up the menubar stuff on OS X:
+      menuHeight = 0;
+      fullMenuHeight = 0;
+#else
+      // Otherwise, get the height and margins separately for the menubar
+      menuHeight = rect(menubar).height;
+      menuStyles = window.getComputedStyle(menubar);
+      fullMenuHeight = verticalMargins(menuStyles) + menuHeight;
+#endif
 
       // And get the height of what's in the titlebar:
       let titlebarContentHeight = rect(titlebarContent).height;
@@ -211,9 +211,9 @@ var TabsInTitlebar = {
         // We need to increase the titlebar content's outer height (ie including margins)
         // to match the tab and menu height:
         let extraMargin = tabAndMenuHeight - titlebarContentHeight;
-        if (AppConstants.platform != "macosx") {
-          titlebarContent.style.marginBottom = extraMargin + "px";
-        }
+#ifndef XP_MACOSX
+        titlebarContent.style.marginBottom = extraMargin + "px";
+#endif
 
         titlebarContentHeight += extraMargin;
       } else {
@@ -226,19 +226,19 @@ var TabsInTitlebar = {
       titlebar.style.marginBottom = "-" + minTitlebarOrTabsHeight + "px";
 
       // Finally, size the placeholders:
-      if (AppConstants.platform == "macosx") {
-        this._sizePlaceholder("fullscreen-button", secondaryButtonsWidth);
-      }
+#ifdef XP_MACOSX
+      this._sizePlaceholder("fullscreen-button", secondaryButtonsWidth);
+#endif
       this._sizePlaceholder("caption-buttons", captionButtonsBoxWidth);
 
     } else {
       document.documentElement.removeAttribute("tabsintitlebar");
       updateTitlebarDisplay();
 
-      if (AppConstants.platform == "macosx") {
-        let secondaryButtonsWidth = rect($("titlebar-secondary-buttonbox")).width;
-        this._sizePlaceholder("fullscreen-button", secondaryButtonsWidth);
-      }
+#ifdef XP_MACOSX
+      let secondaryButtonsWidth = rect($("titlebar-secondary-buttonbox")).width;
+      this._sizePlaceholder("fullscreen-button", secondaryButtonsWidth);
+#endif
 
       // Reset the margins and padding that might have been modified:
       titlebarContent.style.marginTop = "";
@@ -268,35 +268,36 @@ var TabsInTitlebar = {
 };
 
 function updateTitlebarDisplay() {
-  if (AppConstants.platform == "macosx") {
-    // OS X and the other platforms differ enough to necessitate this kind of
-    // special-casing. Like the other platforms where we CAN_DRAW_IN_TITLEBAR,
-    // we draw in the OS X titlebar when putting the tabs up there. However, OS X
-    // also draws in the titlebar when a lightweight theme is applied, regardless
-    // of whether or not the tabs are drawn in the titlebar.
-    if (TabsInTitlebar.enabled) {
-      document.documentElement.setAttribute("chromemargin-nonlwtheme", "0,-1,-1,-1");
-      document.documentElement.setAttribute("chromemargin", "0,-1,-1,-1");
-      document.documentElement.removeAttribute("drawtitle");
-    } else {
-      // We set chromemargin-nonlwtheme to "" instead of removing it as a way of
-      // making sure that LightweightThemeConsumer doesn't take it upon itself to
-      // detect this value again if and when we do a lwtheme state change.
-      document.documentElement.setAttribute("chromemargin-nonlwtheme", "");
-      let isCustomizing = document.documentElement.hasAttribute("customizing");
-      let hasLWTheme = document.documentElement.hasAttribute("lwtheme");
-      let isPrivate = PrivateBrowsingUtils.isWindowPrivate(window);
-      if ((!hasLWTheme || isCustomizing) && !isPrivate) {
-        document.documentElement.removeAttribute("chromemargin");
-      }
-      document.documentElement.setAttribute("drawtitle", "true");
+#ifdef XP_MACOSX
+  // OS X and the other platforms differ enough to necessitate this kind of
+  // special-casing. Like the other platforms where we CAN_DRAW_IN_TITLEBAR,
+  // we draw in the OS X titlebar when putting the tabs up there. However, OS X
+  // also draws in the titlebar when a lightweight theme is applied, regardless
+  // of whether or not the tabs are drawn in the titlebar.
+  if (TabsInTitlebar.enabled) {
+    document.documentElement.setAttribute("chromemargin-nonlwtheme", "0,-1,-1,-1");
+    document.documentElement.setAttribute("chromemargin", "0,-1,-1,-1");
+    document.documentElement.removeAttribute("drawtitle");
+  } else {
+    // We set chromemargin-nonlwtheme to "" instead of removing it as a way of
+    // making sure that LightweightThemeConsumer doesn't take it upon itself to
+    // detect this value again if and when we do a lwtheme state change.
+    document.documentElement.setAttribute("chromemargin-nonlwtheme", "");
+    let isCustomizing = document.documentElement.hasAttribute("customizing");
+    let hasLWTheme = document.documentElement.hasAttribute("lwtheme");
+    let isPrivate = PrivateBrowsingUtils.isWindowPrivate(window);
+    if ((!hasLWTheme || isCustomizing) && !isPrivate) {
+      document.documentElement.removeAttribute("chromemargin");
     }
-  } else if (TabsInTitlebar.enabled) {
-    // not OS X
+    document.documentElement.setAttribute("drawtitle", "true");
+  }
+#else
+  if (TabsInTitlebar.enabled) {
     document.documentElement.setAttribute("chromemargin", "0,2,2,2");
   } else {
     document.documentElement.removeAttribute("chromemargin");
   }
+#endif
 }
 
 function onTitlebarMaxClick() {

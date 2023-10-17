@@ -6,27 +6,28 @@
 let gDecoderDoctorHandler = {
   getLabelForNotificationBox(type) {
     if (type == "platform-decoder-not-found") {
-      if (AppConstants.platform == "win") {
-        return gNavigatorBundle.getString("decoder.noHWAcceleration.message");
-      }
-      if (AppConstants.platform == "linux") {
-        return gNavigatorBundle.getString("decoder.noCodecsLinux.message");
-      }
+#ifdef XP_WIN
+      return gNavigatorBundle.getString("decoder.noHWAcceleration.message");
+#endif
+#ifdef XP_LINUX
+      return gNavigatorBundle.getString("decoder.noCodecsLinux.message");
+#endif
     }
     if (type == "cannot-initialize-pulseaudio") {
       return gNavigatorBundle.getString("decoder.noPulseAudio.message");
     }
-    if (type == "unsupported-libavcodec" &&
-        AppConstants.platform == "linux") {
+#ifdef XP_LINUX
+    if (type == "unsupported-libavcodec") {
       return gNavigatorBundle.getString("decoder.unsupportedLibavcodec.message");
     }
+#endif
     return "";
   },
 
   getSumoForLearnHowButton(type) {
-    if (AppConstants.platform == "win") {
-      return "fix-video-audio-problems-firefox-windows";
-    }
+#ifdef XP_WIN
+    return "fix-video-audio-problems-firefox-windows";
+#endif
     if (type == "cannot-initialize-pulseaudio") {
       return "fix-common-audio-and-video-issues";
     }

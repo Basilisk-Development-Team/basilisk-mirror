@@ -53,10 +53,6 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
     </content>
 
     <implementation implements="nsIObserver, nsIDOMEventListener">
-      <field name="AppConstants" readonly="true">
-        (Components.utils.import("resource://gre/modules/AppConstants.jsm", {})).AppConstants;
-      </field>
-
       <constructor><![CDATA[
         this._prefs = Components.classes["@mozilla.org/preferences-service;1"]
                                 .getService(Components.interfaces.nsIPrefService)
@@ -629,9 +625,11 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
           }
 
           let url = aUrl;
-          let accel = this.AppConstants.platform == "macosx" ?
-                      aTriggeringEvent.metaKey :
-                      aTriggeringEvent.ctrlKey;
+#ifdef XP_MACOSX
+          let accel = aTriggeringEvent.metaKey;
+#else
+          let accel = aTriggeringEvent.ctrlKey;
+#endif
           let shift = aTriggeringEvent.shiftKey;
           let suffix = "";
 
@@ -1043,9 +1041,11 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
               KeyEvent.DOM_VK_ALT,
               KeyEvent.DOM_VK_SHIFT,
             ]);
-            let modifier = this.AppConstants.platform == "macosx" ?
-                           KeyEvent.DOM_VK_META :
-                           KeyEvent.DOM_VK_CONTROL;
+#ifdef XP_MACOSX
+            let modifier = KeyEvent.DOM_VK_META;
+#else
+            let modifier = KeyEvent.DOM_VK_CONTROL;
+#endif
             this.__noActionKeys.add(modifier);
           }
           return this.__noActionKeys;
@@ -1256,10 +1256,6 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
   <!-- Note: this binding is applied to the autocomplete popup used in web page content and extended in search.xml for the searchbar. -->
   <binding id="browser-autocomplete-result-popup" extends="chrome://global/content/bindings/autocomplete.xml#autocomplete-result-popup">
     <implementation>
-      <field name="AppConstants" readonly="true">
-        (Components.utils.import("resource://gre/modules/AppConstants.jsm", {})).AppConstants;
-      </field>
-
       <method name="openAutocompletePopup">
         <parameter name="aInput"/>
         <parameter name="aElement"/>
@@ -1303,9 +1299,11 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
             let params = {};
 
             // But open ctrl/cmd clicks on autocomplete items in a new background tab.
-            let modifier = this.AppConstants.platform == "macosx" ?
-                           aEvent.metaKey :
-                           aEvent.ctrlKey;
+#ifdef XP_MACOSX
+            let modifier = aEvent.metaKey;
+#else
+            let modifier = aEvent.ctrlKey;
+#endif
             if (where == "tab" && (aEvent instanceof MouseEvent) &&
                 (aEvent.button == 1 || modifier))
               params.inBackground = true;
