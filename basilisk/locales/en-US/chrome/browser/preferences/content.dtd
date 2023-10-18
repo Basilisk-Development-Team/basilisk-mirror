@@ -37,3 +37,12 @@
 <!ENTITY chooseLanguage.label         "Choose your preferred language for displaying pages">
 <!ENTITY chooseButton.label           "Choose…">
 <!ENTITY chooseButton.accesskey       "o">
+
+<!ENTITY  javascript.label            "JavaScript">
+
+<!ENTITY  javascriptWasm.label           "Enable WebAssembly (WASM)">
+<!ENTITY  javascriptWasm.accesskey       "y">
+#ifdef MOZ_WEBRTC
+<!ENTITY  javascriptWebrtc.label           "Enable WebRTC">
+<!ENTITY  javascriptWebrtc.accesskey       "R">
+#endif
