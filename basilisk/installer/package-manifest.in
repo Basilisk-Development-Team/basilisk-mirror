@@ -453,7 +453,6 @@
 @RESPATH@/browser/components/ChromeProfileMigrator.js
 @RESPATH@/browser/components/FirefoxProfileMigrator.js
 #ifdef XP_WIN
-@RESPATH@/browser/components/360seProfileMigrator.js
 @RESPATH@/browser/components/EdgeProfileMigrator.js
 @RESPATH@/browser/components/IEProfileMigrator.js
 #endif

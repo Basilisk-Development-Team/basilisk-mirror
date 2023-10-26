@@ -46,7 +46,7 @@ let gUndoData = null;
 XPCOMUtils.defineLazyGetter(this, "gAvailableMigratorKeys", function() {
   if (AppConstants.platform == "win") {
     return [
-      "firefox", "edge", "ie", "chrome", "chromium", "360se",
+      "firefox", "edge", "ie", "chrome", "chromium",
       "canary"
     ];
   }
@@ -529,8 +529,6 @@ this.MigrationUtils = Object.freeze({
         return "sourceNameChromium";
       case "firefox":
         return "sourceNameFirefox";
-      case "360se":
-        return "sourceName360se";
     }
     return null;
   },
@@ -645,7 +643,6 @@ this.MigrationUtils = Object.freeze({
    *                               canary (mac/windows),
    *                               chrome (mac/windows/linux),
    *                               chromium (mac/windows/linux),
-   *                               360se (windows),
    *                               firefox.
    *
    * If null is returned,  either no data can be imported
@@ -695,7 +692,6 @@ this.MigrationUtils = Object.freeze({
       "Chrome":                            "chrome",  // OS X
       "Chromium":                          "chromium", // Windows, OS X
       "Chromium Web Browser":              "chromium", // Linux
-      "360\u5b89\u5168\u6d4f\u89c8\u5668": "360se",
     };
 
     let key = "";
@@ -1071,6 +1067,5 @@ this.MigrationUtils = Object.freeze({
     "chromium":   6,
     "canary":     7,
     "safari":     8,
-    "360se":      9,
   },
 });
