@@ -8,7 +8,6 @@ this.EXPORTED_SYMBOLS = ["RecentWindow"];
 
 const Cu = Components.utils;
 
-Cu.import("resource://gre/modules/AppConstants.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/PrivateBrowsingUtils.jsm");
 
@@ -36,9 +35,11 @@ this.RecentWindow = {
                PrivateBrowsingUtils.isWindowPrivate(win) == aOptions.private));
     }
 
-    let broken_wm_z_order =
-      AppConstants.platform != "macosx" && AppConstants.platform != "win";
-
+#if defined(XP_WIN) || defined(XP_MACOSX)
+    let broken_wm_z_order = false;
+#else
+    let broken_wm_z_order = true;
+#endif
     if (broken_wm_z_order) {
       let win = Services.wm.getMostRecentWindow("navigator:browser");
 
@@ -64,4 +65,3 @@ this.RecentWindow = {
     return null;
   }
 };
-

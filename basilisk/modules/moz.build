@@ -26,18 +26,18 @@ EXTRA_JS_MODULES += [
     'PluginContent.jsm',
     'ProcessHangMonitor.jsm',
     'ReaderParent.jsm',
-    'RecentWindow.jsm',
     'RemotePrompt.jsm',
     'Sanitizer.jsm',
     'SitePermissions.jsm',
     'TransientPrefs.jsm',
     'URLBarZoom.jsm',
-    'webrtcUI.jsm',
 ]
 
 EXTRA_PP_JS_MODULES += [
     'AboutHome.jsm',
     'AttributionCode.jsm',
+    'RecentWindow.jsm',
+    'webrtcUI.jsm',
 ]
 
 if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'windows':

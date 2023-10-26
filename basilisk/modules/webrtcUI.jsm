@@ -13,8 +13,6 @@ const Ci = Components.interfaces;
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
-XPCOMUtils.defineLazyModuleGetter(this, "AppConstants",
-                                  "resource://gre/modules/AppConstants.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PluralForm",
                                   "resource://gre/modules/PluralForm.jsm");
 
@@ -141,7 +139,8 @@ this.webrtcUI = {
     }
     browserWindow.focus();
     let identityBox = browserWindow.document.getElementById("identity-box");
-    if (AppConstants.platform == "macosx" && !Services.focus.activeWindow) {
+#ifdef XP_MACOSX
+    if (!Services.focus.activeWindow) {
       browserWindow.addEventListener("activate", function onActivate() {
         browserWindow.removeEventListener("activate", onActivate);
         Services.tm.mainThread.dispatch(function() {
@@ -152,6 +151,7 @@ this.webrtcUI = {
         .activateApplication(true);
       return;
     }
+#endif
     identityBox.click();
   },
 
@@ -695,12 +695,12 @@ function removePrompt(aBrowser, aCallId) {
 }
 
 function getGlobalIndicator() {
-  if (AppConstants.platform != "macosx") {
-    const INDICATOR_CHROME_URI = "chrome://browser/content/webrtcIndicator.xul";
-    const features = "chrome,dialog=yes,titlebar=no,popup=yes";
+#ifndef XP_MACOSX
+  const INDICATOR_CHROME_URI = "chrome://browser/content/webrtcIndicator.xul";
+  const features = "chrome,dialog=yes,titlebar=no,popup=yes";
 
-    return Services.ww.openWindow(null, INDICATOR_CHROME_URI, "_blank", features, []);
-  }
+  return Services.ww.openWindow(null, INDICATOR_CHROME_URI, "_blank", features, []);
+#endif
 
   let indicator = {
     _camera: null,
@@ -886,18 +886,18 @@ function showOrCreateMenuForWindow(aWindow) {
     menu.setAttribute("label", stringBundle.getString(labelStringId));
 
     let container, insertionPoint;
-    if (AppConstants.platform == "macosx") {
-      container = document.getElementById("windowPopup");
-      insertionPoint = document.getElementById("sep-window-list");
-      let separator = document.createElement("menuseparator");
-      separator.id = "tabSharingSeparator";
-      container.insertBefore(separator, insertionPoint);
-    } else {
-      let accesskeyStringId = "getUserMedia.sharingMenu.accesskey";
-      menu.setAttribute("accesskey", stringBundle.getString(accesskeyStringId));
-      container = document.getElementById("main-menubar");
-      insertionPoint = document.getElementById("helpMenu");
-    }
+#ifdef XP_MACOSX
+    container = document.getElementById("windowPopup");
+    insertionPoint = document.getElementById("sep-window-list");
+    let separator = document.createElement("menuseparator");
+    separator.id = "tabSharingSeparator";
+    container.insertBefore(separator, insertionPoint);
+#else
+    let accesskeyStringId = "getUserMedia.sharingMenu.accesskey";
+    menu.setAttribute("accesskey", stringBundle.getString(accesskeyStringId));
+    container = document.getElementById("main-menubar");
+    insertionPoint = document.getElementById("helpMenu");
+#endif
     let popup = document.createElement("menupopup");
     popup.id = "tabSharingMenuPopup";
     popup.addEventListener("popupshowing", onTabSharingMenuPopupShowing);
@@ -906,9 +906,9 @@ function showOrCreateMenuForWindow(aWindow) {
     container.insertBefore(menu, insertionPoint);
   } else {
     menu.hidden = false;
-    if (AppConstants.platform == "macosx") {
-      document.getElementById("tabSharingSeparator").hidden = false;
-    }
+#ifdef XP_MACOSX
+    document.getElementById("tabSharingSeparator").hidden = false;
+#endif
   }
 }
 
@@ -948,12 +948,12 @@ function updateIndicators(data, target) {
       if (existingMenu) {
         existingMenu.hidden = true;
       }
-      if (AppConstants.platform == "macosx") {
-        let separator = doc.getElementById("tabSharingSeparator");
-        if (separator) {
-          separator.hidden = true;
-        }
+#ifdef XP_MACOSX
+      let separator = doc.getElementById("tabSharingSeparator");
+      if (separator) {
+        separator.hidden = true;
       }
+#endif
     }
   }
 
