@@ -700,8 +700,7 @@ function getGlobalIndicator() {
   const features = "chrome,dialog=yes,titlebar=no,popup=yes";
 
   return Services.ww.openWindow(null, INDICATOR_CHROME_URI, "_blank", features, []);
-#endif
-
+#else
   let indicator = {
     _camera: null,
     _microphone: null,
@@ -828,6 +827,7 @@ function getGlobalIndicator() {
 
   indicator.updateIndicatorState();
   return indicator;
+#endif
 }
 
 function onTabSharingMenuPopupShowing(e) {
