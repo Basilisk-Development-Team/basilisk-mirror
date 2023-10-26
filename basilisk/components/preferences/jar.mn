@@ -17,7 +17,7 @@ browser.jar:
 *   content/browser/preferences/languages.xul
     content/browser/preferences/languages.js
     content/browser/preferences/permissions.xul
-    content/browser/preferences/permissions.js
+*   content/browser/preferences/permissions.js
     content/browser/preferences/sanitize.xul
     content/browser/preferences/sanitize.js
     content/browser/preferences/selectBookmark.xul

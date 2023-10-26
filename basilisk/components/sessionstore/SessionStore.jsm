@@ -149,8 +149,6 @@ XPCOMUtils.defineLazyModuleGetter(this, "console",
 XPCOMUtils.defineLazyModuleGetter(this, "RecentWindow",
   "resource:///modules/RecentWindow.jsm");
 
-XPCOMUtils.defineLazyModuleGetter(this, "AppConstants",
-  "resource://gre/modules/AppConstants.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "GlobalState",
   "resource:///modules/sessionstore/GlobalState.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PrivacyFilter",
@@ -1121,7 +1119,12 @@ var SessionStoreInternal = {
 
       if (closedWindowState) {
         let newWindowState;
-        if (AppConstants.platform == "macosx" || !this._doResumeSession()) {
+#ifdef XP_MACOSX
+        // Always run this on MacOS
+        if (true) {
+#else
+        if (!this._doResumeSession()) {
+#endif
           // We want to split the window up into pinned tabs and unpinned tabs.
           // Pinned tabs should be restored. If there are any remaining tabs,
           // they should be added back to _closedWindows.
@@ -1302,11 +1305,11 @@ var SessionStoreInternal = {
         SessionCookies.update([winData]);
       }
 
-      if (AppConstants.platform != "macosx") {
-        // Until we decide otherwise elsewhere, this window is part of a series
-        // of closing windows to quit.
-        winData._shouldRestore = true;
-      }
+#ifndef XP_MACOSX
+      // Until we decide otherwise elsewhere, this window is part of a series
+      // of closing windows to quit.
+      winData._shouldRestore = true;
+#endif
 
       // Store the window's close date to figure out when each individual tab
       // was closed. This timestamp should allow re-arranging data based on how
@@ -2882,21 +2885,21 @@ var SessionStoreInternal = {
     // shallow copy this._closedWindows to preserve current state
     let lastClosedWindowsCopy = this._closedWindows.slice();
 
-    if (AppConstants.platform != "macosx") {
-      // If no non-popup browser window remains open, return the state of the last
-      // closed window(s). We only want to do this when we're actually "ending"
-      // the session.
-      //XXXzpao We should do this for _restoreLastWindow == true, but that has
-      //        its own check for popups. c.f. bug 597619
-      if (nonPopupCount == 0 && lastClosedWindowsCopy.length > 0 &&
-          RunState.isQuitting) {
-        // prepend the last non-popup browser window, so that if the user loads more tabs
-        // at startup we don't accidentally add them to a popup window
-        do {
-          total.unshift(lastClosedWindowsCopy.shift())
-        } while (total[0].isPopup && lastClosedWindowsCopy.length > 0)
-      }
+#ifndef XP_MACOSX
+    // If no non-popup browser window remains open, return the state of the last
+    // closed window(s). We only want to do this when we're actually "ending"
+    // the session.
+    //XXXzpao We should do this for _restoreLastWindow == true, but that has
+    //        its own check for popups. c.f. bug 597619
+    if (nonPopupCount == 0 && lastClosedWindowsCopy.length > 0 &&
+        RunState.isQuitting) {
+      // prepend the last non-popup browser window, so that if the user loads more tabs
+      // at startup we don't accidentally add them to a popup window
+      do {
+        total.unshift(lastClosedWindowsCopy.shift())
+      } while (total[0].isPopup && lastClosedWindowsCopy.length > 0)
     }
+#endif
 
     if (activeWindow) {
       this.activeWindowSSiCache = activeWindow.__SSi || "";
@@ -4299,15 +4302,15 @@ var SessionStoreInternal = {
     if (this._closedWindows.length <= this._max_windows_undo)
       return;
     let spliceTo = this._max_windows_undo;
-    if (AppConstants.platform != "macosx") {
-      let normalWindowIndex = 0;
-      // try to find a non-popup window in this._closedWindows
-      while (normalWindowIndex < this._closedWindows.length &&
-             !!this._closedWindows[normalWindowIndex].isPopup)
-        normalWindowIndex++;
-      if (normalWindowIndex >= this._max_windows_undo)
-        spliceTo = normalWindowIndex + 1;
-    }
+#ifndef XP_MACOSX
+    let normalWindowIndex = 0;
+    // try to find a non-popup window in this._closedWindows
+    while (normalWindowIndex < this._closedWindows.length &&
+            !!this._closedWindows[normalWindowIndex].isPopup)
+      normalWindowIndex++;
+    if (normalWindowIndex >= this._max_windows_undo)
+      spliceTo = normalWindowIndex + 1;
+#endif
     this._closedWindows.splice(spliceTo, this._closedWindows.length);
   },
 
