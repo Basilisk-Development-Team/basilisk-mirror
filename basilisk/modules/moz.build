@@ -4,10 +4,10 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 DEFINES['BASILISK_VERSION'] = CONFIG['BASILISK_VERSION']
+DEFINES['MOZ_APP_NAME'] = CONFIG['MOZ_APP_NAME']
 
 EXTRA_JS_MODULES += [
     'AboutNewTab.jsm',
-    'AttributionCode.jsm',
     'ContentClick.jsm',
     'ContentCrashHandlers.jsm',
     'ContentLinkHandler.jsm',
@@ -37,6 +37,7 @@ EXTRA_JS_MODULES += [
 
 EXTRA_PP_JS_MODULES += [
     'AboutHome.jsm',
+    'AttributionCode.jsm',
 ]
 
 if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'windows':

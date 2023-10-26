@@ -8,8 +8,6 @@ this.EXPORTED_SYMBOLS = ["AttributionCode"];
 const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
-XPCOMUtils.defineLazyModuleGetter(this, 'AppConstants',
-  'resource://gre/modules/AppConstants.jsm');
 XPCOMUtils.defineLazyModuleGetter(this, 'OS',
   'resource://gre/modules/osfile.jsm');
 XPCOMUtils.defineLazyModuleGetter(this, 'Services',
@@ -32,7 +30,9 @@ function getAttributionFile() {
   let file = Services.dirsvc.get("LocalAppData", Ci.nsIFile);
   // appinfo does not exist in xpcshell, so we need defaults.
   file.append(Services.appinfo.vendor || "mozilla");
-  file.append(AppConstants.MOZ_APP_NAME);
+#filter substitution
+  file.append(@MOZ_APP_NAME@);
+#unfilter
   file.append("postSigningData");
   return file;
 }
