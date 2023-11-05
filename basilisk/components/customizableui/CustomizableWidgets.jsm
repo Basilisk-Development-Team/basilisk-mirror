@@ -10,7 +10,6 @@ this.EXPORTED_SYMBOLS = ["CustomizableWidgets"];
 Cu.import("resource:///modules/CustomizableUI.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
-Cu.import("resource://gre/modules/AppConstants.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PlacesUtils",
   "resource://gre/modules/PlacesUtils.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PlacesUIUtils",
@@ -844,12 +843,12 @@ let preferencesButton = {
     win.openPreferences();
   }
 };
-if (AppConstants.platform == "macosx") {
-  preferencesButton.tooltiptext = "preferences-button.tooltiptext.withshortcut";
-  preferencesButton.shortcutId = "key_preferencesCmdMac";
-} else {
-  preferencesButton.tooltiptext = "preferences-button.tooltiptext2";
-}
+#ifdef XP_MACOSX
+preferencesButton.tooltiptext = "preferences-button.tooltiptext.withshortcut";
+preferencesButton.shortcutId = "key_preferencesCmdMac";
+#else
+preferencesButton.tooltiptext = "preferences-button.tooltiptext2";
+#endif
 CustomizableWidgets.push(preferencesButton);
 
 if (Services.prefs.getBoolPref("privacy.panicButton.enabled")) {

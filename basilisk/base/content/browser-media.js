@@ -3,212 +3,31 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-var gEMEHandler = {
-  get uiEnabled() {
-#ifdef MOZ_EME
-    let emeUIEnabled = Services.prefs.getBoolPref("browser.eme.ui.enabled");
-    // Force-disable on WinXP:
-    if (navigator.platform.toLowerCase().startsWith("win")) {
-      emeUIEnabled = emeUIEnabled && parseFloat(Services.sysinfo.get("version")) >= 6;
-    }
-    return emeUIEnabled;
-#else
-    return false;
-#endif
-  },
-  ensureEMEEnabled: function(browser, keySystem) {
-    Services.prefs.setBoolPref("media.eme.enabled", true);
-    if (keySystem) {
-      if (keySystem == "com.widevine.alpha" &&
-                 Services.prefs.getPrefType("media.gmp-widevinecdm.enabled") &&
-                 !Services.prefs.getBoolPref("media.gmp-widevinecdm.enabled")) {
-        Services.prefs.setBoolPref("media.gmp-widevinecdm.enabled", true);
-      }
-    }
-    browser.reload();
-  },
-  isKeySystemVisible: function(keySystem) {
-    if (!keySystem) {
-      return false;
-    }
-    if (keySystem == "com.widevine.alpha" &&
-        Services.prefs.getPrefType("media.gmp-widevinecdm.visible")) {
-      return Services.prefs.getBoolPref("media.gmp-widevinecdm.visible");
-    }
-    return true;
-  },
-  getEMEDisabledFragment: function(msgId) {
-    let mainMessage = gNavigatorBundle.getString("emeNotifications.drmContentDisabled.message");
-    let [prefix, suffix] = mainMessage.split(/%(?:\$\d)?S/).map(s => document.createTextNode(s));
-    let text = gNavigatorBundle.getString("emeNotifications.drmContentDisabled.learnMoreLabel");
-    let baseURL = Services.urlFormatter.formatURLPref("app.support.baseURL");
-    let link = document.createElement("label");
-    link.className = "text-link";
-    link.setAttribute("href", baseURL + "drm-content");
-    link.textContent = text;
-
-    let fragment = document.createDocumentFragment();
-    [prefix, link, suffix].forEach(n => fragment.appendChild(n));
-    return fragment;
-  },
-  getMessageWithBrandName: function(notificationId) {
-    let msgId = "emeNotifications." + notificationId + ".message";
-    return gNavigatorBundle.getFormattedString(msgId, [this._brandShortName]);
-  },
-  receiveMessage: function({target: browser, data: data}) {
-    let parsedData;
-    try {
-      parsedData = JSON.parse(data);
-    } catch (ex) {
-      Cu.reportError("Malformed EME video message with data: " + data);
-      return;
-    }
-    let {status: status, keySystem: keySystem} = parsedData;
-    // Don't need to show if disabled or keysystem not visible.
-    if (!this.uiEnabled || !this.isKeySystemVisible(keySystem)) {
-      return;
-    }
-
-    let notificationId;
-    let buttonCallback;
-    // Notification message can be either a string or a DOM fragment.
-    let notificationMessage;
-    switch (status) {
-      case "available":
-      case "cdm-created":
-        // Only show the chain icon for proprietary CDMs. Clearkey is not one.
-        if (keySystem != "org.w3.clearkey") {
-          this.showPopupNotificationForSuccess(browser, keySystem);
-        }
-        // ... and bail!
-        return;
-
-      case "api-disabled":
-      case "cdm-disabled":
-        notificationId = "drmContentDisabled";
-        buttonCallback = gEMEHandler.ensureEMEEnabled.bind(gEMEHandler, browser, keySystem)
-        notificationMessage = this.getEMEDisabledFragment();
-        break;
-
-      case "cdm-insufficient-version":
-        notificationId = "drmContentCDMInsufficientVersion";
-        notificationMessage = this.getMessageWithBrandName(notificationId);
-        break;
-
-      case "cdm-not-installed":
-        notificationId = "drmContentCDMInstalling";
-        notificationMessage = this.getMessageWithBrandName(notificationId);
-        break;
-
-      case "cdm-not-supported":
-        // Not to pop up user-level notification because they cannot do anything
-        // about it.
-        return;
-      default:
-        Cu.reportError(new Error("Unknown message ('" + status + "') dealing with EME key request: " + data));
-        return;
-    }
-
-    // Now actually create the notification
-
-    let box = gBrowser.getNotificationBox(browser);
-    if (box.getNotificationWithValue(notificationId)) {
-      return;
-    }
-
-    let buttons = [];
-    if (buttonCallback) {
-      let msgPrefix = "emeNotifications." + notificationId + ".";
-      let btnLabelId = msgPrefix + "button.label";
-      let btnAccessKeyId = msgPrefix + "button.accesskey";
-      buttons.push({
-        label: gNavigatorBundle.getString(btnLabelId),
-        accessKey: gNavigatorBundle.getString(btnAccessKeyId),
-        callback: buttonCallback
-      });
-    }
-
-    let iconURL = "chrome://browser/skin/drm-icon.svg#chains-black";
-
-    box.appendNotification(notificationMessage, notificationId, iconURL, 
-                           box.PRIORITY_WARNING_MEDIUM, buttons);
-  },
-  showPopupNotificationForSuccess: function(browser, keySystem) {
-    // We're playing EME content! Remove any "we can't play because..." messages.
-    var box = gBrowser.getNotificationBox(browser);
-    ["drmContentDisabled",
-     "drmContentCDMInstalling"
-     ].forEach(function (value) {
-        var notification = box.getNotificationWithValue(value);
-        if (notification)
-          box.removeNotification(notification);
-      });
-
-    // Don't bother creating it if it's already there:
-    if (PopupNotifications.getNotification("drmContentPlaying", browser)) {
-      return;
-    }
-
-    let msgPrefix = "emeNotifications.drmContentPlaying.";
-    let msgId = msgPrefix + "message2";
-    let btnLabelId = msgPrefix + "button.label";
-    let btnAccessKeyId = msgPrefix + "button.accesskey";
-
-    let message = gNavigatorBundle.getFormattedString(msgId, [this._brandShortName]);
-    let anchorId = "eme-notification-icon";
-    let firstPlayPref = "browser.eme.ui.firstContentShown";
-    if (!Services.prefs.getPrefType(firstPlayPref) ||
-        !Services.prefs.getBoolPref(firstPlayPref)) {
-      document.getElementById(anchorId).setAttribute("firstplay", "true");
-      Services.prefs.setBoolPref(firstPlayPref, true);
-    } else {
-      document.getElementById(anchorId).removeAttribute("firstplay");
-    }
-
-    let mainAction = {
-      label: gNavigatorBundle.getString(btnLabelId),
-      accessKey: gNavigatorBundle.getString(btnAccessKeyId),
-      callback: function() { openPreferences("paneContent"); },
-      dismiss: true
-    };
-    let options = {
-      dismissed: true,
-      eventCallback: aTopic => aTopic == "swapping",
-      learnMoreURL: Services.urlFormatter.formatURLPref("app.support.baseURL") + "drm-content",
-    };
-    PopupNotifications.show(browser, "drmContentPlaying", message, anchorId, mainAction, null, options);
-  },
-  QueryInterface: XPCOMUtils.generateQI([Ci.nsIMessageListener])
-};
-
-XPCOMUtils.defineLazyGetter(gEMEHandler, "_brandShortName", function() {
-  return document.getElementById("bundle_brand").getString("brandShortName");
-});
-
 let gDecoderDoctorHandler = {
   getLabelForNotificationBox(type) {
     if (type == "platform-decoder-not-found") {
-      if (AppConstants.platform == "win") {
-        return gNavigatorBundle.getString("decoder.noHWAcceleration.message");
-      }
-      if (AppConstants.platform == "linux") {
-        return gNavigatorBundle.getString("decoder.noCodecsLinux.message");
-      }
+#ifdef XP_WIN
+      return gNavigatorBundle.getString("decoder.noHWAcceleration.message");
+#endif
+#ifdef XP_LINUX
+      return gNavigatorBundle.getString("decoder.noCodecsLinux.message");
+#endif
     }
     if (type == "cannot-initialize-pulseaudio") {
       return gNavigatorBundle.getString("decoder.noPulseAudio.message");
     }
-    if (type == "unsupported-libavcodec" &&
-        AppConstants.platform == "linux") {
+#ifdef XP_LINUX
+    if (type == "unsupported-libavcodec") {
       return gNavigatorBundle.getString("decoder.unsupportedLibavcodec.message");
     }
+#endif
     return "";
   },
 
   getSumoForLearnHowButton(type) {
-    if (AppConstants.platform == "win") {
-      return "fix-video-audio-problems-firefox-windows";
-    }
+#ifdef XP_WIN
+    return "fix-video-audio-problems-firefox-windows";
+#endif
     if (type == "cannot-initialize-pulseaudio") {
       return "fix-common-audio-and-video-issues";
     }
@@ -253,7 +72,6 @@ let gDecoderDoctorHandler = {
 
     // We keep the list of formats in prefs for the sake of the decoder itself,
     // which reads it to determine when issues get solved for these formats.
-    // (Writing prefs from e10s content is now allowed.)
     let formatsPref = "media.decoder-doctor." + decoderDoctorReportId + ".formats";
     let buttonClickedPref = "media.decoder-doctor." + decoderDoctorReportId + ".button-clicked";
     let formatsInPref = Services.prefs.getPrefType(formatsPref) &&
@@ -315,8 +133,6 @@ let gDecoderDoctorHandler = {
 }
 
 window.getGroupMessageManager("browsers").addMessageListener("DecoderDoctor:Notification", gDecoderDoctorHandler);
-window.getGroupMessageManager("browsers").addMessageListener("EMEVideo:ContentMediaKeysRequest", gEMEHandler);
 window.addEventListener("unload", function() {
-  window.getGroupMessageManager("browsers").removeMessageListener("EMEVideo:ContentMediaKeysRequest", gEMEHandler);
   window.getGroupMessageManager("browsers").removeMessageListener("DecoderDoctor:Notification", gDecoderDoctorHandler);
 }, false);

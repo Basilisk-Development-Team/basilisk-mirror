@@ -20,7 +20,6 @@ ac_add_options --enable-strip
 ac_add_options --enable-devtools
 ac_add_options --enable-av1
 ac_add_options --enable-jxl
-ac_add_options --enable-eme
 ac_add_options --enable-webrtc
 ac_add_options --enable-gamepad
 ac_add_options --disable-tests

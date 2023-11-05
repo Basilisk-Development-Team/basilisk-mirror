@@ -57,7 +57,7 @@
   locale/browser/preferences/applicationManager.properties      (%chrome/browser/preferences/applicationManager.properties)
   locale/browser/preferences/colors.dtd                         (%chrome/browser/preferences/colors.dtd)
   locale/browser/preferences/cookies.dtd                        (%chrome/browser/preferences/cookies.dtd)
-  locale/browser/preferences/content.dtd                        (%chrome/browser/preferences/content.dtd)
+* locale/browser/preferences/content.dtd                        (%chrome/browser/preferences/content.dtd)
   locale/browser/preferences/connection.dtd                     (%chrome/browser/preferences/connection.dtd)
   locale/browser/preferences/applications.dtd                   (%chrome/browser/preferences/applications.dtd)
   locale/browser/preferences/fonts.dtd                          (%chrome/browser/preferences/fonts.dtd)
@@ -66,7 +66,7 @@
   locale/browser/preferences/permissions.dtd                    (%chrome/browser/preferences/permissions.dtd)
   locale/browser/preferences/preferences.dtd                    (%chrome/browser/preferences/preferences.dtd)
   locale/browser/preferences/preferences.properties             (%chrome/browser/preferences/preferences.properties)
-* locale/browser/preferences/privacy.dtd                        (%chrome/browser/preferences/privacy.dtd)
+  locale/browser/preferences/privacy.dtd                        (%chrome/browser/preferences/privacy.dtd)
   locale/browser/preferences/security.dtd                       (%chrome/browser/preferences/security.dtd)
 #ifdef MOZ_SERVICES_SYNC
   locale/browser/preferences/sync.dtd                           (%chrome/browser/preferences/sync.dtd)

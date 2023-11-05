@@ -5,8 +5,6 @@
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
-XPCOMUtils.defineLazyModuleGetter(this, "AppConstants",
-                                  "resource://gre/modules/AppConstants.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PlacesUtils",
                                   "resource://gre/modules/PlacesUtils.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "FormHistory",
@@ -641,21 +639,21 @@ Sanitizer.prototype = {
                                                   features, defaultArgs);
 
         let onFullScreen = null;
-        if (AppConstants.platform == "macosx") {
-          onFullScreen = function(e) {
-            newWindow.removeEventListener("fullscreen", onFullScreen);
-            let docEl = newWindow.document.documentElement;
-            let sizemode = docEl.getAttribute("sizemode");
-            if (!newWindow.fullScreen && sizemode == "fullscreen") {
-              docEl.setAttribute("sizemode", "normal");
-              e.preventDefault();
-              e.stopPropagation();
-              return false;
-            }
-            return undefined;
+#ifdef XP_MACOSX
+        onFullScreen = function(e) {
+          newWindow.removeEventListener("fullscreen", onFullScreen);
+          let docEl = newWindow.document.documentElement;
+          let sizemode = docEl.getAttribute("sizemode");
+          if (!newWindow.fullScreen && sizemode == "fullscreen") {
+            docEl.setAttribute("sizemode", "normal");
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
           }
-          newWindow.addEventListener("fullscreen", onFullScreen);
+          return undefined;
         }
+        newWindow.addEventListener("fullscreen", onFullScreen);
+#endif
 
         let promiseReady = new Promise(resolve => {
           // Window creation and destruction is asynchronous. We need to wait
@@ -670,9 +668,9 @@ Sanitizer.prototype = {
               return;
 
             Services.obs.removeObserver(onWindowOpened, "browser-delayed-startup-finished");
-            if (AppConstants.platform == "macosx") {
-              newWindow.removeEventListener("fullscreen", onFullScreen);
-            }
+#ifdef XP_MACOSX
+            newWindow.removeEventListener("fullscreen", onFullScreen);
+#endif
             newWindowOpened = true;
             // If we're the last thing to happen, invoke callback.
             if (numWindowsClosing == 0) {
@@ -784,9 +782,12 @@ Sanitizer.__defineGetter__("prefs", function()
 // Shows sanitization UI
 Sanitizer.showUI = function(aParentWindow)
 {
-  let win = AppConstants.platform == "macosx" ?
-    null: // make this an app-modal window on Mac
-    aParentWindow;
+#ifdef XP_MACOSX
+  // make this an app-modal window on Mac
+  let win = null;
+#else
+  let win = aParentWindow;
+#endif
   Services.ww.openWindow(win,
                          "chrome://browser/content/sanitize.xul",
                          "Sanitize",

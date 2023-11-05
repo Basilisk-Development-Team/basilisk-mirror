@@ -1,0 +1,57 @@
+diff --git a/platform/netwerk/protocol/http/nsHttpHandler.cpp b/platform/netwerk/protocol/http/nsHttpHandler.cpp
+index 92cf9d5b54..f9c447150e 100644
+--- a/platform/netwerk/protocol/http/nsHttpHandler.cpp
++++ b/platform/netwerk/protocol/http/nsHttpHandler.cpp
+@@ -176,6 +176,7 @@ nsHttpHandler::nsHttpHandler()
+     , mLegacyAppVersion("5.0")
+     , mProduct("Goanna")
+     , mCompatGeckoEnabled(false)
++    , mCompatGoannaEnabled(false)
+     , mAppBuildID("20200101")
+     , mCompatFirefoxEnabled(false)
+     , mCompatFirefoxVersion("68.9")
+@@ -751,11 +752,13 @@ nsHttpHandler::BuildUserAgent()
+       mUserAgent += mCompatGecko;
+     }
+ 
+-    // Product portion
+-    mUserAgent += ' ';
+-    mUserAgent += mProduct;
+-    mUserAgent += '/';
+-    mUserAgent += mProductSub;
++    if (mCompatGoannaEnabled) {
++        // Product portion
++        mUserAgent += ' ';
++        mUserAgent += mProduct;
++        mUserAgent += '/';
++        mUserAgent += mProductSub;
++    }
+ 
+     bool isFirefox = mAppName.EqualsLiteral("Firefox");
+     if (isFirefox || mCompatFirefoxEnabled) {
+@@ -961,6 +964,13 @@ nsHttpHandler::PrefsChanged(nsIPrefBranch *prefs, const char *pref)
+         mUserAgentIsDirty = true;
+     }
+ 
++    if (PREF_CHANGED(GUA_PREF("compatMode.goanna"))) {
++        rv = prefs->GetBoolPref(GUA_PREF("compatMode.goanna"), &cVar);
++        mCompatGoannaEnabled = (NS_SUCCEEDED(rv) && cVar);
++        mUserAgentIsDirty = true;
++    }
++
++
+     // general.useragent.compatMode.version
+     // This is the version number used in rv: for Gecko compatibility
+     // and in the Firefox/nn.nn slice when compatMode.firefox is enabled.
+diff --git a/platform/netwerk/protocol/http/nsHttpHandler.h b/platform/netwerk/protocol/http/nsHttpHandler.h
+index caeabf81de..4521463f2c 100644
+--- a/platform/netwerk/protocol/http/nsHttpHandler.h
++++ b/platform/netwerk/protocol/http/nsHttpHandler.h
+@@ -497,6 +497,7 @@ private:
+     bool           mAppVersionIsBuildID;
+     nsCString      mCompatGecko;
+     bool           mCompatGeckoEnabled;
++    bool           mCompatGoannaEnabled;
+     nsCString      mCompatFirefox;
+     bool           mCompatFirefoxEnabled;
+     nsCString      mCompatFirefoxVersion;

@@ -4,7 +4,6 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 // Services = object with smart getters for common XPCOM services
-Components.utils.import("resource://gre/modules/AppConstants.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/PrivateBrowsingUtils.jsm");
@@ -140,7 +139,11 @@ function whereToOpenLink( e, ignoreButton, ignoreAlt )
 
   // Don't do anything special with right-mouse clicks.  They're probably clicks on context menu items.
 
-  var metaKey = AppConstants.platform == "macosx" ? meta : ctrl;
+#ifdef XP_MACOSX
+  var metaKey = meta;
+#else
+  var metaKey = ctrl;
+#endif
   if (metaKey || (middle && middleUsesTabs))
     return shift ? "tabshifted" : "tab";
 
@@ -513,7 +516,11 @@ function eventMatchesKey(aEvent, aKey)
     // Capitalize first letter of aKey's modifers to compare to aEvent's modifier
     keyModifiers.forEach(function(modifier, index) {
       if (modifier == "accel") {
-        keyModifiers[index] = AppConstants.platform == "macosx" ?  "Meta" : "Control";
+#ifdef XP_MACOSX
+        keyModifiers[index] = "Meta";
+#else
+        keyModifiers[index] = "Control";
+#endif
       } else {
         keyModifiers[index] = modifier[0].toUpperCase() + modifier.slice(1);
       }
@@ -618,13 +625,13 @@ function openAboutDialog() {
   }
 
   var features = "chrome,";
-  if (AppConstants.platform == "win") {
-    features += "centerscreen,dependent";
-  } else if (AppConstants.platform == "macosx") {
-    features += "resizable=no,minimizable=no";
-  } else {
-    features += "centerscreen,dependent,dialog=no";
-  }
+#ifdef XP_WIN
+  features += "centerscreen,dependent";
+#elif defined(XP_MACOSX)
+  features += "resizable=no,minimizable=no";
+#else
+  features += "centerscreen,dependent,dialog=no";
+#endif
 
   window.openDialog("chrome://browser/content/aboutDialog.xul", "", features);
 }

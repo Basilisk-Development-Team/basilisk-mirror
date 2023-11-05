@@ -41,8 +41,6 @@ XPCOMUtils.defineLazyModuleGetter(this, "NetUtil",
                                   "resource://gre/modules/NetUtil.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PluralForm",
                                   "resource://gre/modules/PluralForm.jsm");
-XPCOMUtils.defineLazyModuleGetter(this, "AppConstants",
-                                  "resource://gre/modules/AppConstants.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "Downloads",
                                   "resource://gre/modules/Downloads.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "DownloadUIHelper",
@@ -460,8 +458,11 @@ this.DownloadsCommon = {
       throw new Error("aOwnerWindow must be a dom-window object");
     }
 
-    let isWindowsExe = AppConstants.platform == "win" &&
-      aFile.leafName.toLowerCase().endsWith(".exe");
+#ifdef XP_WIN
+    let isWindowsExe = aFile.leafName.toLowerCase().endsWith(".exe");
+#else
+    let isWindowsExe = false;
+#endif
 
     let promiseShouldLaunch;
     // Don't prompt on Windows for .exe since there will be a native prompt.

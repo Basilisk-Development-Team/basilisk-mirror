@@ -8,8 +8,6 @@ XPCOMUtils.defineLazyModuleGetter(this, "ScrollbarSampler",
                                   "resource:///modules/ScrollbarSampler.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "ShortcutUtils",
                                   "resource://gre/modules/ShortcutUtils.jsm");
-XPCOMUtils.defineLazyModuleGetter(this, "AppConstants",
-                                  "resource://gre/modules/AppConstants.jsm");
 
 /**
  * Maintains the state and dispatches events for the main menu panel.
@@ -516,14 +514,15 @@ const PanelUI = {
   },
 
   _updateQuitTooltip: function() {
-    if (AppConstants.platform == "win") {
-      return;
-    }
+#ifdef XP_WIN
+    return;
+#else
 
-    let tooltipId = AppConstants.platform == "macosx" ?
-                    "quit-button.tooltiptext.mac" :
-                    "quit-button.tooltiptext.linux2";
-
+#ifdef XP_MACOSX
+    let tooltipId = "quit-button.tooltiptext.mac";
+#else
+    let tooltipId = "quit-button.tooltiptext.linux2";
+#endif
     let brands = Services.strings.createBundle("chrome://branding/locale/brand.properties");
     let stringArgs = [brands.GetStringFromName("brandShortName")];
 
@@ -532,6 +531,7 @@ const PanelUI = {
     let tooltipString = CustomizableUI.getLocalizedProperty({x: tooltipId}, "x", stringArgs);
     let quitButton = document.getElementById("PanelUI-quit");
     quitButton.setAttribute("tooltiptext", tooltipString);
+#endif
   },
 
   _overlayScrollListenerBoundFn: null,

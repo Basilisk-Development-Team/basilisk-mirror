@@ -38,8 +38,11 @@
 <!ENTITY chooseButton.label           "Choose…">
 <!ENTITY chooseButton.accesskey       "o">
 
-<!ENTITY  drmContent.label             "DRM content">
+<!ENTITY  javascript.label            "JavaScript">
 
-<!ENTITY  playDRMContent.label         "Play DRM content">
-<!ENTITY  playDRMContent.accesskey     "P">
-<!ENTITY  playDRMContent.learnMore.label "Learn more">
+<!ENTITY  javascriptWasm.label           "Enable WebAssembly (WASM)">
+<!ENTITY  javascriptWasm.accesskey       "y">
+#ifdef MOZ_WEBRTC
+<!ENTITY  javascriptWebrtc.label           "Enable WebRTC">
+<!ENTITY  javascriptWebrtc.accesskey       "R">
+#endif

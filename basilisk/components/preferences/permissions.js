@@ -351,9 +351,10 @@ var gPermissionManager = {
   {
     if (aEvent.keyCode == KeyEvent.DOM_VK_DELETE) {
       this.onPermissionDeleted();
-    } else if (AppConstants.platform == "macosx" &&
-               aEvent.keyCode == KeyEvent.DOM_VK_BACK_SPACE) {
+#ifdef XP_MACOSX
+    } else if (aEvent.keyCode == KeyEvent.DOM_VK_BACK_SPACE) {
       this.onPermissionDeleted();
+#endif
     }
   },
 

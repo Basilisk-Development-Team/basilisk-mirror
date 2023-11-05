@@ -10,7 +10,6 @@ const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
-Cu.import("resource://gre/modules/AppConstants.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PanelWideWidgetTracker",
   "resource:///modules/PanelWideWidgetTracker.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "CustomizableWidgets",
@@ -238,7 +237,8 @@ var CustomizableUIInternal = {
       defaultCollapsed: false,
     }, true);
 
-    if (AppConstants.MENUBAR_CAN_AUTOHIDE) {
+#filter substitution
+    if (@MENUBAR_CAN_AUTOHIDE@) {
       this.registerArea(CustomizableUI.AREA_MENUBAR, {
         legacy: true,
         type: CustomizableUI.TYPE_TOOLBAR,
@@ -248,6 +248,7 @@ var CustomizableUIInternal = {
         defaultCollapsed: true,
       }, true);
     }
+#unfilter
 
     this.registerArea(CustomizableUI.AREA_TABSTRIP, {
       legacy: true,
@@ -283,9 +284,9 @@ var CustomizableUIInternal = {
       CustomizableUI.AREA_TABSTRIP,
       CustomizableUI.AREA_ADDONBAR,
     ]);
-    if (AppConstants.platform != "macosx") {
-      toolbars.add(CustomizableUI.AREA_MENUBAR);
-    }
+#ifdef XP_MACOSX
+    toolbars.add(CustomizableUI.AREA_MENUBAR);
+#endif
     return toolbars;
   },
 

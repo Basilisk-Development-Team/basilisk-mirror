@@ -23,7 +23,10 @@ if [ ! -f .mozconfig ]; then
     cp mozconfigs/linux/x86_64/gtk3_unofficial_branding.mozconfig .mozconfig
 fi
 
+# If argument 2 is provided then apply patches before build
+APPLYPATCHES=$2
+
 echo "Starting Container..."
 
 # Slackware was selected because of the combination of stability and ease of use.
-docker run -i -v $PWD:/share --rm -e UPDATEFIRST=$UPDATEFIRST -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t basiliskdev/slackware14-uxp:latest /share/build-scripts/linux-x86_64/build_basilisk_subscripts/run_inside_docker.sh
+docker run -i -v $PWD:/share --rm -e UPDATEFIRST=$UPDATEFIRST -e APPLYPATCHES=$APPLYPATCHES -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t basiliskdev/slackware14-uxp:latest /share/build-scripts/linux-x86_64/build_basilisk_subscripts/run_inside_docker.sh

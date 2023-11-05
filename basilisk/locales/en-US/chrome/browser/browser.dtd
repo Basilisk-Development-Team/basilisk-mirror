@@ -193,7 +193,6 @@ These should match what Safari and other Apple applications use on OS X Lion. --
 <!ENTITY urlbar.webRTCShareScreenNotificationAnchor.tooltip       "Manage sharing your windows or screen with the site">
 
 <!ENTITY urlbar.servicesNotificationAnchor.tooltip        "Open install message panel">
-<!ENTITY urlbar.emeNotificationAnchor.tooltip             "Manage use of DRM software">
 
 <!ENTITY urlbar.cameraBlocked.tooltip            "You have blocked your camera for this website.">
 <!ENTITY urlbar.microphoneBlocked.tooltip        "You have blocked your microphone for this website.">
@@ -767,6 +766,3 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY panicButton.thankyou.msg1                "Your recent history is cleared.">
 <!ENTITY panicButton.thankyou.msg2                "Safe browsing!">
 <!ENTITY panicButton.thankyou.buttonlabel         "Thanks!">
-
-<!ENTITY emeLearnMoreContextMenu.label            "Learn more about DRM…">
-<!ENTITY emeLearnMoreContextMenu.accesskey        "D">

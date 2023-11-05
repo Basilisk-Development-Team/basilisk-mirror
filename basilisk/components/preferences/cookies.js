@@ -5,7 +5,6 @@
 
 const nsICookie = Components.interfaces.nsICookie;
 
-Components.utils.import("resource://gre/modules/AppConstants.jsm");
 Components.utils.import("resource://gre/modules/PluralForm.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
@@ -728,9 +727,10 @@ var gCookiesWindow = {
   onCookieKeyPress: function (aEvent) {
     if (aEvent.keyCode == KeyEvent.DOM_VK_DELETE) {
       this.deleteCookie();
-    } else if (AppConstants.platform == "macosx" &&
-               aEvent.keyCode == KeyEvent.DOM_VK_BACK_SPACE) {
+#ifdef XP_MACOSX
+    } else if (aEvent.keyCode == KeyEvent.DOM_VK_BACK_SPACE) {
       this.deleteCookie();
+#endif
     }
   },
 

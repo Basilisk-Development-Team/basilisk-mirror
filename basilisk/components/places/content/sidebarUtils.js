@@ -2,8 +2,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-Components.utils.import("resource://gre/modules/AppConstants.jsm");
-
 var SidebarUtils = {
   handleTreeClick: function(aTree, aEvent, aGutterSelect) {
     // right-clicks are not handled here
@@ -31,8 +29,11 @@ var SidebarUtils = {
         mouseInGutter = aEvent.clientX < rect.x;
     }
 
-    var metaKey = AppConstants.platform === "macosx" ? aEvent.metaKey
-                                                     : aEvent.ctrlKey;
+#ifdef XP_MACOSX
+    var metaKey = aEvent.metaKey;
+#else
+    var metaKey = aEvent.ctrlKey;
+#endif
     var modifKey = metaKey || aEvent.shiftKey;
     var isContainer = tbo.view.isContainer(cell.row);
     var openInTabs = isContainer &&

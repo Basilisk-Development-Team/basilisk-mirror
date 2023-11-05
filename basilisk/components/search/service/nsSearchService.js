@@ -11,7 +11,6 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/Promise.jsm");
 Cu.import("resource://gre/modules/debug.js");
-Cu.import("resource://gre/modules/AppConstants.jsm");
 
 XPCOMUtils.defineLazyModuleGetter(this, "AsyncShutdown",
   "resource://gre/modules/AsyncShutdown.jsm");
@@ -141,7 +140,11 @@ const LOCALE_PREF = "general.useragent.locale";
 const USER_DEFINED = "{searchTerms}";
 
 // Custom search parameters
-const MOZ_OFFICIAL = AppConstants.MOZ_OFFICIAL_BRANDING ? "official" : "unofficial";
+#ifdef MOZ_OFFICIAL_BRANDING
+const MOZ_OFFICIAL = "official";
+#else
+const MOZ_OFFICIAL = "unofficial";
+#endif
 
 const MOZ_PARAM_LOCALE         = /\{moz:locale\}/g;
 const MOZ_PARAM_DIST_ID        = /\{moz:distributionID\}/g;
@@ -232,13 +235,13 @@ function DO_LOG(aText) {
  */
 var LOG = function() {};
 
-if (AppConstants.DEBUG) {
-  LOG = function (aText) {
-    if (Services.prefs.getBoolPref(BROWSER_SEARCH_PREF + "log", false)) {
-      DO_LOG(aText);
-    }
-  };
-}
+#ifdef DEBUG
+LOG = function (aText) {
+  if (Services.prefs.getBoolPref(BROWSER_SEARCH_PREF + "log", false)) {
+    DO_LOG(aText);
+  }
+};
+#endif
 
 /**
  * Presents an assertion dialog in non-release builds and throws.

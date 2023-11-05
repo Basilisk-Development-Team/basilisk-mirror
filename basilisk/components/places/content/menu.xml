@@ -26,10 +26,6 @@
 
     <implementation>
 
-      <field name="AppConstants" readonly="true">
-        (Components.utils.import("resource://gre/modules/AppConstants.jsm", {})).AppConstants;
-      </field>
-
       <field name="_indicatorBar">
         document.getAnonymousElementByAttribute(this, "class",
                                                 "menupopup-drop-indicator-bar");
@@ -308,18 +304,18 @@
         if (elt.parentNode != this)
           return;
 
-        if (this.AppConstants.platform === "macosx") {
-          // XXX: The following check is a temporary hack until bug 420033 is
-          // resolved.
-          let parentElt = elt.parent;
-          while (parentElt) {
-            if (parentElt.id == "bookmarksMenuPopup" ||
-                parentElt.id == "goPopup")
-              return;
+#ifdef XP_MACOSX
+        // XXX: The following check is a temporary hack until bug 420033 is
+        // resolved.
+        let parentElt = elt.parent;
+        while (parentElt) {
+          if (parentElt.id == "bookmarksMenuPopup" ||
+              parentElt.id == "goPopup")
+            return;
 
-            parentElt = parentElt.parentNode;
-          }
+          parentElt = parentElt.parentNode;
         }
+#endif
 
         if (window.XULBrowserWindow) {
           let elt = event.target;

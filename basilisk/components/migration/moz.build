@@ -5,6 +5,8 @@
 
 JAR_MANIFESTS += ['jar.mn']
 
+DEFINES['MOZ_APP_NAME'] = CONFIG['MOZ_APP_NAME']
+
 XPIDL_SOURCES += [
     'nsIBrowserProfileMigrator.idl',
 ]
@@ -23,6 +25,9 @@ EXTRA_PP_COMPONENTS += [
 
 EXTRA_JS_MODULES += [
     'AutoMigrate.jsm',
+]
+
+EXTRA_PP_JS_MODULES += [
     'MigrationUtils.jsm',
 ]
 
@@ -31,7 +36,6 @@ if CONFIG['OS_ARCH'] == 'WINNT':
         'nsIEHistoryEnumerator.cpp',
     ]
     EXTRA_COMPONENTS += [
-        '360seProfileMigrator.js',
         'EdgeProfileMigrator.js',
         'IEProfileMigrator.js',
     ]
@@ -39,7 +43,6 @@ if CONFIG['OS_ARCH'] == 'WINNT':
         'ESEDBReader.jsm',
         'MSMigrationUtils.jsm',
     ]
-    DEFINES['HAS_360SE_MIGRATOR'] = True
     DEFINES['HAS_IE_MIGRATOR'] = True
     DEFINES['HAS_EDGE_MIGRATOR'] = True
 
