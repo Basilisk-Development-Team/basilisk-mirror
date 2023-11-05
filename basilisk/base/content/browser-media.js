@@ -25,13 +25,14 @@ let gDecoderDoctorHandler = {
   },
 
   getSumoForLearnHowButton(type) {
-#ifdef XP_WIN
+#if defined(XP_WIN)
     return "fix-video-audio-problems-firefox-windows";
-#endif
+#else
     if (type == "cannot-initialize-pulseaudio") {
       return "fix-common-audio-and-video-issues";
     }
     return "";
+#endif
   },
 
   receiveMessage({target: browser, data: data}) {
