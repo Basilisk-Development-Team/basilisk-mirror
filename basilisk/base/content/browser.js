@@ -7134,6 +7134,7 @@ var gRemoteTabsUI = {
       // On OS X, "Disable Hardware Acceleration" also disables OMTC and forces
       // a fallback to Basic Layers. This is incompatible with e10s.
       return;
+    }
 #endif
 
     let newNonRemoteWindow = document.getElementById("menu_newNonRemoteWindow");
