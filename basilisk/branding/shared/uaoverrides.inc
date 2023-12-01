@@ -80,6 +80,6 @@ pref("@GUAO_PREF@.ldoceonline.com","Mozilla/5.0 (%OS_SLICE% rv:@GK_VERSION@) @GK
 pref("@GUAO_PREF@.yuku.com","Mozilla/5.0 (%OS_SLICE% rv:@GK_VERSION@) @GK_SLICE@ @FX_SLICE@ @APP_SLICE@");
 
 // Domains Basilisk overrides that are not in the Pale Moon overrides
-pref("@GUAO_PREF@.slack.com","Mozilla/5.0 (%OS_SLICE% rv:100.0) @GK_SLICE@ Firefox/100.0 @APP_SLICE@");
+pref("@GUAO_PREF@.slack.com","Mozilla/5.0 (%OS_SLICE% rv:120.0) @GK_SLICE@ Firefox/120.0 @APP_SLICE@");
 
 // ============================================================================
