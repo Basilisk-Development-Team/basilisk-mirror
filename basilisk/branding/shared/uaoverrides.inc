@@ -9,9 +9,6 @@
 #define GK_SLICE Gecko/20100101
 #define FX_SLICE Firefox/@GK_VERSION@
 
-#define PALE_MOON_VERSION 32.4.1
-#define PALE_MOON_SLICE PaleMoon/@PALE_MOON_VERSION@
-
 // %OS_SLICE% macro is resolved at runtime, see MoonchildProductions/UXP/issues/1473
 
 // Special-case AMO
@@ -83,8 +80,6 @@ pref("@GUAO_PREF@.ldoceonline.com","Mozilla/5.0 (%OS_SLICE% rv:@GK_VERSION@) @GK
 pref("@GUAO_PREF@.yuku.com","Mozilla/5.0 (%OS_SLICE% rv:@GK_VERSION@) @GK_SLICE@ @FX_SLICE@ @APP_SLICE@");
 
 // Domains Basilisk overrides that are not in the Pale Moon overrides
-pref("@GUAO_PREF@.slack.com","Mozilla/5.0 (%OS_SLICE% rv:100.0) @GK_SLICE@ Firefox/100.0 @APP_SLICE@");
-// There are multiple addons on the Pale Moon addons site that work with Basilisk that are not listed on the Basilisk addons site.
-pref("@GUAO_PREF@.addons.palemoon.org","Mozilla/5.0 (%OS_SLICE% rv:@GK_VERSION@) @GK_SLICE@ @UXP_VERSION_SLICE@ @FX_SLICE@ @PALE_MOON_SLICE@");
+pref("@GUAO_PREF@.slack.com","Mozilla/5.0 (%OS_SLICE% rv:120.0) @GK_SLICE@ Firefox/120.0 @APP_SLICE@");
 
 // ============================================================================

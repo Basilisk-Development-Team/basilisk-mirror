@@ -237,18 +237,16 @@ var CustomizableUIInternal = {
       defaultCollapsed: false,
     }, true);
 
-#filter substitution
-    if (@MENUBAR_CAN_AUTOHIDE@) {
-      this.registerArea(CustomizableUI.AREA_MENUBAR, {
-        legacy: true,
-        type: CustomizableUI.TYPE_TOOLBAR,
-        defaultPlacements: [
-          "menubar-items",
-        ],
-        defaultCollapsed: true,
-      }, true);
-    }
-#unfilter
+#ifdef MENUBAR_CAN_AUTOHIDE
+    this.registerArea(CustomizableUI.AREA_MENUBAR, {
+      legacy: true,
+      type: CustomizableUI.TYPE_TOOLBAR,
+      defaultPlacements: [
+        "menubar-items",
+      ],
+      defaultCollapsed: true,
+    }, true);
+#endif
 
     this.registerArea(CustomizableUI.AREA_TABSTRIP, {
       legacy: true,
