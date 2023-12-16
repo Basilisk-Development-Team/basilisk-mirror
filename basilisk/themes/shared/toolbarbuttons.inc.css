@@ -190,10 +190,6 @@ toolbar[brighttext] #sync-button[cui-areatype="toolbar"][status="active"] {
   transform: scaleX(-1);
 }
 
-#webide-button[cui-areatype="toolbar"] {
-  -moz-image-region: rect(0, 738px, 18px, 720px);
-}
-
 @media (min-resolution: 1.1dppx) {
   :-moz-any(@primaryToolbarButtons@),
   #bookmarks-menu-button > .toolbarbutton-menubutton-dropmarker > .dropmarker-icon {
@@ -377,9 +373,5 @@ toolbar[brighttext] #sync-button[cui-areatype="toolbar"][status="active"] {
 %else
     -moz-image-region: rect(36px, 1404px, 72px, 1368px);
 %endif
-  }
-
-  #webide-button[cui-areatype="toolbar"] {
-    -moz-image-region: rect(0, 1476px, 36px, 1440px);
   }
 }

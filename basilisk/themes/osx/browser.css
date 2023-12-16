@@ -820,10 +820,6 @@ toolbar .toolbarbutton-1 > .toolbarbutton-menubutton-dropmarker > .dropmarker-ic
     -moz-image-region: rect(18px, 342px, 36px, 324px);
   }
 
-  #webide-button@toolbarButtonPressed@ {
-    -moz-image-region: rect(18px, 738px, 36px, 720px);
-  }
-
   #new-tab-button@toolbarButtonPressed@ {
     -moz-image-region: rect(18px, 360px, 36px, 342px);
   }
@@ -977,10 +973,6 @@ toolbar .toolbarbutton-1 > .toolbarbutton-menubutton-dropmarker > .dropmarker-ic
 
   #e10s-button > .toolbarbutton-icon {
     transform: scaleY(-1);
-  }
-
-  #webide-button@toolbarButtonPressed@ {
-    -moz-image-region: rect(36px, 1476px, 72px, 1440px);
   }
 
   #new-tab-button@toolbarButtonPressed@ {
