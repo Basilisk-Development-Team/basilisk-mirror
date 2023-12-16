@@ -1247,8 +1247,6 @@ pref("browser.migrate.chrome.history.maxAgeInDays", 0);
 // Enable browser frames for use on desktop.  Only exposed to chrome callers.
 pref("dom.mozBrowserFramesEnabled", true);
 
-pref("extensions.pocket.enabled", true);
-
 pref("signon.schemeUpgrades", true);
 
 // "Simplify Page" feature in Print Preview.
