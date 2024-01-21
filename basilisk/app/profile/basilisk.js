@@ -505,6 +505,11 @@ pref("privacy.panicButton.enabled",         true);
 
 pref("privacy.firstparty.isolate",          false);
 
+// Enable including the content title in the window title for console errors.
+// Default disabled for PBM users to avoid a possible source of disk leaks.
+pref("privacy.exposeContentTitleInWindow", true);
+pref("privacy.exposeContentTitleInWindow.pbm", false);
+
 pref("network.proxy.share_proxy_settings",  false); // use the same proxy settings for all protocols
 
 // simple gestures support
