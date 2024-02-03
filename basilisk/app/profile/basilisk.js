@@ -280,7 +280,7 @@ pref("browser.urlbar.maxCharsForSearchSuggestions", 20);
 pref("browser.urlbar.suggest.history.onlyTyped",    false);
 
 pref("browser.urlbar.formatting.enabled", true);
-pref("browser.urlbar.trimURLs", true);
+pref("browser.urlbar.trimURLs", false);
 
 #if defined(NIGHTLY_BUILD)
 pref("browser.urlbar.oneOffSearches", true);
@@ -505,6 +505,11 @@ pref("privacy.panicButton.enabled",         true);
 
 pref("privacy.firstparty.isolate",          false);
 
+// Enable including the content title in the window title for console errors.
+// Default disabled for PBM users to avoid a possible source of disk leaks.
+pref("privacy.exposeContentTitleInWindow", true);
+pref("privacy.exposeContentTitleInWindow.pbm", false);
+
 pref("network.proxy.share_proxy_settings",  false); // use the same proxy settings for all protocols
 
 // simple gestures support
@@ -573,11 +578,23 @@ pref("mousewheel.with_win.action", 1);
 pref("browser.xul.error_pages.enabled", true);
 pref("browser.xul.error_pages.expert_bad_cert", false);
 
-// Enable captive portal detection.
-pref("network.captive-portal-service.enabled", true);
+// Disable captive portal detection.
+pref("network.captive-portal-service.enabled", false);
 
 // If true, network link events will change the value of navigator.onLine
-pref("network.manage-offline-status", true);
+pref("network.manage-offline-status", false);
+
+// Disable DNS prefetching to improve privacy. https://kb.mozillazine.org/Network.dns.disablePrefetch
+pref("network.dns.disablePrefetch", true);
+
+// Disable Network Predictor to improve privacy
+pref("network.predictor.enabled", false);
+
+// Disable link prefetching to improve privacy
+pref("network.prefetch-next", false);
+
+// Disable link-mouseover opening connection to linked server
+pref("network.http.speculative-parallel-limit", 0);
 
 // Enable opportunistic encryption by default
 pref("network.http.altsvc.oe", true);
@@ -1246,8 +1263,6 @@ pref("browser.migrate.chrome.history.maxAgeInDays", 0);
 
 // Enable browser frames for use on desktop.  Only exposed to chrome callers.
 pref("dom.mozBrowserFramesEnabled", true);
-
-pref("extensions.pocket.enabled", true);
 
 pref("signon.schemeUpgrades", true);
 

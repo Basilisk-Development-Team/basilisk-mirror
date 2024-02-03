@@ -147,11 +147,6 @@ toolbarpaletteitem[place="palette"] > #panic-button {
   -moz-image-region: rect(0, 896px, 32px, 864px);
 }
 
-#webide-button[cui-areatype="menu-panel"],
-toolbarpaletteitem[place="palette"] > #webide-button {
-  -moz-image-region: rect(0px, 960px, 32px, 928px);
-}
-
 toolbaritem[sdkstylewidget="true"] > toolbarbutton {
   -moz-image-region: rect(0, 832px, 32px, 800px);
 }
@@ -189,4 +184,3 @@ toolbarpaletteitem[place="palette"] > #zoom-controls > #zoom-out-button {
 toolbarpaletteitem[place="palette"] > #zoom-controls > #zoom-in-button {
   -moz-image-region: rect(0px, 96px, 16px, 80px);
 }
-

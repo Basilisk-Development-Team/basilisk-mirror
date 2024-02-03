@@ -11,6 +11,9 @@ tags
 ID
 .DS_Store*
 
+# IntelliJ IDEA files
+.idea
+
 # Vim swap files.
 .*.sw[a-z]
 
