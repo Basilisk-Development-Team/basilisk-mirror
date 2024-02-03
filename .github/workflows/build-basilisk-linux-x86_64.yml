@@ -36,7 +36,7 @@ jobs:
         run: cp .github/workflows/build-basilisk-linux-x86_64/mozconfig-${{ matrix.config.gtk }}-${{ matrix.config.arch }} .mozconfig
 
       - name: Build Basilisk
-        run: docker run -v $PWD:/share --rm -e UPDATEFIRST=$UPDATEFIRST -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t basiliskdev/slackware14-uxp:latest /share/build-scripts/linux-x86_64/build_basilisk_subscripts/run_inside_docker.sh
+        run: docker run -v $PWD:/share --rm -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t oraclelinux:8 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
 
       - uses: actions/upload-artifact@v3
         with:

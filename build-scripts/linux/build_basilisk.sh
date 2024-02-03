@@ -29,4 +29,4 @@ APPLYPATCHES=$1
 
 echo "Starting Container..."
 
-docker run -i -v $PWD:/share --rm -e APPLYPATCHES=$APPLYPATCHES -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t oraclelinux:8 /share/build-scripts/linux-x86_64/build_basilisk_subscripts/run_inside_docker.sh
+docker run -i -v $PWD:/share --rm -e APPLYPATCHES=$APPLYPATCHES -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t oraclelinux:8 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
