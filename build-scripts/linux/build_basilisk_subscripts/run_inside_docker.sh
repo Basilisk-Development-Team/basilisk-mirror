@@ -4,8 +4,6 @@ echo "Prepping user and group inside docker container..."
 groupadd -r -g $GID $GROUPNAME
 useradd -u $UID $USERNAME -g $GID
 
-ls -alh /share
-
 dnf install -y epel-release
 
 dnf config-manager --set-enabled ol8_codeready_builder
