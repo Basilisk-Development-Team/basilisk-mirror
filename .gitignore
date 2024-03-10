@@ -65,8 +65,8 @@ toolkit/devtools/chrome.manifest
 # Ignore misc files that need not be in the repo
 other-licenses/7zstub/firefox/7zSD - Copy.sfx.exe
 
-# Ignore official beta branding
-browser/branding/officialbeta/
+# Ignore official branding
+basilisk/branding/official/
 
 # External Projects
 # Account for someone being clever with ntfs junctions or other filesystem links ;)
@@ -75,4 +75,5 @@ mail/
 suite/
 iceweasel/
 calendar/
+epyrus/
 projects/*
