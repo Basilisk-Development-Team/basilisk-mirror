@@ -39,7 +39,7 @@ jobs:
         uses: docker/setup-qemu-action@v3
 
       - name: Build Basilisk
-        run: docker run -v --platform=linux/aarch64 $PWD:/share --rm -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t oraclelinux:8 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
+        run: docker run -v $PWD:/share --platform=linux/aarch64 --rm -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t oraclelinux:8 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
 
       - uses: actions/upload-artifact@v3
         with:
