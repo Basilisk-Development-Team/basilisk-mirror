@@ -33,7 +33,7 @@ jobs:
           submodules: recursive
 
       - name: Copy mozconfig
-        run: cp .github/workflows/build-basilisk-linux-x86_64/mozconfig-${{ matrix.config.gtk }}-${{ matrix.config.arch }} .mozconfig
+        run: cp mozconfigs/linux/${{ matrix.config.arch }}/${{ matrix.config.gtk }}_unofficial_branding.mozconfig .mozconfig
 
       - name: Build Basilisk
         run: docker run -v $PWD:/share --rm -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t oraclelinux:8 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
