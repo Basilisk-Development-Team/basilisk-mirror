@@ -1,0 +1,47 @@
+name: Build Basilisk Linux aarch64
+
+on:  
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - release
+
+jobs:
+  build-basilisk:
+    name: Build Basilisk Linux ${{ matrix.config.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - name: GTK3 aarch64
+          gtk: gtk3
+          arch: aarch64
+        - name: GTK2 aarch64
+          gtk: gtk2
+          arch: aarch64
+    steps:
+      - name: Free Disk Space
+        run: |
+          sudo apt-get update
+          sudo apt-get remove -y *dotnet* *google-cloud* *aws* *php* google-chrome-stable firefox powershell mono-devel
+          sudo apt-get autoremove -y
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Copy mozconfig
+        run: cp mozconfigs/linux/${{ matrix.config.arch }}/${{ matrix.config.gtk }}_unofficial_branding.mozconfig .mozconfig
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build Basilisk
+        run: docker run -v --platform=linux/aarch64 $PWD:/share --rm -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t oraclelinux:8 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: basilisk-linux-${{ matrix.config.arch }}-${{ matrix.config.gtk }}
+          path: obj-${{ matrix.config.arch }}-pc-linux-gnu/dist/basilisk-*
