@@ -48,12 +48,11 @@ function init(aEvent)
   let day = buildID.slice(6, 8);
   let hour = buildID.slice(8, 10);
   let minute = buildID.slice(10, 12);
-  if (Services.prefs.getBoolPref("general.useragent.appVersionIsBuildID")) {
-    versionField.textContent = `${year}.${month}.${day}`;
-  } else {
-    versionField.textContent = `v` + version + ` (${year}-${month}-${day})`;
-  }
-  
+
+#filter substitution
+  versionField.textContent = `@MOZ_APP_VERSION_DISPLAY@`;
+#unfilter substitution
+
   // Display warning if this is an "a#" (nightly or aurora) build
   if (/a\d+$/.test(version)) {
     document.getElementById("experimental").hidden = false;
