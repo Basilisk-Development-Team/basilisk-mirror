@@ -1,4 +1,4 @@
-name: Build Basilisk Linux x86_64
+name: Build Basilisk Linux aarch64
 
 on:  
   workflow_dispatch:
@@ -15,12 +15,12 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - name: GTK3 x86_64
+        - name: GTK3 aarch64
           gtk: gtk3
-          arch: x86_64
-        - name: GTK2 x86_64
+          arch: aarch64
+        - name: GTK2 aarch64
           gtk: gtk2
-          arch: x86_64
+          arch: aarch64
     steps:
       - name: Free Disk Space
         run: |
@@ -35,8 +35,11 @@ jobs:
       - name: Copy mozconfig
         run: cp mozconfigs/linux/${{ matrix.config.arch }}/${{ matrix.config.gtk }}_unofficial_branding.mozconfig .mozconfig
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Build Basilisk
-        run: docker run -v $PWD:/share --rm -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t oraclelinux:8 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
+        run: docker run -v $PWD:/share --platform=linux/aarch64 --rm -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t oraclelinux:8 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
 
       - uses: actions/upload-artifact@v3
         with:
