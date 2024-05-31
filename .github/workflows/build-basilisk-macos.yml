@@ -1,0 +1,52 @@
+name: Build Basilisk MacOS
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - release
+
+jobs:
+  build-basilisk:
+    name: Build Basilisk MacOS -  ${{ matrix.config.name }}
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: intel64
+            arch: intel64
+            compiler-arch: x86_64
+          - name: arm64
+            arch: arm64
+            compiler-arch: aarch64
+    steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 15.3.0
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup MacOS 11.3 SDK
+        run: |
+          mkdir -p /Applications/Xcode_15.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs
+          wget https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX11.3.sdk.tar.xz -P /Applications/Xcode_15.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs
+          tar xf /Applications/Xcode_15.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.3.sdk.tar.xz -C /Applications/Xcode_15.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs
+          rm -rf /Applications/Xcode_15.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.3.sdk.tar.xz
+
+      - name: Copy mozconfig
+        run: cp mozconfigs/macos/${{ matrix.config.arch }}/macos-${{ matrix.config.arch }}-mozconfig .mozconfig
+
+      - name: Build Basilisk
+        run: |
+          ./mach configure
+          ./mach build
+          ./mach package
+          
+      - uses: actions/upload-artifact@v4
+        with:
+          name: basilisk-linux-${{ matrix.config.arch }}
+          path: obj-${{ matrix.config.compiler-arch }}-pc-linux-gnu/dist/Serpent.app
