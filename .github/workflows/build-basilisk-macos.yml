@@ -37,6 +37,12 @@ jobs:
           tar xf /Applications/Xcode_15.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.3.sdk.tar.xz -C /Applications/Xcode_15.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs
           rm -rf /Applications/Xcode_15.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.3.sdk.tar.xz
 
+      - name: Install Dependencies
+        run: |
+          brew install autoconf@2.13 yasm
+          # Print the python version for debug
+          python --version
+
       - name: Copy mozconfig
         run: cp mozconfigs/macos/${{ matrix.config.arch }}/macos-${{ matrix.config.arch }}-mozconfig .mozconfig
 
