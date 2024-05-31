@@ -39,15 +39,20 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          brew install autoconf@2.13 yasm
-          # Print the python version for debug
-          python --version
+          brew install autoconf@2.13 yasm pyenv
+          
+          # Setup Python 2 with pyenv
+          pyenv install 2.7.18
+          pyenv global 2.7.18
 
       - name: Copy mozconfig
         run: cp mozconfigs/macos/${{ matrix.config.arch }}/macos-${{ matrix.config.arch }}-mozconfig .mozconfig
 
       - name: Build Basilisk
         run: |
+          # Use Python 2 we installed earler
+          export PATH="$(pyenv root)/shims:${PATH}"
+          
           ./mach configure
           ./mach build
           ./mach package
