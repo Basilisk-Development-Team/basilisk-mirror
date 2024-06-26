@@ -224,5 +224,9 @@
   <string>GoannaNSApplication</string>
   <key>NSDisablePersistence</key>
   <true/>
+  <key>NSCameraUsageDescription</key>
+  <string>Only sites you allow within %MAC_APP_NAME% will be able to use the camera.</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Only sites you allow within %MAC_APP_NAME% will be able to use the microphone.</string>
 </dict>
 </plist>
