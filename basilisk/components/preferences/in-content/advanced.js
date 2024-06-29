@@ -199,11 +199,11 @@ var gAdvancedPane = {
    */
   updateHardwareAcceleration: function()
   {
-    if (AppConstants.platform = "win") {
-      var fromPref = document.getElementById("layers.acceleration.enabled");
-      var toPref = document.getElementById("gfx.direct2d.disabled");
-      toPref.value = !fromPref.value;
-    }
+#ifdef XP_WIN
+    var fromPref = document.getElementById("layers.acceleration.enabled");
+    var toPref = document.getElementById("gfx.direct2d.disabled");
+    toPref.value = !fromPref.value;
+#endif
   },
 
   // DATA CHOICES TAB
@@ -221,12 +221,12 @@ var gAdvancedPane = {
   },
 
   updateOnScreenKeyboardVisibility() {
-    if (AppConstants.platform == "win") {
-      let minVersion = Services.prefs.getBoolPref("ui.osk.require_win10") ? 10 : 6.2;
-      if (Services.vc.compare(Services.sysinfo.getProperty("version"), minVersion) >= 0) {
-        document.getElementById("useOnScreenKeyboard").hidden = false;
-      }
+#ifdef XP_WIN
+    let minVersion = Services.prefs.getBoolPref("ui.osk.require_win10") ? 10 : 6.2;
+    if (Services.vc.compare(Services.sysinfo.getProperty("version"), minVersion) >= 0) {
+      document.getElementById("useOnScreenKeyboard").hidden = false;
     }
+#endif
   },
 
   // NETWORK TAB
