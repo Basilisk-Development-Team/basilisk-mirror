@@ -45,13 +45,12 @@ let gUndoData = null;
 XPCOMUtils.defineLazyGetter(this, "gAvailableMigratorKeys", function() {
 #if defined(XP_WIN)
   return [
-    "firefox", "edge", "ie", "chrome", "chromium",
-    "canary"
+    "firefox", "edge", "ie"
   ];
 #elif defined(XP_MACOSX)
-  return ["firefox", "safari", "chrome", "chromium", "canary"];
+  return ["firefox", "safari"];
 #elif defined(XP_UNIX)
-  return ["firefox", "chrome", "chromium"];
+  return ["firefox"];
 #else
   return [];
 #endif
@@ -497,8 +496,6 @@ this.MigrationUtils = Object.freeze({
    * @see nsIStringBundle
    */
   getLocalizedString: function(aKey, aReplacements) {
-    aKey = aKey.replace(/_(canary|chromium)$/, "_chrome");
-
     const OVERRIDES = {
       "4_firefox": "4_firefox_history_and_bookmarks",
       "64_firefox": "64_firefox_other"
@@ -519,12 +516,6 @@ this.MigrationUtils = Object.freeze({
         return "sourceNameIE";
       case "safari":
         return "sourceNameSafari";
-      case "canary":
-        return "sourceNameCanary";
-      case "chrome":
-        return "sourceNameChrome";
-      case "chromium":
-        return "sourceNameChromium";
       case "firefox":
         return "sourceNameFirefox";
     }
@@ -638,9 +629,6 @@ this.MigrationUtils = Object.freeze({
    *             Supported values: ie (windows),
    *                               edge (windows),
    *                               safari (mac),
-   *                               canary (mac/windows),
-   *                               chrome (mac/windows/linux),
-   *                               chromium (mac/windows/linux),
    *                               firefox.
    *
    * If null is returned,  either no data can be imported
@@ -678,7 +666,6 @@ this.MigrationUtils = Object.freeze({
    * but it will soon be exposed properly.
    */
   getMigratorKeyForDefaultBrowser() {
-    // Canary uses the same description as Chrome so we can't distinguish them.
     const APP_DESC_TO_KEY = {
       "Internet Explorer":                 "ie",
       "Microsoft Edge":                    "edge",
@@ -686,10 +673,6 @@ this.MigrationUtils = Object.freeze({
       "Basilisk":                          "firefox",
       "Firefox":                           "firefox",
       "Nightly":                           "firefox",
-      "Google Chrome":                     "chrome",  // Windows, Linux
-      "Chrome":                            "chrome",  // OS X
-      "Chromium":                          "chromium", // Windows, OS X
-      "Chromium Web Browser":              "chromium", // Linux
     };
 
     let key = "";
@@ -789,7 +772,7 @@ this.MigrationUtils = Object.freeze({
         win.focus();
         return;
       }
-      // On mac, the migration wiazrd should only be modal in the case of
+      // On mac, the migration wizard should only be modal in the case of
       // startup-migration.
       features = "centerscreen,chrome,resizable=no";
     }
@@ -1068,9 +1051,6 @@ this.MigrationUtils = Object.freeze({
     "firefox":    2,
     "edge":       3,
     "ie":         4,
-    "chrome":     5,
-    "chromium":   6,
-    "canary":     7,
     "safari":     8,
   },
 });
