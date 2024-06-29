@@ -14,12 +14,9 @@ XPIDL_SOURCES += [
 XPIDL_MODULE = 'migration'
 
 EXTRA_COMPONENTS += [
+    'BrowserProfileMigrators.manifest',
     'FirefoxProfileMigrator.js',
     'ProfileMigrator.js',
-]
-
-EXTRA_PP_COMPONENTS += [
-    'BrowserProfileMigrators.manifest',
 ]
 
 EXTRA_JS_MODULES += [
