@@ -43,17 +43,7 @@ let gKeepUndoData = false;
 let gUndoData = null;
 
 XPCOMUtils.defineLazyGetter(this, "gAvailableMigratorKeys", function() {
-#if defined(XP_WIN)
-  return [
-    "firefox", "edge", "ie"
-  ];
-#elif defined(XP_MACOSX)
   return ["firefox"];
-#elif defined(XP_UNIX)
-  return ["firefox"];
-#else
-  return [];
-#endif
 });
 
 function getMigrationBundle() {
@@ -509,10 +499,6 @@ this.MigrationUtils = Object.freeze({
 
   _getLocalePropertyForBrowser(browserId) {
     switch (browserId) {
-      case "edge":
-        return "sourceNameEdge";
-      case "ie":
-        return "sourceNameIE";
       case "firefox":
         return "sourceNameFirefox";
     }
@@ -623,9 +609,7 @@ this.MigrationUtils = Object.freeze({
    * for this source, or null otherwise.
    *
    * @param aKey internal name of the migration source.
-   *             Supported values: ie (windows),
-   *                               edge (windows),
-   *                               firefox.
+   *             Supported values: firefox.
    *
    * If null is returned,  either no data can be imported
    * for the given migrator, or aMigratorKey is invalid  (e.g. ie on mac,
@@ -663,8 +647,6 @@ this.MigrationUtils = Object.freeze({
    */
   getMigratorKeyForDefaultBrowser() {
     const APP_DESC_TO_KEY = {
-      "Internet Explorer":                 "ie",
-      "Microsoft Edge":                    "edge",
       "Basilisk":                          "firefox",
       "Firefox":                           "firefox",
       "Nightly":                           "firefox",
@@ -1044,7 +1026,5 @@ this.MigrationUtils = Object.freeze({
   _sourceNameToIdMapping: {
     "nothing":    1,
     "firefox":    2,
-    "edge":       3,
-    "ie":         4,
   },
 });

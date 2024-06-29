@@ -30,19 +30,4 @@ EXTRA_PP_JS_MODULES += [
     'MigrationUtils.jsm',
 ]
 
-if CONFIG['OS_ARCH'] == 'WINNT':
-    SOURCES += [
-        'nsIEHistoryEnumerator.cpp',
-    ]
-    EXTRA_COMPONENTS += [
-        'EdgeProfileMigrator.js',
-        'IEProfileMigrator.js',
-    ]
-    EXTRA_JS_MODULES += [
-        'ESEDBReader.jsm',
-        'MSMigrationUtils.jsm',
-    ]
-    DEFINES['HAS_IE_MIGRATOR'] = True
-    DEFINES['HAS_EDGE_MIGRATOR'] = True
-
 FINAL_LIBRARY = 'browsercomps'
