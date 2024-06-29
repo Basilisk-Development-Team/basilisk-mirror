@@ -48,7 +48,7 @@ XPCOMUtils.defineLazyGetter(this, "gAvailableMigratorKeys", function() {
     "firefox", "edge", "ie"
   ];
 #elif defined(XP_MACOSX)
-  return ["firefox", "safari"];
+  return ["firefox"];
 #elif defined(XP_UNIX)
   return ["firefox"];
 #else
@@ -94,7 +94,7 @@ this.MigratorPrototype = {
    * Only profiles from which data can be imported should be listed.  Otherwise
    * the behavior of the migration wizard isn't well-defined.
    *
-   * For a single-profile source (e.g. safari, ie), this returns null,
+   * For a single-profile source (e.g. ie), this returns null,
    * and not an empty array.  That is the default implementation.
    */
   get sourceProfiles() {
@@ -124,8 +124,7 @@ this.MigratorPrototype = {
    * For each migration type listed in nsIBrowserProfileMigrator, multiple
    * migration resources may be provided.  This practice is useful when the
    * data for a certain migration type is independently stored in few
-   * locations.  For example, the mac version of Safari stores its "reading list"
-   * bookmarks in a separate property list.
+   * locations.
    *
    * Note that the importation of a particular migration type is reported as
    * successful if _any_ of its resources succeeded to import (that is, called,
@@ -514,8 +513,6 @@ this.MigrationUtils = Object.freeze({
         return "sourceNameEdge";
       case "ie":
         return "sourceNameIE";
-      case "safari":
-        return "sourceNameSafari";
       case "firefox":
         return "sourceNameFirefox";
     }
@@ -628,7 +625,6 @@ this.MigrationUtils = Object.freeze({
    * @param aKey internal name of the migration source.
    *             Supported values: ie (windows),
    *                               edge (windows),
-   *                               safari (mac),
    *                               firefox.
    *
    * If null is returned,  either no data can be imported
@@ -669,7 +665,6 @@ this.MigrationUtils = Object.freeze({
     const APP_DESC_TO_KEY = {
       "Internet Explorer":                 "ie",
       "Microsoft Edge":                    "edge",
-      "Safari":                            "safari",
       "Basilisk":                          "firefox",
       "Firefox":                           "firefox",
       "Nightly":                           "firefox",
@@ -1051,6 +1046,5 @@ this.MigrationUtils = Object.freeze({
     "firefox":    2,
     "edge":       3,
     "ie":         4,
-    "safari":     8,
   },
 });
