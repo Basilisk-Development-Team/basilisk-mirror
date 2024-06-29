@@ -67,7 +67,7 @@ const PREF_AUDIO_FEED_SELECTED_READER = "browser.audioFeeds.handler.default";
 // identifying the "use plugin" action, so we use this constant instead.
 const kActionUsePlugin = 5;
 
-#ifdef XP_LINUX
+#if defined(XP_UNIX) && !defined(XP_MACOSX)
 const ICON_URL_APP = "moz-icon://dummy.exe?size=16";
 #else
 const ICON_URL_APP = "chrome://browser/skin/preferences/application.png";
