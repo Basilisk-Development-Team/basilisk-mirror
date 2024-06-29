@@ -34,18 +34,6 @@ var gSetBackground = {
     if (this._screenWidth / this._screenHeight >= 1.6)
       document.getElementById("monitor").setAttribute("aspectratio", "16:10");
 
-#ifdef XP_WIN
-    // Hide fill + fit options if < Win7 since they don't work.
-    var version = Components.classes["@mozilla.org/system-info;1"]
-                  .getService(Ci.nsIPropertyBag2)
-                  .getProperty("version");
-    var isWindows7OrHigher = (parseFloat(version) >= 6.1);
-    if (!isWindows7OrHigher) {
-      document.getElementById("fillPosition").hidden = true;
-      document.getElementById("fitPosition").hidden = true;
-    }
-#endif
-
     // make sure that the correct dimensions will be used
     setTimeout(function(self) {
       self.init(window.arguments[0]);
