@@ -8,7 +8,7 @@
 
 # BrandFullNameInternal is used for some registry and file system values
 # instead of BrandFullName and typically should not be modified.
-!define BrandFullNameInternal "Serpent"
+!define BrandFullNameInternal "Snake"
 !define CompanyName           "Basilisk Development Team"
 !define URLInfoAbout          "https://www.basilisk-browser.org"
 !define URLUpdateInfo         "https://www.basilisk-browser.org"

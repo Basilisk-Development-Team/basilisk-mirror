@@ -61,5 +61,5 @@ jobs:
         with:
           name: basilisk-macos-${{ matrix.config.arch }}
           path: |
-            obj-${{ matrix.config.compiler-arch }}-apple-darwin/dist/Serpent.app
+            obj-${{ matrix.config.compiler-arch }}-apple-darwin/dist/*.app
             obj-${{ matrix.config.compiler-arch }}-apple-darwin/dist/basilisk-*
