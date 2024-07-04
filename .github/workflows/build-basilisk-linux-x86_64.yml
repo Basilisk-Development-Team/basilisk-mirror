@@ -38,7 +38,7 @@ jobs:
       - name: Build Basilisk
         run: docker run -v $PWD:/share --rm -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t oraclelinux:8 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: basilisk-linux-${{ matrix.config.arch }}-${{ matrix.config.gtk }}
           path: obj-${{ matrix.config.arch }}-pc-linux-gnu/dist/basilisk-*
