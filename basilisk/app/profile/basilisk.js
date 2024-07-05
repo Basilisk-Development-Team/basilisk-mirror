@@ -606,7 +606,7 @@ pref("network.http.altsvc.oe", true);
 pref("network.http.upgrade-insecure-requests", true);
 
 // Enable SSL/TLS pipelining by default
-pref("network.http.pipelining.ssl", true)
+pref("network.http.pipelining.ssl", true);
 
 // We want to make sure mail URLs are handled externally...
 pref("network.protocol-handler.external.mailto", true); // for mail
