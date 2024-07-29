@@ -1,6 +1,6 @@
 name: Build Basilisk Windows
 
-on:  
+on:
   workflow_dispatch:
   push:
     branches:
@@ -24,9 +24,6 @@ jobs:
           arch: i686
 
     steps:
-      # - name: "MSVC Developer Command Prompt"
-      #   uses: seanmiddleditch/gha-setup-vsdevenv@v4
-
       - name: Install MozillaBuild
         run: |
           Invoke-WebRequest -Uri https://ftp.mozilla.org/pub/mozilla/libraries/win32/MozillaBuildSetup-3.4.exe -OutFile MozillaBuildSetup-3.4.exe
