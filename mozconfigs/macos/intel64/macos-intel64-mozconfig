@@ -2,10 +2,11 @@
 export BASILISK_VERSION=1
 
 # Needed for Clang from XCode 15.0 and later
-export LDFLAGS=-ld_classic
+export LDFLAGS="-ld_classic"
 
 # Use Clang on MacOS
-export CXX="/usr/bin/clang++ -stdlib=libc++"
+export CXX="/usr/bin/clang++ -stdlib=libc++ -arch x86_64"
+export CC="/usr/bin/clang -arch x86_64"
 
 # Build for MacOS 10.7 and above
 export MACOSX_DEPLOYMENT_TARGET=10.7
@@ -33,5 +34,6 @@ ac_add_options --disable-official-branding
 ac_add_options --with-macos-sdk=/Applications/Xcode_15.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.3.sdk
 ac_add_options --host=x86_64-apple-darwin
 ac_add_options --target=x86_64-apple-darwin
+ac_add_options --with-macbundle-type=hybrid
 
 export MOZILLA_OFFICIAL=1
