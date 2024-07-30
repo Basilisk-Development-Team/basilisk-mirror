@@ -44,6 +44,20 @@ jobs:
         run: Copy-Item .github\workflows\build-basilisk-windows\mozconfig-${{ matrix.config.win }} -Destination .\.mozconfig
         shell: pwsh
 
+      - name: Update mozconfig for release branch
+        if: github.ref == 'refs/heads/release'
+        shell: pwsh
+        run: |
+            (Get-Content .\.mozconfig) -replace 'disable-updater', 'enable-updater' | Set-Content .\.mozconfig
+            (Get-Content .\.mozconfig) -replace 'disable-official-branding', 'enable-official-branding' | Set-Content .\.mozconfig
+
+      - name: Pull official branding files for release branch
+        if: github.ref == 'refs/heads/release'
+        run: |
+          cd basilisk/branding
+          git clone https://${{ secrets.RPMO_CLONE_CREDENTIALS }}@repo.palemoon.org/Basilisk-Dev/${{ secrets.OFFICIAL_BRANDING_REPO_NAME }}.git official
+        shell: pwsh
+
       - name: mach configure
         run: |
           C:\mozilla-build\start-shell.bat /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} configure
@@ -58,6 +72,12 @@ jobs:
         run: |
           C:\mozilla-build\start-shell.bat /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} package
         shell: pwsh
+
+      - name: mach mar if release branch
+        if: github.ref == 'refs/heads/release'
+        shell: pwsh
+        run: |
+          C:\mozilla-build\start-shell.bat /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} mar
 
       - uses: actions/upload-artifact@v4
         with:
