@@ -25,14 +25,14 @@ var gMainPane = {
 
     if (AppConstants.HAVE_SHELL_SERVICE) {
       this.updateSetDefaultBrowser();
-      if (AppConstants.platform == "win") {
-        // In Windows 8 we launch the control panel since it's the only
-        // way to get all file type association prefs. So we don't know
-        // when the user will select the default.  We refresh here periodically
-        // in case the default changes. On other Windows OS's defaults can also
-        // be set while the prefs are open.
-        window.setInterval(this.updateSetDefaultBrowser.bind(this), 1000);
-      }
+#ifdef XP_WIN
+      // In Windows 8 we launch the control panel since it's the only
+      // way to get all file type association prefs. So we don't know
+      // when the user will select the default.  We refresh here periodically
+      // in case the default changes. On other Windows OS's defaults can also
+      // be set while the prefs are open.
+      window.setInterval(this.updateSetDefaultBrowser.bind(this), 1000);
+#endif
     }
 
     // set up the "use current page" label-changing listener
@@ -41,16 +41,16 @@ var gMainPane = {
 
     this.updateBrowserStartupLastSession();
 
-    if (AppConstants.platform == "win") {
-      // Functionality for "Show tabs in taskbar" on Windows 7 and up.
-      try {
-        let sysInfo = Cc["@mozilla.org/system-info;1"].
-                      getService(Ci.nsIPropertyBag2);
-        let ver = parseFloat(sysInfo.getProperty("version"));
-        let showTabsInTaskbar = document.getElementById("showTabsInTaskbar");
-        showTabsInTaskbar.hidden = ver < 6.1;
-      } catch (ex) {}
-    }
+#ifdef XP_WIN
+    // Functionality for "Show tabs in taskbar" on Windows 7 and up.
+    try {
+      let sysInfo = Cc["@mozilla.org/system-info;1"].
+                    getService(Ci.nsIPropertyBag2);
+      let ver = parseFloat(sysInfo.getProperty("version"));
+      let showTabsInTaskbar = document.getElementById("showTabsInTaskbar");
+      showTabsInTaskbar.hidden = ver < 6.1;
+    } catch (ex) {}
+#endif
 
     // The "closing multiple tabs" and "opening multiple tabs might slow down
     // &brandShortName;" warnings provide options for not showing these

@@ -458,15 +458,7 @@
 @RESPATH@/components/contentAreaDropListener.js
 @RESPATH@/browser/components/BrowserProfileMigrators.manifest
 @RESPATH@/browser/components/ProfileMigrator.js
-@RESPATH@/browser/components/ChromeProfileMigrator.js
 @RESPATH@/browser/components/FirefoxProfileMigrator.js
-#ifdef XP_WIN
-@RESPATH@/browser/components/EdgeProfileMigrator.js
-@RESPATH@/browser/components/IEProfileMigrator.js
-#endif
-#ifdef XP_MACOSX
-@RESPATH@/browser/components/SafariProfileMigrator.js
-#endif
 @RESPATH@/components/nsINIProcessor.manifest
 @RESPATH@/components/nsINIProcessor.js
 @RESPATH@/components/nsPrompter.manifest
@@ -629,10 +621,6 @@
 @RESPATH@/res/fonts/*
 @RESPATH@/res/dtd/*
 @RESPATH@/res/html/*
-#if defined(XP_MACOSX)
-; For SafariProfileMigrator.js.
-@RESPATH@/res/langGroups.properties
-#endif
 @RESPATH@/res/language.properties
 @RESPATH@/res/entityTables/*
 #ifdef XP_MACOSX

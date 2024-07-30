@@ -43,18 +43,7 @@ let gKeepUndoData = false;
 let gUndoData = null;
 
 XPCOMUtils.defineLazyGetter(this, "gAvailableMigratorKeys", function() {
-#if defined(XP_WIN)
-  return [
-    "firefox", "edge", "ie", "chrome", "chromium",
-    "canary"
-  ];
-#elif defined(XP_MACOSX)
-  return ["firefox", "safari", "chrome", "chromium", "canary"];
-#elif defined(XP_UNIX)
-  return ["firefox", "chrome", "chromium"];
-#else
-  return [];
-#endif
+  return ["firefox"];
 });
 
 function getMigrationBundle() {
@@ -95,7 +84,7 @@ this.MigratorPrototype = {
    * Only profiles from which data can be imported should be listed.  Otherwise
    * the behavior of the migration wizard isn't well-defined.
    *
-   * For a single-profile source (e.g. safari, ie), this returns null,
+   * For a single-profile source (e.g. ie), this returns null,
    * and not an empty array.  That is the default implementation.
    */
   get sourceProfiles() {
@@ -125,8 +114,7 @@ this.MigratorPrototype = {
    * For each migration type listed in nsIBrowserProfileMigrator, multiple
    * migration resources may be provided.  This practice is useful when the
    * data for a certain migration type is independently stored in few
-   * locations.  For example, the mac version of Safari stores its "reading list"
-   * bookmarks in a separate property list.
+   * locations.
    *
    * Note that the importation of a particular migration type is reported as
    * successful if _any_ of its resources succeeded to import (that is, called,
@@ -497,8 +485,6 @@ this.MigrationUtils = Object.freeze({
    * @see nsIStringBundle
    */
   getLocalizedString: function(aKey, aReplacements) {
-    aKey = aKey.replace(/_(canary|chromium)$/, "_chrome");
-
     const OVERRIDES = {
       "4_firefox": "4_firefox_history_and_bookmarks",
       "64_firefox": "64_firefox_other"
@@ -513,18 +499,6 @@ this.MigrationUtils = Object.freeze({
 
   _getLocalePropertyForBrowser(browserId) {
     switch (browserId) {
-      case "edge":
-        return "sourceNameEdge";
-      case "ie":
-        return "sourceNameIE";
-      case "safari":
-        return "sourceNameSafari";
-      case "canary":
-        return "sourceNameCanary";
-      case "chrome":
-        return "sourceNameChrome";
-      case "chromium":
-        return "sourceNameChromium";
       case "firefox":
         return "sourceNameFirefox";
     }
@@ -635,13 +609,7 @@ this.MigrationUtils = Object.freeze({
    * for this source, or null otherwise.
    *
    * @param aKey internal name of the migration source.
-   *             Supported values: ie (windows),
-   *                               edge (windows),
-   *                               safari (mac),
-   *                               canary (mac/windows),
-   *                               chrome (mac/windows/linux),
-   *                               chromium (mac/windows/linux),
-   *                               firefox.
+   *             Supported values: firefox.
    *
    * If null is returned,  either no data can be imported
    * for the given migrator, or aMigratorKey is invalid  (e.g. ie on mac,
@@ -678,18 +646,10 @@ this.MigrationUtils = Object.freeze({
    * but it will soon be exposed properly.
    */
   getMigratorKeyForDefaultBrowser() {
-    // Canary uses the same description as Chrome so we can't distinguish them.
     const APP_DESC_TO_KEY = {
-      "Internet Explorer":                 "ie",
-      "Microsoft Edge":                    "edge",
-      "Safari":                            "safari",
       "Basilisk":                          "firefox",
       "Firefox":                           "firefox",
       "Nightly":                           "firefox",
-      "Google Chrome":                     "chrome",  // Windows, Linux
-      "Chrome":                            "chrome",  // OS X
-      "Chromium":                          "chromium", // Windows, OS X
-      "Chromium Web Browser":              "chromium", // Linux
     };
 
     let key = "";
@@ -789,7 +749,7 @@ this.MigrationUtils = Object.freeze({
         win.focus();
         return;
       }
-      // On mac, the migration wiazrd should only be modal in the case of
+      // On mac, the migration wizard should only be modal in the case of
       // startup-migration.
       features = "centerscreen,chrome,resizable=no";
     }
@@ -1066,11 +1026,5 @@ this.MigrationUtils = Object.freeze({
   _sourceNameToIdMapping: {
     "nothing":    1,
     "firefox":    2,
-    "edge":       3,
-    "ie":         4,
-    "chrome":     5,
-    "chromium":   6,
-    "canary":     7,
-    "safari":     8,
   },
 });

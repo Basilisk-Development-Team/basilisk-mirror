@@ -13,10 +13,12 @@ let gDecoderDoctorHandler = {
       return gNavigatorBundle.getString("decoder.noCodecsLinux.message");
 #endif
     }
+#if defined(XP_UNIX) && !defined(XP_MACOSX)
     if (type == "cannot-initialize-pulseaudio") {
       return gNavigatorBundle.getString("decoder.noPulseAudio.message");
     }
-#ifdef XP_LINUX
+#endif
+#if defined(XP_UNIX) && !defined(XP_MACOSX)
     if (type == "unsupported-libavcodec") {
       return gNavigatorBundle.getString("decoder.unsupportedLibavcodec.message");
     }

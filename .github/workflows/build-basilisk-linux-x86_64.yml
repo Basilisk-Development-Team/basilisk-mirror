@@ -35,10 +35,26 @@ jobs:
       - name: Copy mozconfig
         run: cp mozconfigs/linux/${{ matrix.config.arch }}/${{ matrix.config.gtk }}_unofficial_branding.mozconfig .mozconfig
 
+      - name: Update mozconfig for release branch
+        if: github.ref == 'refs/heads/release'
+        run: |
+          sed -i 's/disable-updater/enable-updater/g' .mozconfig
+          sed -i 's/disable-official-branding/enable-official-branding/g' .mozconfig
+
+      - name: Pull official branding files for release branch
+        if: github.ref == 'refs/heads/release'
+        run: |
+          cd basilisk/branding && git clone https://${{ secrets.RPMO_CLONE_CREDENTIALS }}@repo.palemoon.org/Basilisk-Dev/${{ secrets.OFFICIAL_BRANDING_REPO_NAME }}.git official
+
+      - name: Update docker build script for release branch
+        if: github.ref == 'refs/heads/release'
+        run: |
+          echo 'su -c "./mach mar" $USERNAME' >> build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
+
       - name: Build Basilisk
         run: docker run -v $PWD:/share --rm -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t oraclelinux:8 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: basilisk-linux-${{ matrix.config.arch }}-${{ matrix.config.gtk }}
           path: obj-${{ matrix.config.arch }}-pc-linux-gnu/dist/basilisk-*

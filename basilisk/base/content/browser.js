@@ -4683,7 +4683,7 @@ function setToolbarVisibility(toolbar, isVisible, persist=true) {
   let hidingAttribute;
   if (toolbar.getAttribute("type") == "menubar") {
     hidingAttribute = "autohide";
-#ifdef XP_LINUX
+#if defined(XP_UNIX) && !defined(XP_MACOSX)
     Services.prefs.setBoolPref("ui.key.menuAccessKeyFocuses", !isVisible);
 #endif
   } else {

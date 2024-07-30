@@ -428,19 +428,19 @@ nsBrowserContentHandler.prototype = {
       cmdLine.preventDefault = true;
     }
 
-    if (AppConstants.platform  == "win") {
-      // Handle "? searchterm" for Windows Vista start menu integration
-      for (var i = cmdLine.length - 1; i >= 0; --i) {
-        var param = cmdLine.getArgument(i);
-        if (param.match(/^\? /)) {
-          cmdLine.removeArguments(i, i);
-          cmdLine.preventDefault = true;
+#ifdef XP_WIN
+    // Handle "? searchterm" for Windows Vista start menu integration
+    for (var i = cmdLine.length - 1; i >= 0; --i) {
+      var param = cmdLine.getArgument(i);
+      if (param.match(/^\? /)) {
+        cmdLine.removeArguments(i, i);
+        cmdLine.preventDefault = true;
 
-          searchParam = param.substr(2);
-          doSearch(searchParam, cmdLine);
-        }
+        searchParam = param.substr(2);
+        doSearch(searchParam, cmdLine);
       }
     }
+#endif
   },
 
   get helpInfo() {
@@ -449,11 +449,11 @@ nsBrowserContentHandler.prototype = {
               "  --new-window <url>                           Open <url> in a new window.\n" +
               "  --new-tab <url>                              Open <url> in a new tab.\n" +
               "  --private-window <url>                       Open <url> in a new private window.\n";
-    if (AppConstants.platform == "win") {
-      info += "  --preferences                                Open Options dialog.\n";
-    } else {
-      info += "  --preferences                                Open Preferences dialog.\n";
-    }
+#ifdef XP_WIN
+    info += "  --preferences                                Open Options dialog.\n";
+#else
+    info += "  --preferences                                Open Preferences dialog.\n";
+#endif
     info += "  --search <term>                              Search <term> with your default search engine.\n";
     return info;
   },
@@ -687,25 +687,25 @@ nsDefaultCommandLineHandler.prototype = {
   handle : function(cmdLine) {
     var urilist = [];
 
-    if (AppConstants.platform == "win") {
-      // If we don't have a profile selected yet (e.g. the Profile Manager is
-      // displayed) we will crash if we open an url and then select a profile. To
-      // prevent this handle all url command line flags and set the command line's
-      // preventDefault to true to prevent the display of the ui. The initial
-      // command line will be retained when nsAppRunner calls LaunchChild though
-      // urls launched after the initial launch will be lost.
-      if (!this._haveProfile) {
-        try {
-          // This will throw when a profile has not been selected.
-          Services.dirsvc.get("ProfD", Components.interfaces.nsILocalFile);
-          this._haveProfile = true;
-        }
-        catch (e) {
-          while ((ar = cmdLine.handleFlagWithParam("url", false)));
-          cmdLine.preventDefault = true;
-        }
+#ifdef XP_WIN
+    // If we don't have a profile selected yet (e.g. the Profile Manager is
+    // displayed) we will crash if we open an url and then select a profile. To
+    // prevent this handle all url command line flags and set the command line's
+    // preventDefault to true to prevent the display of the ui. The initial
+    // command line will be retained when nsAppRunner calls LaunchChild though
+    // urls launched after the initial launch will be lost.
+    if (!this._haveProfile) {
+      try {
+        // This will throw when a profile has not been selected.
+        Services.dirsvc.get("ProfD", Components.interfaces.nsILocalFile);
+        this._haveProfile = true;
+      }
+      catch (e) {
+        while ((ar = cmdLine.handleFlagWithParam("url", false)));
+        cmdLine.preventDefault = true;
       }
     }
+#endif
 
     try {
       var ar;

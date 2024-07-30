@@ -8,9 +8,9 @@ dnf install -y epel-release
 
 dnf config-manager --set-enabled ol8_codeready_builder
 
-dnf install -y gtk3-devel dbus-glib-devel GConf2-devel autoconf213 yasm \
-mesa-libGL-devel alsa-lib-devel libXt-devel openssl-devel sqlite-devel \
-pulseaudio-libs-devel python2 gtk2-devel
+dnf install -y gtk3-devel dbus-glib-devel GConf2-devel yasm mesa-libGL-devel \
+alsa-lib-devel libXt-devel openssl-devel sqlite-devel pulseaudio-libs-devel \
+python2 gtk2-devel
 
 dnf groupinstall -y 'Development Tools'
 

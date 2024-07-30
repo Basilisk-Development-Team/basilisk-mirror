@@ -16,10 +16,6 @@
 #include "nsGNOMEShellService.h"
 #endif
 
-#if defined(XP_WIN)
-#include "nsIEHistoryEnumerator.h"
-#endif
-
 #include "rdf.h"
 #include "nsFeedSniffer.h"
 #include "AboutRedirector.h"
@@ -38,10 +34,6 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsWindowsShellService)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsMacShellService)
 #elif defined(MOZ_WIDGET_GTK)
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsGNOMEShellService, Init)
-#endif
-
-#if defined(XP_WIN)
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsIEHistoryEnumerator)
 #endif
 
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsFeedSniffer)
@@ -69,9 +61,7 @@ static const mozilla::Module::CIDEntry kBrowserCIDs[] = {
 #endif
     { &kNS_FEEDSNIFFER_CID, false, nullptr, nsFeedSnifferConstructor },
     { &kNS_BROWSER_ABOUT_REDIRECTOR_CID, false, nullptr, AboutRedirector::Create },
-#if defined(XP_WIN)
-    { &kNS_WINIEHISTORYENUMERATOR_CID, false, nullptr, nsIEHistoryEnumeratorConstructor },
-#elif defined(XP_MACOSX)
+#if defined(XP_MACOSX)
     { &kNS_SHELLSERVICE_CID, false, nullptr, nsMacShellServiceConstructor },
 #endif
     { nullptr }
@@ -106,9 +96,7 @@ static const mozilla::Module::ContractIDEntry kBrowserContracts[] = {
     { NS_ABOUT_MODULE_CONTRACTID_PREFIX "healthreport", &kNS_BROWSER_ABOUT_REDIRECTOR_CID },
 #endif
     { NS_ABOUT_MODULE_CONTRACTID_PREFIX "reader", &kNS_BROWSER_ABOUT_REDIRECTOR_CID },
-#if defined(XP_WIN)
-    { NS_IEHISTORYENUMERATOR_CONTRACTID, &kNS_WINIEHISTORYENUMERATOR_CID },
-#elif defined(XP_MACOSX)
+#if defined(XP_MACOSX)
     { NS_SHELLSERVICE_CONTRACTID, &kNS_SHELLSERVICE_CID },
 #endif
     { nullptr }

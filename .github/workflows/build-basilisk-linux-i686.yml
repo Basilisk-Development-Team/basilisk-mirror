@@ -57,7 +57,7 @@ jobs:
       - name: mach package
         run: ./mach package
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: basilisk-linux-${{ matrix.config.arch }}-${{ matrix.config.gtk }}
           path: obj-${{ matrix.config.arch }}-pc-linux-gnu/dist/basilisk-*
