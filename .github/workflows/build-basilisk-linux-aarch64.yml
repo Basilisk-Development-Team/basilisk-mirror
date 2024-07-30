@@ -2,10 +2,13 @@ name: Build Basilisk Linux aarch64
 
 on:  
   workflow_dispatch:
-  push:
-    branches:
-      - master
-      - release
+  # TODO: When we get GitHub Action ARM runners we will build this inside of GitHub Actions on push.
+  # For now this uses QEMU user mode emulation inside of docker. It times out after 6 hours because
+  # The emulation is so much slower than native execution.
+  # push:
+  #   branches:
+  #     - master
+  #     - release
 
 jobs:
   build-basilisk:
