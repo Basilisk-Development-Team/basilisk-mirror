@@ -5,6 +5,11 @@ if [ ! $(which docker) ]; then
     exit
 fi
 
+if [ $(uname -s) != "Linux" ]; then
+    echo "This script is only meant to be ran on Linux."
+    exit
+fi
+
 # This probably isn't the best way to determine if we are in the Basilisk root directory but it works for now.
 if [ ! -f aclocal.m4 ]; then
     echo "This script must be ran from the root of the Basilisk codebase."
@@ -24,4 +29,4 @@ APPLYPATCHES=$1
 
 echo "Starting Container..."
 
-docker run -i -v $PWD:/share --platform=linux/arm64 --rm -e APPLYPATCHES=$APPLYPATCHES -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t oraclelinux:8 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
+docker run -i -v $PWD:/share --rm -e APPLYPATCHES=$APPLYPATCHES -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t oraclelinux:8 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
