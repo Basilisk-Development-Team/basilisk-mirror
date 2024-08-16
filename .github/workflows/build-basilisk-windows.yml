@@ -73,6 +73,12 @@ jobs:
           C:\mozilla-build\start-shell.bat /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} package
         shell: pwsh
 
+      - name: mach installer if release branch
+        if: github.ref == 'refs/heads/release'
+        shell: pwsh
+        run: |
+          C:\mozilla-build\start-shell.bat /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} installer
+
       - name: mach mar if release branch
         if: github.ref == 'refs/heads/release'
         shell: pwsh
