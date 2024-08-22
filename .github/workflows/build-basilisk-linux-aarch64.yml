@@ -28,7 +28,7 @@ jobs:
       - name: Free Disk Space
         run: |
           sudo apt-get update
-          sudo apt-get remove -y *dotnet* *google-cloud* *aws* *php* google-chrome-stable firefox powershell mono-devel
+          sudo apt-get remove -y *dotnet* *google-cloud* *aws* *php* firefox mono-devel
           sudo apt-get autoremove -y
 
       - uses: actions/checkout@v4
