@@ -1,6 +1,6 @@
 name: Build Basilisk Linux i686
 
-on:  
+on:
   workflow_dispatch:
   push:
     branches:
@@ -15,49 +15,46 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - name: GTK3 i686
-          gtk: gtk3
-          arch: i686
-        - name: GTK2 i686
-          gtk: gtk2
-          arch: i686
+          - name: GTK3 i686
+            gtk: gtk3
+            arch: i686
+          - name: GTK2 i686
+            gtk: gtk2
+            arch: i686
     steps:
-      - name: Install dependencies
+      - name: Free Disk Space
         run: |
           sudo apt-get update
-          sudo apt-get upgrade -y
-          sudo apt-get install build-essential libgtk2.0-dev libdbus-glib-1-dev \
-          yasm libegl1-mesa-dev libasound2-dev libxt-dev zlib1g-dev libssl-dev \
-          libsqlite3-dev libbz2-dev libpulse-dev libgconf2-dev libx11-xcb-dev \
-          zip python2.7 python-dbus-dev libgtk-3-dev -y
-
-      - name: Install 32-bit Dependencies
-        if: matrix.config.arch == 'i686'
-        run: |
-          sudo dpkg --add-architecture i386
-          sudo apt-get update
-          sudo apt-get install g++-9-i686-linux-gnu libxt-dev:i386 \
-          libx11-xcb-dev:i386 libxext-dev:i386 libxcb-shm0-dev:i386 \
-          libgtk2.0-dev:i386 libgtk-3-dev:i386 libasound2-dev:i386 \
-          libpulse-dev:i386 libdbus-glib-1-dev:i386 gcc-9-i686-linux-gnu 
+          sudo apt-get remove -y *dotnet* *google-cloud* *aws* *php* google-chrome-stable firefox powershell mono-devel
+          sudo apt-get autoremove -y
 
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Copy mozconfig
-        run: cp .github/workflows/build-basilisk-linux-i686/mozconfig-${{ matrix.config.gtk }}-${{ matrix.config.arch }} .mozconfig
+        run: cp mozconfigs/linux/${{ matrix.config.arch }}/${{ matrix.config.gtk }}_unofficial_branding.mozconfig .mozconfig
 
-      - name: mach configure
-        run: ./mach configure
+      - name: Update mozconfig for release branch
+        if: github.ref == 'refs/heads/release'
+        run: |
+          sed -i 's/disable-updater/enable-updater/g' .mozconfig
+          sed -i 's/disable-official-branding/enable-official-branding/g' .mozconfig
 
-      - name: mach build
-        run: ./mach build
+      - name: Pull official branding files for release branch
+        if: github.ref == 'refs/heads/release'
+        run: |
+          cd basilisk/branding && git clone https://${{ secrets.RPMO_CLONE_CREDENTIALS }}@repo.palemoon.org/Basilisk-Dev/${{ secrets.OFFICIAL_BRANDING_REPO_NAME }}.git official
 
-      - name: mach package
-        run: ./mach package
+      - name: Update docker build script for release branch
+        if: github.ref == 'refs/heads/release'
+        run: |
+          echo 'su -c "./mach mar" $USERNAME' >> build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
+
+      - name: Build Basilisk
+        run: docker run -v $PWD:/share --rm -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t oraclelinux:8 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
 
       - uses: actions/upload-artifact@v4
         with:
           name: basilisk-linux-${{ matrix.config.arch }}-${{ matrix.config.gtk }}
-          path: obj-${{ matrix.config.arch }}-pc-linux-gnu/dist/basilisk-*
+          path: obj-${{ matrix.config.arch }}-unknown-linux-gnu/dist/basilisk-*
