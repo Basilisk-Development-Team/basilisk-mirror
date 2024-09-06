@@ -37,6 +37,7 @@ if [ -n "$_BUILD_64" ]; then
   ac_add_options --x-libraries=/usr/lib64
 else
   ac_add_options --x-libraries=/usr/lib
+  export PKG_CONFIG_PATH=/usr/lib/pkgconfig
 fi
 
 export MOZ_PKG_SPECIAL=gtk$_GTK_VERSION
