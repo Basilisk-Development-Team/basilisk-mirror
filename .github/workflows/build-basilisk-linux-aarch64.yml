@@ -2,9 +2,8 @@ name: Build Basilisk Linux aarch64
 
 on:  
   workflow_dispatch:
-  # TODO: When we get GitHub Action ARM runners we will build this inside of GitHub Actions on push.
-  # For now this uses QEMU user mode emulation inside of docker. It times out after 6 hours because
-  # The emulation is so much slower than native execution.
+  # We have to pay for this, so we'll only run it manually.
+  # When/if GitHub has free minutes for ARM64, we can enable this.
   # push:
   #   branches:
   #     - master
@@ -13,7 +12,7 @@ on:
 jobs:
   build-basilisk:
     name: Build Basilisk Linux ${{ matrix.config.name }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm64
     strategy:
       fail-fast: false
       matrix:
@@ -28,7 +27,7 @@ jobs:
       - name: Free Disk Space
         run: |
           sudo apt-get update
-          sudo apt-get remove -y *dotnet* *google-cloud* *aws* *php* google-chrome-stable firefox powershell mono-devel
+          sudo apt-get remove -y *dotnet* *google-cloud* *aws* *php* firefox mono-devel
           sudo apt-get autoremove -y
 
       - uses: actions/checkout@v4
@@ -38,8 +37,21 @@ jobs:
       - name: Copy mozconfig
         run: cp mozconfigs/linux/${{ matrix.config.arch }}/${{ matrix.config.gtk }}_unofficial_branding.mozconfig .mozconfig
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Update mozconfig for release branch
+        if: github.ref == 'refs/heads/release'
+        run: |
+          sed -i 's/disable-updater/enable-updater/g' .mozconfig
+          sed -i 's/disable-official-branding/enable-official-branding/g' .mozconfig
+
+      - name: Pull official branding files for release branch
+        if: github.ref == 'refs/heads/release'
+        run: |
+          cd basilisk/branding && git clone https://${{ secrets.RPMO_CLONE_CREDENTIALS }}@repo.palemoon.org/Basilisk-Dev/${{ secrets.OFFICIAL_BRANDING_REPO_NAME }}.git official
+
+      - name: Update docker build script for release branch
+        if: github.ref == 'refs/heads/release'
+        run: |
+          echo 'su -c "./mach mar" $USERNAME' >> build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
 
       - name: Build Basilisk
         run: docker run -v $PWD:/share --platform=linux/aarch64 --rm -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t oraclelinux:8 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
@@ -47,4 +59,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: basilisk-linux-${{ matrix.config.arch }}-${{ matrix.config.gtk }}
-          path: obj-${{ matrix.config.arch }}-pc-linux-gnu/dist/basilisk-*
+          path: obj-${{ matrix.config.arch }}-unknown-linux-gnu/dist/basilisk-*

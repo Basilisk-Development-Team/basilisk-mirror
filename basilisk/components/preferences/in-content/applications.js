@@ -469,8 +469,11 @@ FeedHandlerInfo.prototype = {
     Cc["@mozilla.org/embeddor.implemented/web-content-handler-registrar;1"].
     getService(Ci.nsIWebContentConverterService),
 
-  _shellSvc: AppConstants.HAVE_SHELL_SERVICE ? getShellService() : null,
-
+#ifdef HAVE_SHELL_SERVICE
+  _shellSvc: getShellService(),
+#else
+  _shellSvc: null,
+#endif
   // nsIHandlerInfo
 
   get description() {
@@ -590,14 +593,14 @@ FeedHandlerInfo.prototype = {
       return this.__defaultApplicationHandler;
 
     var defaultFeedReader = null;
-    if (AppConstants.HAVE_SHELL_SERVICE) {
-      try {
-        defaultFeedReader = this._shellSvc.defaultFeedReader;
-      }
-      catch (ex) {
-        // no default reader or _shellSvc is null
-      }
+#ifdef HAVE_SHELL_SERVICE
+    try {
+      defaultFeedReader = this._shellSvc.defaultFeedReader;
     }
+    catch (ex) {
+      // no default reader or _shellSvc is null
+    }
+#endif
 
     if (defaultFeedReader) {
       let handlerApp = Cc["@mozilla.org/uriloader/local-handler-app;1"].
@@ -616,15 +619,15 @@ FeedHandlerInfo.prototype = {
   },
 
   get hasDefaultHandler() {
-    if (AppConstants.HAVE_SHELL_SERVICE) {
-      try {
-        if (this._shellSvc.defaultFeedReader)
-          return true;
-      }
-      catch (ex) {
-        // no default reader or _shellSvc is null
-      }
+#ifdef HAVE_SHELL_SERVICE
+    try {
+      if (this._shellSvc.defaultFeedReader)
+        return true;
     }
+    catch (ex) {
+      // no default reader or _shellSvc is null
+    }
+#endif
 
     return false;
   },

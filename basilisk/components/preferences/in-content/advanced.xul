@@ -48,6 +48,12 @@
               type="int"/>
 
   <!-- Network tab -->
+  <preference id="network.dns.prefetch"
+              name="network.dns.disablePrefetch"
+              type="bool"
+              inverted="true"/>
+
+  <!-- Cache tab -->
   <preference id="browser.cache.disk.capacity"
               name="browser.cache.disk.capacity"
               type="int"/>
@@ -123,6 +129,7 @@
     <tab id="dataChoicesTab" label="&dataChoicesTab.label;"/>
 #endif
     <tab id="networkTab" label="&networkTab.label;"/>
+    <tab id="cacheTab" label="&cacheTab.label;"/>
     <tab id="updateTab" label="&updateTab.label;"/>
     <tab id="encryptionTab" label="&certificateTab.label;"/>
   </tabs>
@@ -194,7 +201,18 @@
         </hbox>
       </groupbox>
 
-      <!-- Cache -->
+      <!-- DNS settings -->
+      <groupbox id="DNSGroup">
+        <caption><label>&DNS.label;</label></caption>
+        <checkbox id="enableDNSPrefetch"
+                  label="&enableDNSPrefetch.label;"
+                  accesskey="&enableDNSPrefetch.accesskey;"
+                  preference="network.dns.prefetch"/>
+      </groupbox>
+    </tabpanel>
+
+    <!-- Cache -->
+    <tabpanel id="cachePanel" orient="vertical">
       <groupbox id="cacheGroup">
         <caption><label>&httpCache.label;</label></caption>
 

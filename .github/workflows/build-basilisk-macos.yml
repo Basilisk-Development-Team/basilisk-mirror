@@ -39,7 +39,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          brew install autoconf@2.13 yasm pyenv
+          brew install yasm pyenv
           
           # Setup Python 2 with pyenv
           pyenv install 2.7.18

@@ -2,14 +2,10 @@
 _BUILD_64=
 
 # Set GTK Version to 2 or 3
-_GTK_VERSION=3
+_GTK_VERSION=2
 
 # Set Basilisk version to date timestamp
 export BASILISK_VERSION=1
-
-# Set GCC 9
-export CC=i686-linux-gnu-gcc-9
-export CXX=i686-linux-gnu-g++-9
 
 # Standard build options for Basilisk
 ac_add_options --enable-application=basilisk
@@ -22,17 +18,18 @@ ac_add_options --enable-av1
 ac_add_options --enable-jxl
 ac_add_options --enable-webrtc
 ac_add_options --enable-gamepad
+ac_add_options --enable-pie
+ac_add_options --enable-update-channel=release
 ac_add_options --disable-tests
 ac_add_options --disable-debug
 ac_add_options --disable-necko-wifi
 ac_add_options --disable-updater
 ac_add_options --with-pthreads
 ac_add_options --disable-gconf
-ac_add_options --enable-pie
-
-ac_add_options --target=i686-pc-linux-gnu
-
 ac_add_options --disable-official-branding
+ac_add_options --target=i686-unknown-linux-gnu
+ac_add_options --with-arch=i686
+
 export MOZILLA_OFFICIAL=1
 
 # Processor architecture specific build options
@@ -40,6 +37,7 @@ if [ -n "$_BUILD_64" ]; then
   ac_add_options --x-libraries=/usr/lib64
 else
   ac_add_options --x-libraries=/usr/lib
+  export PKG_CONFIG_PATH=/usr/lib/pkgconfig
 fi
 
 export MOZ_PKG_SPECIAL=gtk$_GTK_VERSION
