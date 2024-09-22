@@ -6,7 +6,6 @@
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
-Components.utils.import("resource://gre/modules/AppConstants.jsm");
 
 XPCOMUtils.defineLazyModuleGetter(this, "LaterRun",
                                   "resource:///modules/LaterRun.jsm");
@@ -757,7 +756,10 @@ nsDefaultCommandLineHandler.prototype = {
 
     }
     else if (!cmdLine.preventDefault) {
-      if (AppConstants.isPlatformAndVersionAtLeast("win", "10") &&
+#ifdef XP_WIN
+      let platformVersion = Services.sysinfo.getProperty("version");
+
+      if (Services.vc.compare(platformVersion, "10") >= 0 &&
           cmdLine.state != nsICommandLine.STATE_INITIAL_LAUNCH &&
           WindowsUIUtils.inTabletMode) {
         // In windows 10 tablet mode, do not create a new window, but reuse the existing one.
@@ -767,6 +769,7 @@ nsDefaultCommandLineHandler.prototype = {
           return;
         }
       }
+#endif
       // Passing defaultArgs, so use NO_EXTERNAL_URIS
       openWindow(null, gBrowserContentHandler.chromeURL, "_blank",
                  "chrome,dialog=no,all" + gBrowserContentHandler.getFeatures(cmdLine),
