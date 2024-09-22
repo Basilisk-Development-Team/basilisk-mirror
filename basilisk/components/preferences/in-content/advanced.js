@@ -30,15 +30,15 @@ var gAdvancedPane = {
     if (preference.value !== null)
         advancedPrefs.selectedIndex = preference.value;
 
-    if (AppConstants.MOZ_UPDATER) {
-      let onUnload = function () {
-        window.removeEventListener("unload", onUnload, false);
-        Services.prefs.removeObserver("app.update.", this);
-      }.bind(this);
-      window.addEventListener("unload", onUnload, false);
-      Services.prefs.addObserver("app.update.", this, false);
-      this.updateReadPrefs();
-    }
+#ifdef MOZ_UPDATER
+    let onUnload = function () {
+      window.removeEventListener("unload", onUnload, false);
+      Services.prefs.removeObserver("app.update.", this);
+    }.bind(this);
+    window.addEventListener("unload", onUnload, false);
+    Services.prefs.addObserver("app.update.", this, false);
+    this.updateReadPrefs();
+#endif
     this.updateOfflineApps();
     this.updateOnScreenKeyboardVisibility();
     this.updateCacheSizeInputField();
@@ -65,12 +65,12 @@ var gAdvancedPane = {
             .style.height = bundlePrefs.getString("offlineAppsList.height");
     setEventListener("offlineAppsListRemove", "command",
                      gAdvancedPane.removeOfflineApp);
-    if (AppConstants.MOZ_UPDATER) {
-      setEventListener("updateRadioGroup", "command",
-                       gAdvancedPane.updateWritePrefs);
-      setEventListener("showUpdateHistory", "command",
-                       gAdvancedPane.showUpdates);
-    }
+#ifdef MOZ_UPDATER
+    setEventListener("updateRadioGroup", "command",
+                     gAdvancedPane.updateWritePrefs);
+    setEventListener("showUpdateHistory", "command",
+                     gAdvancedPane.showUpdates);
+#endif
     setEventListener("viewCertificatesButton", "command",
                      gAdvancedPane.showCertificates);
     setEventListener("viewSecurityDevicesButton", "command",
@@ -78,14 +78,14 @@ var gAdvancedPane = {
     setEventListener("cacheSize", "change",
                      gAdvancedPane.updateCacheSizePref);
 
-    if (AppConstants.MOZ_WIDGET_GTK) {
-      // GTK tabbox' allow the scroll wheel to change the selected tab,
-      // but we don't want this behavior for the in-content preferences.
-      let tabsElement = document.getElementById("tabsElement");
-      tabsElement.addEventListener("DOMMouseScroll", event => {
-        event.stopPropagation();
-      }, true);
-    }
+#ifdef MOZ_WIDGET_GTK
+    // GTK tabbox' allow the scroll wheel to change the selected tab,
+    // but we don't want this behavior for the in-content preferences.
+    let tabsElement = document.getElementById("tabsElement");
+    tabsElement.addEventListener("DOMMouseScroll", event => {
+      event.stopPropagation();
+    }, true);
+#endif
   },
 
   /**
@@ -562,26 +562,26 @@ var gAdvancedPane = {
    */
   updateReadPrefs: function ()
   {
-    if (AppConstants.MOZ_UPDATER) {
-      var enabledPref = document.getElementById("app.update.enabled");
-      var autoPref = document.getElementById("app.update.auto");
-      var radiogroup = document.getElementById("updateRadioGroup");
+#ifdef MOZ_UPDATER
+    var enabledPref = document.getElementById("app.update.enabled");
+    var autoPref = document.getElementById("app.update.auto");
+    var radiogroup = document.getElementById("updateRadioGroup");
 
-      if (!enabledPref.value)   // Don't care for autoPref.value in this case.
-        radiogroup.value="manual";    // 3. Never check for updates.
-      else if (autoPref.value)  // enabledPref.value && autoPref.value
-        radiogroup.value="auto";      // 1. Automatically install updates
-      else                      // enabledPref.value && !autoPref.value
-        radiogroup.value="checkOnly"; // 2. Check, but let me choose
+    if (!enabledPref.value)   // Don't care for autoPref.value in this case.
+      radiogroup.value="manual";    // 3. Never check for updates.
+    else if (autoPref.value)  // enabledPref.value && autoPref.value
+      radiogroup.value="auto";      // 1. Automatically install updates
+    else                      // enabledPref.value && !autoPref.value
+      radiogroup.value="checkOnly"; // 2. Check, but let me choose
 
-      var canCheck = Components.classes["@mozilla.org/updates/update-service;1"].
-                       getService(Components.interfaces.nsIApplicationUpdateService).
-                       canCheckForUpdates;
-      // canCheck is false if the enabledPref is false and locked,
-      // or the binary platform or OS version is not known.
-      // A locked pref is sufficient to disable the radiogroup.
-      radiogroup.disabled = !canCheck || enabledPref.locked || autoPref.locked;
-    }
+    var canCheck = Components.classes["@mozilla.org/updates/update-service;1"].
+                     getService(Components.interfaces.nsIApplicationUpdateService).
+                     canCheckForUpdates;
+    // canCheck is false if the enabledPref is false and locked,
+    // or the binary platform or OS version is not known.
+    // A locked pref is sufficient to disable the radiogroup.
+    radiogroup.disabled = !canCheck || enabledPref.locked || autoPref.locked;
+#endif
   },
 
   /**
@@ -589,24 +589,24 @@ var gAdvancedPane = {
    */
   updateWritePrefs: function ()
   {
-    if (AppConstants.MOZ_UPDATER) {
-      var enabledPref = document.getElementById("app.update.enabled");
-      var autoPref = document.getElementById("app.update.auto");
-      var radiogroup = document.getElementById("updateRadioGroup");
-      switch (radiogroup.value) {
-        case "auto":      // 1. Automatically install updates for Desktop only
-          enabledPref.value = true;
-          autoPref.value = true;
-          break;
-        case "checkOnly": // 2. Check, but let me choose
-          enabledPref.value = true;
-          autoPref.value = false;
-          break;
-        case "manual":    // 3. Never check for updates.
-          enabledPref.value = false;
-          autoPref.value = false;
-      }
+#ifdef MOZ_UPDATER
+    var enabledPref = document.getElementById("app.update.enabled");
+    var autoPref = document.getElementById("app.update.auto");
+    var radiogroup = document.getElementById("updateRadioGroup");
+    switch (radiogroup.value) {
+      case "auto":      // 1. Automatically install updates for Desktop only
+        enabledPref.value = true;
+        autoPref.value = true;
+        break;
+      case "checkOnly": // 2. Check, but let me choose
+        enabledPref.value = true;
+        autoPref.value = false;
+        break;
+      case "manual":    // 3. Never check for updates.
+        enabledPref.value = false;
+        autoPref.value = false;
     }
+#endif
   },
 
   /**
@@ -648,12 +648,12 @@ var gAdvancedPane = {
   },
 
   observe: function (aSubject, aTopic, aData) {
-    if (AppConstants.MOZ_UPDATER) {
-      switch (aTopic) {
-        case "nsPref:changed":
-          this.updateReadPrefs();
-          break;
-      }
+#ifdef MOZ_UPDATER
+    switch (aTopic) {
+      case "nsPref:changed":
+        this.updateReadPrefs();
+        break;
     }
+#endif
   },
 };
