@@ -7,7 +7,6 @@
 // Constants & Enumeration Values
 
 Components.utils.import('resource://gre/modules/Services.jsm');
-Components.utils.import('resource://gre/modules/AppConstants.jsm');
 const TYPE_MAYBE_FEED = "application/vnd.mozilla.maybe.feed";
 const TYPE_MAYBE_VIDEO_FEED = "application/vnd.mozilla.maybe.video.feed";
 const TYPE_MAYBE_AUDIO_FEED = "application/vnd.mozilla.maybe.audio.feed";
@@ -1344,13 +1343,15 @@ var gApplicationsPane = {
 
   _isValidHandlerExecutable: function(aExecutable) {
     let leafName;
+#filter substitution
 #ifdef XP_WIN
-    leafName = `${AppConstants.MOZ_APP_NAME}.exe`;
+    leafName = @MOZ_APP_NAME@ + ".exe";
 #elifdef XP_MACOSX
-    leafName = AppConstants.MOZ_MACBUNDLE_NAME;
+    leafName = @MOZ_MACBUNDLE_NAME@;
 #else
-    leafName = `${AppConstants.MOZ_APP_NAME}-bin`;
+    leafName = @MOZ_APP_NAME@ + "-bin";
 #endif
+#unfilter substitution
     return aExecutable &&
            aExecutable.exists() &&
            aExecutable.isExecutable() &&
