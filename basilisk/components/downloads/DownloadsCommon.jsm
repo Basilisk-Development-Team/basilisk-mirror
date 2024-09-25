@@ -302,9 +302,6 @@ this.DownloadsCommon = {
       if (download.error.becauseBlockedByParentalControls) {
         return nsIDM.DOWNLOAD_BLOCKED_PARENTAL;
       }
-      if (download.error.becauseBlockedByReputationCheck) {
-        return nsIDM.DOWNLOAD_DIRTY;
-      }
       return nsIDM.DOWNLOAD_FAILED;
     }
     if (download.canceled) {
@@ -785,10 +782,6 @@ DownloadsDataCtor.prototype = {
         // Store the end time that may be displayed by the views.
         download.endTime = Date.now();
 
-        // This state transition code should actually be located in a Downloads
-        // API module (bug 941009).  Moreover, the fact that state is stored as
-        // annotations should be ideally hidden behind methods of
-        // nsIDownloadHistory (bug 830415).
         if (!this._isPrivate) {
           try {
             let downloadMetaData = {
@@ -798,11 +791,6 @@ DownloadsDataCtor.prototype = {
             if (download.succeeded) {
               downloadMetaData.fileSize = download.target.size;
             }
-            if (download.error && download.error.reputationCheckVerdict) {
-              downloadMetaData.reputationCheckVerdict =
-                download.error.reputationCheckVerdict;
-            }
-
             PlacesUtils.annotations.setPageAnnotation(
                           NetUtil.newURI(download.source.url),
                           "downloads/metaData",
@@ -1183,24 +1171,7 @@ DownloadsIndicatorDataCtor.prototype = {
   },
 
   onDownloadStateChanged(download) {
-    if (!download.succeeded && download.error && download.error.reputationCheckVerdict) {
-      switch (download.error.reputationCheckVerdict) {
-        case Downloads.Error.BLOCK_VERDICT_UNCOMMON: // fall-through
-        case Downloads.Error.BLOCK_VERDICT_POTENTIALLY_UNWANTED:
-          // Existing higher level attention indication trumps ATTENTION_WARNING.
-          if (this._attention != DownloadsCommon.ATTENTION_SEVERE) {
-            this.attention = DownloadsCommon.ATTENTION_WARNING;
-          }
-          break;
-        case Downloads.Error.BLOCK_VERDICT_MALWARE:
-          this.attention = DownloadsCommon.ATTENTION_SEVERE;
-          break;
-        default:
-          this.attention = DownloadsCommon.ATTENTION_SEVERE;
-          Cu.reportError("Unknown reputation verdict: " +
-                         download.error.reputationCheckVerdict);
-      }
-    } else if (download.succeeded) {
+    if (download.succeeded) {
       // Existing higher level attention indication trumps ATTENTION_SUCCESS.
       if (this._attention != DownloadsCommon.ATTENTION_SEVERE &&
           this._attention != DownloadsCommon.ATTENTION_WARNING) {

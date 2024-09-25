@@ -241,8 +241,6 @@ this.DownloadsViewUI.DownloadElementShell.prototype = {
         stateLabel = s.stateCanceled;
       } else if (this.download.error.becauseBlockedByParentalControls) {
         stateLabel = s.stateBlockedParentalControls;
-      } else if (this.download.error.becauseBlockedByReputationCheck) {
-        stateLabel = this.rawBlockedTitleAndDetails[0];
       } else {
         stateLabel = s.stateFailed;
       }
