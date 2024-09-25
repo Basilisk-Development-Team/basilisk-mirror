@@ -264,33 +264,7 @@ this.TabCrashHandler = {
     tab.setAttribute("crashed", true);
   },
 
-  removeSubmitCheckboxesForSameCrash: function(childID) {
-    let enumerator = Services.wm.getEnumerator("navigator:browser");
-    while (enumerator.hasMoreElements()) {
-      let window = enumerator.getNext();
-      if (!window.gMultiProcessBrowser)
-        continue;
-
-      for (let browser of window.gBrowser.browsers) {
-        if (browser.isRemoteBrowser)
-          continue;
-
-        let doc = browser.contentDocument;
-        if (!doc.documentURI.startsWith("about:tabcrashed"))
-          continue;
-
-        if (this.browserMap.get(browser.permanentKey) == childID) {
-          this.browserMap.delete(browser.permanentKey);
-          let ports = this.pageListener.portsForBrowser(browser);
-          if (ports.length) {
-            // For about:tabcrashed, we don't expect subframes. We can
-            // assume sending to the first port is sufficient.
-            ports[0].sendAsyncMessage("CrashReportSent");
-          }
-        }
-      }
-    }
-  },
+  removeSubmitCheckboxesForSameCrash: function(childID) {},
 
   onAboutTabCrashedLoad: function (message) {
     this._crashedTabCount++;
