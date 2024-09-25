@@ -7,8 +7,6 @@ Components.utils.import("resource://gre/modules/DownloadUtils.jsm");
 Components.utils.import("resource://gre/modules/LoadContextInfo.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
-const PREF_UPLOAD_ENABLED = "datareporting.healthreport.uploadEnabled";
-
 var gAdvancedPane = {
   _inited: false,
 

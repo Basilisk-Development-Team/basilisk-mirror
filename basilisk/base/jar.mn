@@ -47,11 +47,6 @@ browser.jar:
 
         content/browser/aboutNetError.xhtml            (content/aboutNetError.xhtml)
 
-#ifdef MOZ_SERVICES_HEALTHREPORT
-        content/browser/abouthealthreport/abouthealth.xhtml   (content/abouthealthreport/abouthealth.xhtml)
-        content/browser/abouthealthreport/abouthealth.js      (content/abouthealthreport/abouthealth.js)
-        content/browser/abouthealthreport/abouthealth.css     (content/abouthealthreport/abouthealth.css)
-#endif
         content/browser/aboutTabCrashed.css           (content/aboutTabCrashed.css)
         content/browser/aboutTabCrashed.js            (content/aboutTabCrashed.js)
         content/browser/aboutTabCrashed.xhtml         (content/aboutTabCrashed.xhtml)
