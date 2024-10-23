@@ -925,10 +925,6 @@ pref("browser.flash-protected-mode-flip.done", false);
 
 pref("dom.ipc.shims.enabledWarnings", false);
 
-// Start the browser in e10s mode
-pref("browser.tabs.remote.autostart", false);
-pref("browser.tabs.remote.desktopbehavior", true);
-
 // This pref governs whether we attempt to work around problems caused by
 // plugins using OS calls to manipulate the cursor while running out-of-
 // process.  These workarounds all involve intercepting (hooking) certain

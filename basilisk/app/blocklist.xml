@@ -3266,12 +3266,6 @@
       <feature>WEBGL_MSAA</feature>
       <featureStatus>BLOCKED_DEVICE</featureStatus>
     </gfxBlacklistEntry>
-    <gfxBlacklistEntry blockID="g204">
-      <os>Darwin 10</os>
-      <vendor>0x8086</vendor>
-      <feature>WEBGL_MSAA</feature>
-      <featureStatus>BLOCKED_DEVICE</featureStatus>
-    </gfxBlacklistEntry>
     <gfxBlacklistEntry blockID="g144">
       <os>All</os>
       <vendor>0x1002</vendor>
@@ -3279,12 +3273,6 @@
       <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>
       <driverVersion>8.982.0.0</driverVersion>
       <driverVersionComparator>EQUAL</driverVersionComparator>
-    </gfxBlacklistEntry>
-    <gfxBlacklistEntry blockID="g230">
-      <os>Darwin 10</os>
-      <vendor>0x1002</vendor>
-      <feature>WEBGL_MSAA</feature>
-      <featureStatus>BLOCKED_DEVICE</featureStatus>
     </gfxBlacklistEntry>
     <gfxBlacklistEntry blockID="g192">
       <os>WINNT 6.2</os>
@@ -3476,12 +3464,6 @@
         <device>0x9806</device>
         <device>0x9807</device>
       </devices>
-    </gfxBlacklistEntry>
-    <gfxBlacklistEntry blockID="g198">
-      <os>Darwin 10</os>
-      <vendor>0x10de</vendor>
-      <feature>WEBGL_MSAA</feature>
-      <featureStatus>BLOCKED_DEVICE</featureStatus>
     </gfxBlacklistEntry>
     <gfxBlacklistEntry blockID="g1071">
       <os>All</os>

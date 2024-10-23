@@ -30,11 +30,6 @@
 
 <!ENTITY dataChoicesTab.label            "Data Choices">
 
-<!ENTITY healthReportDesc.label          "Helps you understand your browser performance and shares data with &vendorShortName; about your browser health">
-<!ENTITY enableHealthReport.label        "Enable &brandShortName; Health Report">
-<!ENTITY enableHealthReport.accesskey    "R">
-<!ENTITY healthReportLearnMore.label     "Learn More">
-
 <!ENTITY crashReporterDesc2.label         "Crash reports help &vendorShortName; fix problems and make your browser more stable and secure">
 <!ENTITY alwaysSubmitCrashReports.label   "Allow &brandShortName; to send backlogged crash reports on your behalf">
 <!ENTITY alwaysSubmitCrashReports.accesskey "c">

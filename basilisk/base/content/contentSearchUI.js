@@ -29,19 +29,16 @@ const HTML_NS = "http://www.w3.org/1999/xhtml";
  *        all its ancestors should not be positioned elements (i.e., their
  *        positions should be "static"), or the parent's position should be the
  *        top left of the page.
- * @param healthReportKey
- *        This will be sent with the search data for FHR to record the search.
  * @param searchPurpose
  *        Sent with search data, see nsISearchEngine.getSubmission.
  * @param idPrefix
  *        The IDs of elements created by the object will be prefixed with this
  *        string.
  */
-function ContentSearchUIController(inputElement, tableParent, healthReportKey,
+function ContentSearchUIController(inputElement, tableParent,
                                    searchPurpose, idPrefix="") {
   this.input = inputElement;
   this._idPrefix = idPrefix;
-  this._healthReportKey = healthReportKey;
   this._searchPurpose = searchPurpose;
 
   let tableID = idPrefix + "searchSuggestionTable";
@@ -261,12 +258,10 @@ ContentSearchUIController.prototype = {
     else {
       searchTerms = this.suggestionAtIndex(this.selectedIndex) || searchText.value;
     }
-    // Send an event that will perform a search and Firefox Health Report will
-    // record that a search from the healthReportKey passed to the constructor.
+    // Send an event that will perform a search.
     let eventData = {
       engineName: this.selectedEngineName,
       searchString: searchTerms,
-      healthReportKey: this._healthReportKey,
       searchPurpose: this._searchPurpose,
       originalEvent: {
         shiftKey: aEvent.shiftKey,

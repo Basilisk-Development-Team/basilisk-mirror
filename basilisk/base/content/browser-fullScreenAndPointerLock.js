@@ -483,7 +483,7 @@ var FullScreen = {
   },
 
   _isRemoteBrowser: function (aBrowser) {
-    return gMultiProcessBrowser && aBrowser.getAttribute("remote") == "true";
+    return false;
   },
 
   get _windowUtils() {

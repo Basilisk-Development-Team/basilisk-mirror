@@ -81,11 +81,6 @@ HistoryDownload.prototype = {
         this.error = { message: "History download failed." };
       } else if (metaData.state == nsIDM.DOWNLOAD_BLOCKED_PARENTAL) {
         this.error = { becauseBlockedByParentalControls: true };
-      } else if (metaData.state == nsIDM.DOWNLOAD_DIRTY) {
-        this.error = {
-          becauseBlockedByReputationCheck: true,
-          reputationCheckVerdict: metaData.reputationCheckVerdict || "",
-        };
       } else {
         this.error = null;
       }

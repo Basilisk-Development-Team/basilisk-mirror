@@ -723,7 +723,6 @@ function openTroubleshootingPage()
  */
 function openHealthReport()
 {
-  openUILinkIn("about:healthreport", "tab");
 }
 
 /**

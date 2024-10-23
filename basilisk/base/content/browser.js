@@ -140,11 +140,7 @@ var gLastBrowserCharset = null;
 var gLastValidURLStr = "";
 var gInPrintPreviewMode = false;
 var gContextMenu = null; // nsContextMenu instance
-var gMultiProcessBrowser =
-  window.QueryInterface(Ci.nsIInterfaceRequestor)
-        .getInterface(Ci.nsIWebNavigation)
-        .QueryInterface(Ci.nsILoadContext)
-        .useRemoteTabs;
+var gMultiProcessBrowser = false;
 var gAppInfo = Cc["@mozilla.org/xre/app-info;1"]
                   .getService(Ci.nsIXULAppInfo)
                   .QueryInterface(Ci.nsIXULRuntime);
@@ -820,59 +816,22 @@ function _loadURIWithFlags(browser, uri, params) {
 
   let process = browser.isRemoteBrowser ? Ci.nsIXULRuntime.PROCESS_TYPE_CONTENT
                                         : Ci.nsIXULRuntime.PROCESS_TYPE_DEFAULT;
-  let mustChangeProcess = gMultiProcessBrowser &&
-                          !E10SUtils.canLoadURIInProcess(uri, process);
-  if ((!wasRemote && !mustChangeProcess) ||
-      (wasRemote && mustChangeProcess)) {
+  if (!wasRemote) {
     browser.inLoadURI = true;
   }
   try {
-    if (!mustChangeProcess) {
-      browser.webNavigation.loadURIWithOptions(uri, flags,
-                                               referrer, referrerPolicy,
-                                               postData, null, null, triggeringPrincipal);
-    } else {
-      // Check if the current browser is allowed to unload.
-      let {permitUnload, timedOut} = browser.permitUnload();
-      if (!timedOut && !permitUnload) {
-        return;
-      }
-
-      if (postData) {
-        postData = NetUtil.readInputStreamToString(postData, postData.available());
-      }
-
-      let loadParams = {
-        uri: uri,
-        triggeringPrincipal: triggeringPrincipal
-          ? gSerializationHelper.serializeToString(triggeringPrincipal)
-          : null,
-        flags: flags,
-        referrer: referrer ? referrer.spec : null,
-        referrerPolicy: referrerPolicy,
-        postData: postData
-      }
-
-      LoadInOtherProcess(browser, loadParams);
-    }
+    browser.webNavigation.loadURIWithOptions(uri, flags,
+                                             referrer, referrerPolicy,
+                                             postData, null, null, triggeringPrincipal);
   } catch (e) {
     // If anything goes wrong when switching remoteness, just switch remoteness
     // manually and load the URI.
     // We might lose history that way but at least the browser loaded a page.
     // This might be necessary if SessionStore wasn't initialized yet i.e.
     // when the homepage is a non-remote page.
-    if (mustChangeProcess) {
-      Cu.reportError(e);
-      gBrowser.updateBrowserRemotenessByURL(browser, uri);
-
-      browser.webNavigation.loadURIWithOptions(uri, flags, referrer, referrerPolicy,
-                                               postData, null, null, triggeringPrincipal);
-    } else {
-      throw e;
-    }
+    throw e;
   } finally {
-    if ((!wasRemote && !mustChangeProcess) ||
-        (wasRemote && mustChangeProcess)) {
+    if (!wasRemote) {
       browser.inLoadURI = false;
     }
   }
@@ -928,7 +887,7 @@ addEventListener("DOMContentLoaded", function onDCL() {
   let initBrowser =
     document.getAnonymousElementByAttribute(gBrowser, "anonid", "initialBrowser");
 
-  gBrowser.updateBrowserRemoteness(initBrowser, gMultiProcessBrowser);
+  gBrowser.updateBrowserRemoteness(initBrowser, false);
 });
 
 var gBrowserInit = {
@@ -964,12 +923,10 @@ var gBrowserInit = {
 
     window.messageManager.addMessageListener("Browser:LoadURI", RedirectLoad);
 
-    if (!gMultiProcessBrowser) {
-      // There is a Content:Click message manually sent from content.
-      Cc["@mozilla.org/eventlistenerservice;1"]
-        .getService(Ci.nsIEventListenerService)
-        .addSystemEventListener(gBrowser, "click", contentAreaClick, true);
-    }
+    // There is a Content:Click message manually sent from content.
+    Cc["@mozilla.org/eventlistenerservice;1"]
+      .getService(Ci.nsIEventListenerService)
+      .addSystemEventListener(gBrowser, "click", contentAreaClick, true);
 
     // hook up UI through progress listener
     gBrowser.addProgressListener(window.XULBrowserWindow);
@@ -1106,22 +1063,7 @@ var gBrowserInit = {
         // make sure it has a docshell
         gBrowser.docShell;
 
-        // If the browser that we're swapping in was remote, then we'd better
-        // be able to support remote browsers, and then make our selectedTab
-        // remote.
         try {
-          if (tabToOpen.linkedBrowser.isRemoteBrowser) {
-            if (!gMultiProcessBrowser) {
-              throw new Error("Cannot drag a remote browser into a window " +
-                              "without the remote tabs load context.");
-            }
-            gBrowser.updateBrowserRemoteness(gBrowser.selectedBrowser, true);
-          } else if (gBrowser.selectedBrowser.isRemoteBrowser) {
-            // If the browser is remote, then it's implied that
-            // gMultiProcessBrowser is true. We need to flip the remoteness
-            // of this tab to false in order for the tab drag to work.
-            gBrowser.updateBrowserRemoteness(gBrowser.selectedBrowser, false);
-          }
           gBrowser.swapBrowsersAndCloseOther(gBrowser.selectedTab, tabToOpen);
         } catch (e) {
           Cu.reportError(e);
@@ -2202,9 +2144,6 @@ function BrowserViewSourceOfDocument(aArgsOrDocument) {
         // that of the original URL, so disable remoteness if necessary for this
         // URL.
         let contentProcess = Ci.nsIXULRuntime.PROCESS_TYPE_CONTENT
-        forceNotRemote =
-          gMultiProcessBrowser &&
-          !E10SUtils.canLoadURIInProcess(args.URL, contentProcess)
       }
 
       // In the case of popups, we need to find a non-popup browser window.
@@ -2963,11 +2902,10 @@ var PrintPreviewListener = {
   getPrintPreviewBrowser: function () {
     if (!this._printPreviewTab) {
       let browser = gBrowser.selectedTab.linkedBrowser;
-      let forceNotRemote = gMultiProcessBrowser && !browser.isRemoteBrowser;
       this._tabBeforePrintPreview = gBrowser.selectedTab;
       this._printPreviewTab = gBrowser.loadOneTab("about:blank",
                                                   { inBackground: false,
-                                                    forceNotRemote,
+                                                    forceNotRemote: false,
                                                     relatedBrowser: browser });
       gBrowser.selectedTab = this._printPreviewTab;
     }
@@ -3884,23 +3822,6 @@ var XULBrowserWindow = {
 
   // Check whether this URI should load in the current process
   shouldLoadURI: function(aDocShell, aURI, aReferrer) {
-    if (!gMultiProcessBrowser)
-      return true;
-
-    let browser = aDocShell.QueryInterface(Ci.nsIDocShellTreeItem)
-                           .sameTypeRootTreeItem
-                           .QueryInterface(Ci.nsIDocShell)
-                           .chromeEventHandler;
-
-    // Ignore loads that aren't in the main tabbrowser
-    if (browser.localName != "browser" || !browser.getTabBrowser || browser.getTabBrowser() != gBrowser)
-      return true;
-
-    if (!E10SUtils.shouldLoadURI(aDocShell, aURI, aReferrer)) {
-      E10SUtils.redirectLoad(aDocShell, aURI, aReferrer);
-      return false;
-    }
-
     return true;
   },
 
@@ -4090,7 +4011,7 @@ var XULBrowserWindow = {
       }
 
       // Disable find commands in documents that ask for them to be disabled.
-      if (!gMultiProcessBrowser && aLocationURI &&
+      if (aLocationURI &&
           (aLocationURI.schemeIs("about") || aLocationURI.schemeIs("chrome"))) {
         // Don't need to re-enable/disable find commands for same-document location changes
         // (e.g. the replaceStates in about:addons)
@@ -6779,7 +6700,7 @@ var gIdentityHandler = {
       this._uriHasHost = false;
     }
 
-    let whitelist = /^(?:accounts|addons|cache|config|crashes|customizing|downloads|healthreport|home|license|newaddon|permissions|preferences|privatebrowsing|rights|searchreset|sessionrestore|support|welcomeback)(?:[?#]|$)/i;
+    let whitelist = /^(?:accounts|addons|cache|config|crashes|customizing|downloads|home|license|newaddon|permissions|preferences|privatebrowsing|rights|searchreset|sessionrestore|support|welcomeback)(?:[?#]|$)/i;
     this._isSecureInternalUI = uri.schemeIs("about") && whitelist.test(uri.path);
 
     // Create a channel for the sole purpose of getting the resolved URI
