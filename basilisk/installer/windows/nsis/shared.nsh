@@ -1183,19 +1183,17 @@ Function SetAsDefaultAppUserHKCU
 
   ${SetHandlers}
 
-  ${If} ${AtLeastWinVista}
-    ; Only register as the handler on Vista and above if the app registry name
-    ; exists under the RegisteredApplications registry key. The protocol and
-    ; file handlers set previously at the user level will associate this install
-    ; as the default browser.
-    ClearErrors
-    ReadRegStr $0 HKLM "Software\RegisteredApplications" "${AppRegName}"
-    ${Unless} ${Errors}
-      ; This is all protected by a user choice hash in Windows 8 so it won't
-      ; help, but it also won't hurt.
-      AppAssocReg::SetAppAsDefaultAll "${AppRegName}"
-    ${EndUnless}
-  ${EndIf}
+  ; Only register as the handler on Vista and above if the app registry name
+  ; exists under the RegisteredApplications registry key. The protocol and
+  ; file handlers set previously at the user level will associate this install
+  ; as the default browser.
+  ClearErrors
+  ReadRegStr $0 HKLM "Software\RegisteredApplications" "${AppRegName}"
+  ${Unless} ${Errors}
+    ; This is all protected by a user choice hash in Windows 8 so it won't
+    ; help, but it also won't hurt.
+    AppAssocReg::SetAppAsDefaultAll "${AppRegName}"
+  ${EndUnless}
   ${RemoveDeprecatedKeys}
   ${MigrateTaskBarShortcut}
 FunctionEnd
