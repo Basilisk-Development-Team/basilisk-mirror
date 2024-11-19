@@ -428,7 +428,7 @@ nsBrowserContentHandler.prototype = {
     }
 
 #ifdef XP_WIN
-    // Handle "? searchterm" for Windows Vista start menu integration
+    // Handle "? searchterm" for Windows start menu integration
     for (var i = cmdLine.length - 1; i >= 0; --i) {
       var param = cmdLine.getArgument(i);
       if (param.match(/^\? /)) {
