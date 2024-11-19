@@ -1121,12 +1121,7 @@ Function .onInit
   WriteINIStr "$PLUGINSDIR\options.ini" "Field 5" Bottom "87"
 
   ; Setup the shortcuts.ini file for the Custom Shortcuts Page
-  ; Don't offer to install the quick launch shortcut on Windows 7
-  ${If} ${AtLeastWin7}
-    WriteINIStr "$PLUGINSDIR\shortcuts.ini" "Settings" NumFields "3"
-  ${Else}
-    WriteINIStr "$PLUGINSDIR\shortcuts.ini" "Settings" NumFields "4"
-  ${EndIf}
+  WriteINIStr "$PLUGINSDIR\shortcuts.ini" "Settings" NumFields "3"
 
   WriteINIStr "$PLUGINSDIR\shortcuts.ini" "Field 1" Type   "label"
   WriteINIStr "$PLUGINSDIR\shortcuts.ini" "Field 1" Text   "$(CREATE_ICONS_DESC)"
