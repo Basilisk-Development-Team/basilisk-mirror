@@ -772,7 +772,7 @@ this.AeroPeek = {
   },
 
   onOpenWindow: function (win) {
-    // This occurs when the taskbar service is not available (xp, vista)
+    // This occurs when the taskbar service is not available
     if (!this.available || !this._prefenabled)
       return;
 
@@ -780,7 +780,7 @@ this.AeroPeek = {
   },
 
   onCloseWindow: function (win) {
-    // This occurs when the taskbar service is not available (xp, vista)
+    // This occurs when the taskbar service is not available
     if (!this.available || !this._prefenabled)
       return;
 
