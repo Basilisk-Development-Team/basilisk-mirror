@@ -1582,21 +1582,19 @@ html|span.ac-emphasize-text-url {
   }
 }
 
-@media not all and (-moz-os-version: windows-vista) and (-moz-windows-default-theme) {
-  @media not all and (-moz-os-version: windows-win7) and (-moz-windows-default-theme) {
+@media not all and (-moz-os-version: windows-win7) and (-moz-windows-default-theme) {
+  .autocomplete-treebody::-moz-tree-image(selected, current, bookmark, treecolAutoCompleteImage) {
+    -moz-image-region: rect(0 32px 16px 16px);
+  }
+
+  @media (min-resolution: 1.1dppx) {
     .autocomplete-treebody::-moz-tree-image(selected, current, bookmark, treecolAutoCompleteImage) {
-      -moz-image-region: rect(0 32px 16px 16px);
+      -moz-image-region: rect(0 64px 32px 32px);
     }
+  }
 
-    @media (min-resolution: 1.1dppx) {
-      .autocomplete-treebody::-moz-tree-image(selected, current, bookmark, treecolAutoCompleteImage) {
-        -moz-image-region: rect(0 64px 32px 32px);
-      }
-    }
-
-    .autocomplete-treebody::-moz-tree-image(keyword, treecolAutoCompleteImage, selected) {
-      list-style-image: url(chrome://global/skin/icons/autocomplete-search.svg#search-icon-inverted);
-    }
+  .autocomplete-treebody::-moz-tree-image(keyword, treecolAutoCompleteImage, selected) {
+    list-style-image: url(chrome://global/skin/icons/autocomplete-search.svg#search-icon-inverted);
   }
 }
 
