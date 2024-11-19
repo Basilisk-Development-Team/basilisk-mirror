@@ -399,7 +399,7 @@
   WriteRegStr ${RegKey} "$0\shell\safemode" "" "$(CONTEXT_SAFE_MODE)"
   WriteRegStr ${RegKey} "$0\shell\safemode\command" "" "$\"$8$\" -safe-mode"
 
-  ; Vista Capabilities registry keys
+  ; Capabilities registry keys
   WriteRegStr ${RegKey} "$0\Capabilities" "ApplicationDescription" "$(REG_APP_DESC)"
   WriteRegStr ${RegKey} "$0\Capabilities" "ApplicationIcon" "$8,0"
   WriteRegStr ${RegKey} "$0\Capabilities" "ApplicationName" "${BrandShortName}"
@@ -416,7 +416,7 @@
   WriteRegStr ${RegKey} "$0\Capabilities\URLAssociations" "http"   "BasiliskURL"
   WriteRegStr ${RegKey} "$0\Capabilities\URLAssociations" "https"  "BasiliskURL"
 
-  ; Vista Registered Application
+  ; Registered Application
   WriteRegStr ${RegKey} "Software\RegisteredApplications" "${AppRegName}" "$0\Capabilities"
 !macroend
 !define SetStartMenuInternet "!insertmacro SetStartMenuInternet"
@@ -1108,7 +1108,7 @@
 
   System::Call 'advapi32::OpenSCManagerW(n, n, i ${SC_MANAGER_ALL_ACCESS}) i.R6'
   ${If} $R6 != 0
-    ; MpsSvc is the Firewall service on Windows Vista and above.
+    ; MpsSvc is the Firewall service on modern Windows versions.
     ; When opening the service with SERVICE_QUERY_CONFIG the return value will
     ; be 0 if the service is not installed.
     System::Call 'advapi32::OpenServiceW(i R6, t "MpsSvc", i ${SERVICE_QUERY_CONFIG}) i.R7'
@@ -1148,9 +1148,9 @@
 
 ; Sets this installation as the default browser by setting the registry keys
 ; under HKEY_CURRENT_USER via registry calls and using the AppAssocReg NSIS
-; plugin for Vista and above. This is a function instead of a macro so it is
-; easily called from an elevated instance of the binary. Since this can be
-; called by an elevated instance logging is not performed in this function.
+; plugin. This is a function instead of a macro so it is easily called from
+; an elevated instance of the binary. Since this can be called by an
+; elevated instance logging is not performed in this function.
 Function SetAsDefaultAppUserHKCU
   ; Only set as the user's StartMenuInternet browser if the StartMenuInternet
   ; registry keys are for this install.
@@ -1183,10 +1183,10 @@ Function SetAsDefaultAppUserHKCU
 
   ${SetHandlers}
 
-  ; Only register as the handler on Vista and above if the app registry name
-  ; exists under the RegisteredApplications registry key. The protocol and
-  ; file handlers set previously at the user level will associate this install
-  ; as the default browser.
+  ; Only register as the handler if the app registry name exists under the
+  ; RegisteredApplications registry key. The protocol and file handlers
+  ; set previously at the user level will associate this install as the
+  ; default browser.
   ClearErrors
   ReadRegStr $0 HKLM "Software\RegisteredApplications" "${AppRegName}"
   ${Unless} ${Errors}
@@ -1275,8 +1275,7 @@ Function SetAsDefaultAppUser
     ${EndIf}
   ${EndUnless}
 
-  ; The code after ElevateUAC won't be executed on Vista and above when the
-  ; user:
+  ; The code after ElevateUAC won't be executed when the user:
   ; a) is a member of the administrators group (e.g. elevation is required)
   ; b) is not a member of the administrators group and chooses to elevate
   ${ElevateUAC}
