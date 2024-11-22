@@ -24,6 +24,9 @@ jobs:
           arch: i686
 
     steps:
+      - name: List available VC Redist folders (for debugging)
+        run: tree /f "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\redist"
+
       - name: Install MozillaBuild
         run: |
           Invoke-WebRequest -Uri https://ftp.mozilla.org/pub/mozilla/libraries/win32/MozillaBuildSetup-3.4.exe -OutFile MozillaBuildSetup-3.4.exe

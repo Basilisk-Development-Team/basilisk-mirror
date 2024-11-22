@@ -29,7 +29,7 @@ RequestExecutionLevel user
 
 !addplugindir ./
 
-; On Vista and above attempt to elevate Standard Users in addition to users that
+; Attempt to elevate Standard Users in addition to users that
 ; are a member of the Administrators group.
 !define NONADMIN_ELEVATE
 
@@ -250,13 +250,12 @@ Section "Uninstall"
   ${un.RegCleanUninstall}
   ${un.DeleteShortcuts}
 
-  ; Unregister resources associated with Win7 taskbar jump lists.
-  ${If} ${AtLeastWin7}
-  ${AndIf} "$AppUserModelID" != ""
+  ; Unregister resources associated with Windows taskbar jump lists.
+  ${If} "$AppUserModelID" != ""
     ApplicationID::UninstallJumpLists "$AppUserModelID"
   ${EndIf}
 
-  ; Remove the updates directory for Vista and above
+  ; Remove the updates directory
   ${un.CleanUpdateDirectories} "Mozilla\Basilisk" "Mozilla\updates"
 
   ; Remove any app model id's stored in the registry for this install path
@@ -591,9 +590,7 @@ Function un.onInit
 ; The commands inside this ifndef are needed prior to NSIS 3.0a2 and can be
 ; removed after we require NSIS 3.0a2 or greater.
 !ifndef NSIS_PACKEDVERSION
-  ${If} ${AtLeastWinVista}
-    System::Call 'user32::SetProcessDPIAware()'
-  ${EndIf}
+  System::Call 'user32::SetProcessDPIAware()'
 !endif
 
   !insertmacro InitInstallOptionsFile "unconfirm.ini"

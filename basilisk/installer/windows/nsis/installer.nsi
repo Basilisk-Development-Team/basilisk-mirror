@@ -46,7 +46,7 @@ Var PreventRebootRequired
 ; StartMenuDir variable can use the common InstallOnInitCommon macro.
 !define NO_STARTMENU_DIR
 
-; On Vista and above attempt to elevate Standard Users in addition to users that
+; Attempt to elevate Standard Users in addition to users that
 ; are a member of the Administrators group.
 !define NONADMIN_ELEVATE
 
@@ -247,7 +247,7 @@ Section "-InstallStartCleanup"
   ; setup the application model id registration value
   ${InitHashAppModelId} "$INSTDIR" "Software\Mozilla\${AppName}\TaskBarIDs"
 
-  ; Remove the updates directory for Vista and above
+  ; Remove the updates directory
   ${CleanUpdateDirectories} "Mozilla\Basilisk" "Mozilla\updates"
 
   ${RemoveDeprecatedFiles}
@@ -314,12 +314,7 @@ Section "-Application" APP_IDX
 
   ; Default for creating Quick Launch shortcut (1 = create, 0 = don't create)
   ${If} $AddQuickLaunchSC == ""
-    ; Don't install the quick launch shortcut on Windows 7
-    ${If} ${AtLeastWin7}
-      StrCpy $AddQuickLaunchSC "0"
-    ${Else}
-      StrCpy $AddQuickLaunchSC "1"
-    ${EndIf}
+    StrCpy $AddQuickLaunchSC "0"
   ${EndIf}
 
   ; Default for creating Desktop shortcut (1 = create, 0 = don't create)
@@ -385,7 +380,7 @@ Section "-Application" APP_IDX
   ; For pre win8, the following keys should only be set if we can write to HKLM.
   ; For post win8, the keys below get set in both HKLM and HKCU.
   ${If} $TmpVal == "HKLM"
-    ; Set the Start Menu Internet and Vista Registered App HKLM registry keys.
+    ; Set the Start Menu Internet and Registered App HKLM registry keys.
     ${SetStartMenuInternet} "HKLM"
     ${FixShellIconHandler} "HKLM"
 
@@ -404,7 +399,7 @@ Section "-Application" APP_IDX
   ${EndIf}
 
   ${If} ${AtLeastWin8}
-    ; Set the Start Menu Internet and Vista Registered App HKCU registry keys.
+    ; Set the Start Menu Internet and Registered App HKCU registry keys.
     ${SetStartMenuInternet} "HKCU"
     ${FixShellIconHandler} "HKCU"
 
@@ -434,7 +429,7 @@ Section "-Application" APP_IDX
   ${CreateRegKey} "$TmpVal" "$0" 0
 
   ${If} $TmpVal == "HKLM"
-    ; Set the permitted LSP Categories for WinVista and above
+    ; Set the permitted LSP Categories
     ${SetAppLSPCategories} ${LSP_CATEGORIES}
   ${EndIf}
 
@@ -486,8 +481,7 @@ Section "-Application" APP_IDX
     ${If} ${FileExists} "$SMPROGRAMS\${BrandFullName}.lnk"
       ShellLink::SetShortCutWorkingDirectory "$SMPROGRAMS\${BrandFullName}.lnk" \
                                            "$INSTDIR"
-      ${If} ${AtLeastWin7}
-      ${AndIf} "$AppUserModelID" != ""
+      ${If} "$AppUserModelID" != ""
         ApplicationID::Set "$SMPROGRAMS\${BrandFullName}.lnk" "$AppUserModelID" "true"
       ${EndIf}
       ${LogMsg} "Added Shortcut: $SMPROGRAMS\${BrandFullName}.lnk"
@@ -508,35 +502,13 @@ Section "-Application" APP_IDX
     ${If} ${FileExists} "$DESKTOP\${BrandFullName}.lnk"
       ShellLink::SetShortCutWorkingDirectory "$DESKTOP\${BrandFullName}.lnk" \
                                              "$INSTDIR"
-      ${If} ${AtLeastWin7}
-      ${AndIf} "$AppUserModelID" != ""
+      ${If} "$AppUserModelID" != ""
         ApplicationID::Set "$DESKTOP\${BrandFullName}.lnk" "$AppUserModelID"  "true"
       ${EndIf}
       ${LogMsg} "Added Shortcut: $DESKTOP\${BrandFullName}.lnk"
     ${Else}
       ${LogMsg} "** ERROR Adding Shortcut: $DESKTOP\${BrandFullName}.lnk"
     ${EndIf}
-  ${EndIf}
-
-  ; If elevated the Quick Launch shortcut must be added from the unelevated
-  ; original process.
-  ${If} $AddQuickLaunchSC == 1
-    ${Unless} ${AtLeastWin7}
-      ClearErrors
-      ${GetParameters} $0
-      ${GetOptions} "$0" "/UAC:" $0
-      ${If} ${Errors}
-        Call AddQuickLaunchShortcut
-        ${LogMsg} "Added Shortcut: $QUICKLAUNCH\${BrandFullName}.lnk"
-      ${Else}
-        ; It is not possible to add a log entry from the unelevated process so
-        ; add the log entry without the path since there is no simple way to
-        ; know the correct full path.
-        ${LogMsg} "Added Quick Launch Shortcut: ${BrandFullName}.lnk"
-        GetFunctionAddress $0 AddQuickLaunchShortcut
-        UAC::ExecCodeSegment $0
-      ${EndIf}
-    ${EndUnless}
   ${EndIf}
 SectionEnd
 
@@ -555,15 +527,13 @@ Section "-InstallEndCleanup"
       ; value was before we changed it. To do so, we read it here and store it
       ; in our own registry key.
       StrCpy $0 ""
-      ${If} ${AtLeastWinVista}
-        AppAssocReg::QueryCurrentDefault "http" "protocol" "effective"
-        Pop $1
-        ; If the method hasn't failed, $1 will contain the progid. Check:
-        ${If} "$1" != "method failed"
-        ${AndIf} "$1" != "method not available"
-          ; Read the actual command from the progid
-          ReadRegStr $0 HKCR "$1\shell\open\command" ""
-        ${EndIf}
+      AppAssocReg::QueryCurrentDefault "http" "protocol" "effective"
+      Pop $1
+      ; If the method hasn't failed, $1 will contain the progid. Check:
+      ${If} "$1" != "method failed"
+      ${AndIf} "$1" != "method not available"
+        ; Read the actual command from the progid
+        ReadRegStr $0 HKCR "$1\shell\open\command" ""
       ${EndIf}
       ; If using the App Association Registry didn't happen or failed, fall back
       ; to the effective http default:
@@ -891,11 +861,6 @@ Function leaveShortcuts
   ${MUI_INSTALLOPTIONS_READ} $AddDesktopSC "shortcuts.ini" "Field 2" "State"
   ${MUI_INSTALLOPTIONS_READ} $AddStartMenuSC "shortcuts.ini" "Field 3" "State"
 
-  ; Don't install the quick launch shortcut on Windows 7
-  ${Unless} ${AtLeastWin7}
-    ${MUI_INSTALLOPTIONS_READ} $AddQuickLaunchSC "shortcuts.ini" "Field 4" "State"
-  ${EndUnless}
-
   ${If} $InstallType == ${INSTALLTYPE_CUSTOM}
     Call CheckExistingInstall
   ${EndIf}
@@ -1123,12 +1088,7 @@ Function .onInit
   WriteINIStr "$PLUGINSDIR\options.ini" "Field 5" Bottom "87"
 
   ; Setup the shortcuts.ini file for the Custom Shortcuts Page
-  ; Don't offer to install the quick launch shortcut on Windows 7
-  ${If} ${AtLeastWin7}
-    WriteINIStr "$PLUGINSDIR\shortcuts.ini" "Settings" NumFields "3"
-  ${Else}
-    WriteINIStr "$PLUGINSDIR\shortcuts.ini" "Settings" NumFields "4"
-  ${EndIf}
+  WriteINIStr "$PLUGINSDIR\shortcuts.ini" "Settings" NumFields "3"
 
   WriteINIStr "$PLUGINSDIR\shortcuts.ini" "Field 1" Type   "label"
   WriteINIStr "$PLUGINSDIR\shortcuts.ini" "Field 1" Text   "$(CREATE_ICONS_DESC)"

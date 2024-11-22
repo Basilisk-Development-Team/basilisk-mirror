@@ -110,7 +110,7 @@ OpenKeyForReading(HKEY aKeyRoot, const nsAString& aKeyName, HKEY* aKey)
 //     shell\open\command               (default)         REG_SZ     <apppath> -osint -url "%1"
 //     shell\open\ddeexec               (default)         REG_SZ     <empty string>
 //
-// - Windows Vista and above Protocol Handler
+// - Windows 7 and above Protocol Handler
 //
 //   HKCU\SOFTWARE\Classes\BasiliskURL\  (default)         REG_SZ     <appname> URL
 //                                      EditFlags         REG_DWORD  2
@@ -184,7 +184,7 @@ static SETTING gSettings[] = {
   // it will skip over this check.***
   { MAKE_KEY_NAME1("BasiliskHTML", SOC), VAL_OPEN, OLD_VAL_OPEN },
 
-  // Protocol Handler Class - for Vista and above
+  // Protocol Handler Class - for Windows 7 and above
   { MAKE_KEY_NAME1("BasiliskURL", SOC), VAL_OPEN, OLD_VAL_OPEN },
 
   // Protocol Handlers
@@ -201,7 +201,7 @@ static SETTING gDDESettings[] = {
   // File Handler Class
   { MAKE_KEY_NAME1("Software\\Classes\\BasiliskHTML", SOD) },
 
-  // Protocol Handler Class - for Vista and above
+  // Protocol Handler Class - for Windows 7 and above
   { MAKE_KEY_NAME1("Software\\Classes\\BasiliskURL", SOD) },
 
   // Protocol Handlers
@@ -376,7 +376,7 @@ IsDefaultBrowserWin8(bool aCheckAllTypes, bool* aIsDefaultBrowser)
  * by all Basilisk browsers.
 */
 bool
-nsWindowsShellService::IsDefaultBrowserVista(bool aCheckAllTypes,
+nsWindowsShellService::IsDefaultBrowserWin7(bool aCheckAllTypes,
                                              bool* aIsDefaultBrowser)
 {
   RefPtr<IApplicationAssociationRegistration> pAAR;
@@ -489,10 +489,10 @@ nsWindowsShellService::IsDefaultBrowser(bool aStartupCheck,
     }
   }
 
-  // Only check if Basilisk is the default browser on Vista and above if the
+  // Only check if Basilisk is the default browser on Windows 7 and above if the
   // previous checks show that Basilisk is the default browser.
   if (*aIsDefaultBrowser) {
-    IsDefaultBrowserVista(aForAllTypes, aIsDefaultBrowser);
+    IsDefaultBrowserWin7(aForAllTypes, aIsDefaultBrowser);
     if (IsWin8OrLater()) {
       IsDefaultBrowserWin8(aForAllTypes, aIsDefaultBrowser);
     }
