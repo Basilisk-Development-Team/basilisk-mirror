@@ -16,7 +16,7 @@ if [ "$SETUP_BUILD_IMAGE" = "1" ]; then
 
   dnf groupinstall -y 'Development Tools'
 
-  dnf install -y gcc-toolset-11
+  dnf install -y gcc-toolset-11 gcc-toolset-11-annobin
 
   # Install dependencies to build an i686 build if building on x86_64
   if [ "$(uname -m)" = "x86_64" ]; then
