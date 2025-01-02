@@ -61,9 +61,6 @@ jobs:
             ${{ runner.os }}-ccache-
         continue-on-error: true
 
-#      - name: Build Basilisk
-#        run: docker run -v $PWD:/share --rm -v $HOME/.ccache:/.ccache -e CCACHE_DIR=/.ccache -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t oraclelinux:8 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
-
       - name: Build Basilisk
         run: ./build-scripts/linux/build_basilisk.sh
 
