@@ -58,9 +58,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.name }}
-          restore-keys: |
-            ${{ runner.os }}-ccache-
+          key: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.gtk }}-${{ matrix.config.arch }}
+          restore-keys: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.gtk }}-${{ matrix.config.arch }}
         continue-on-error: true
 
       - name: Build Basilisk
@@ -77,7 +76,6 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.name }}
-          restore-keys: |
-            ${{ runner.os }}-ccache-
+          key: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.gtk }}-${{ matrix.config.arch }}
+          restore-keys: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.gtk }}-${{ matrix.config.arch }}
         continue-on-error: true
