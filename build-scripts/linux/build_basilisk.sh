@@ -28,7 +28,7 @@ if [ $d -eq 0 ]; then
 
   docker pull oraclelinux:8
 
-  docker run -it \
+  docker run -t \
     -v $PWD:/share \
     --name $DOCKER_DEV_NAME-setup \
     oraclelinux:8 \
@@ -48,7 +48,7 @@ APPLYPATCHES=$1
 
 echo "Starting Container..."
 
-docker run -it \
+docker run -t \
   --rm \
   -v $PWD:/share \
   -v $HOME/.ccache:/.ccache \
