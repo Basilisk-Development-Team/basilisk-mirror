@@ -63,6 +63,15 @@ if [ $? -eq 0 ]; then
   export CXX="ccache $(which g++)"
 fi
 
+# Check for mozconfig before building, add fallback if none present
+if [ ! -f .mozconfig ]; then
+    if [ $(uname -m) = "x86_64" ]; then
+        cp mozconfigs/linux/x86_64/gtk3_unofficial_branding.mozconfig .mozconfig
+    elif [ $(uname -m) = "aarch64" ]; then
+        cp mozconfigs/linux/aarch64/gtk3_unofficial_branding.mozconfig .mozconfig
+    fi
+fi
+
 su -c "./mach clobber" $USERNAME
 su -c "./mach configure" $USERNAME
 su -c "./mach build" $USERNAME

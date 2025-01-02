@@ -5,8 +5,8 @@ if [ ! $(which docker) ]; then
     exit
 fi
 
-if [ $(uname -s) != "Linux" ]; then
-    echo "This script is only meant to be ran on Linux."
+if [ "$(uname -s)" != "Linux" ] && [ "$(uname -s)" != "Darwin" ]; then
+    echo "This script is only meant to be run on Linux or macOS."
     exit
 fi
 
@@ -16,21 +16,17 @@ if [ ! -f aclocal.m4 ]; then
     exit
 fi
 
-if [ ! -f .mozconfig ]; then
-    if [ $(uname -m) = "x86_64" ]; then
-        cp mozconfigs/linux/x86_64/gtk3_unofficial_branding.mozconfig .mozconfig
-    elif [ $(uname -m) = "aarch64" ]; then
-        cp mozconfigs/linux/aarch64/gtk3_unofficial_branding.mozconfig .mozconfig
-    fi
-fi
-
 DOCKER_DEV_NAME="basilisk_builder"
 d=$(docker images -f reference="$DOCKER_DEV_NAME" --format '{{.ID}}' | wc -l)
 
 if [ $d -eq 0 ]; then
   set -e
 
-  docker rm $DOCKER_DEV_NAME-setup || true
+  if docker ps -a --format '{{.Names}}' | grep -q "^${DOCKER_DEV_NAME}-setup$"; then
+      docker rm $DOCKER_DEV_NAME-setup
+  fi
+
+  docker pull oraclelinux:8
 
   docker run -it \
     -v $PWD:/share \
@@ -39,7 +35,10 @@ if [ $d -eq 0 ]; then
     env SETUP_BUILD_IMAGE=1 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
 
   docker commit $DOCKER_DEV_NAME-setup $DOCKER_DEV_NAME
-  docker rm $DOCKER_DEV_NAME-setup
+
+  if docker ps -a --format '{{.Names}}' | grep -q "^${DOCKER_DEV_NAME}-setup$"; then
+      docker rm $DOCKER_DEV_NAME-setup
+  fi
 
   set +e
 fi
