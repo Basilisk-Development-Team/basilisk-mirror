@@ -11,8 +11,7 @@ if [ "$SETUP_BUILD_IMAGE" = "1" ]; then
 
   dnf install -y gtk3-devel dbus-glib-devel GConf2-devel yasm mesa-libGL-devel \
     alsa-lib-devel libXt-devel openssl-devel sqlite-devel pulseaudio-libs-devel \
-    python2 gtk2-devel \
-    wget xz make cmake screen vim
+    python2 gtk2-devel python2-devel
 
   dnf groupinstall -y 'Development Tools'
 
