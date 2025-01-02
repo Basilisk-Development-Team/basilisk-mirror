@@ -24,9 +24,40 @@ if [ ! -f .mozconfig ]; then
     fi
 fi
 
+DOCKER_DEV_NAME="basilisk_builder"
+d=$(docker images -f reference="$DOCKER_DEV_NAME" --format '{{.ID}}' | wc -l)
+
+if [ $d -eq 0 ]; then
+  set -e
+
+  docker rm $DOCKER_DEV_NAME-setup || true
+
+  docker run -it \
+    -v $PWD:/share \
+    --name $DOCKER_DEV_NAME-setup \
+    oraclelinux:8 \
+    env SETUP_BUILD_IMAGE=1 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
+
+  docker commit $DOCKER_DEV_NAME-setup $DOCKER_DEV_NAME
+  docker rm $DOCKER_DEV_NAME-setup
+
+  set +e
+fi
+
 # If argument 1 is provided then apply patches before build
 APPLYPATCHES=$1
 
 echo "Starting Container..."
 
-docker run -i -v $PWD:/share --rm -e APPLYPATCHES=$APPLYPATCHES -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t oraclelinux:8 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
+docker run -it \
+  --rm \
+  -v $PWD:/share \
+  -v $HOME/.ccache:/.ccache \
+  -e APPLYPATCHES=$APPLYPATCHES \
+  -e CCACHE_DIR=/.ccache \
+  -e UID=$(id -u) \
+  -e GID=$(id -g) \
+  -e USERNAME=$(whoami) \
+  -e GROUPNAME=$(id -gn) \
+  $DOCKER_DEV_NAME \
+  env MOZ_NOSPAM=1 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
