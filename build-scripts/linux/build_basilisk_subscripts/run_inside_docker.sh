@@ -46,6 +46,10 @@ echo "Prepping user and group inside docker container..."
 groupadd -r -g $GID $GROUPNAME
 useradd -u $UID $USERNAME -g $GID
 
+chmod -R 775 /.ccache
+chown -R $USERNAME:$GROUPNAME /.ccache
+export CCACHE_DIR=/.ccache
+
 echo "Building Basilisk..."
 cd /share
 
