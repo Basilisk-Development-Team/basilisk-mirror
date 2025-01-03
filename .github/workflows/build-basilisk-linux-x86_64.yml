@@ -51,10 +51,29 @@ jobs:
         run: |
           echo 'su -c "./mach mar" $USERNAME' >> build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
 
+      # Restore ccache cache
+      - name: Restore CCache Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.gtk }}-${{ matrix.config.arch }}
+          restore-keys: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.gtk }}-${{ matrix.config.arch }}
+        continue-on-error: true
+
       - name: Build Basilisk
-        run: docker run -v $PWD:/share --rm -e UID=$(id -u) -e GID=$(id -g) -e USERNAME=$(whoami) -e GROUPNAME=$(id -gn) -t oraclelinux:8 /share/build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
+        run: ./build-scripts/linux/build_basilisk.sh
 
       - uses: actions/upload-artifact@v4
         with:
           name: basilisk-linux-${{ matrix.config.arch }}-${{ matrix.config.gtk }}
           path: obj-${{ matrix.config.arch }}-pc-linux-gnu/dist/basilisk-*
+
+      # Save ccache cache
+      - name: Save CCache Cache
+        if: always() # Ensures the cache step runs even if the build fails
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.gtk }}-${{ matrix.config.arch }}
+          restore-keys: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.gtk }}-${{ matrix.config.arch }}
+        continue-on-error: true
