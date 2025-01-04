@@ -1,9 +1,6 @@
 # Set Basilisk version to date timestamp
 export BASILISK_VERSION=1
 
-# Needed for Clang from XCode 15.0 and later (unsure if this is needed for Apple Silicon)
-export LDFLAGS=-ld_classic
-
 # Use Clang on MacOS
 export CXX="/usr/bin/clang++ -stdlib=libc++"
 
