@@ -14,9 +14,7 @@
 !define DDEApplication        "@MOZ_APP_DISPLAYNAME@"
 !define AppRegName            "@MOZ_APP_DISPLAYNAME@"
 
-!ifndef DEV_EDITION
 !define BrandShortName        "@MOZ_APP_DISPLAYNAME@"
-!endif
 !define BrandFullName         "${BrandFullNameInternal}"
 
 !define CERTIFICATE_NAME            "Mozilla Corporation"
