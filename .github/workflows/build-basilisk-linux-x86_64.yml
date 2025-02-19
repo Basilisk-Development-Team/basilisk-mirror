@@ -54,11 +54,11 @@ jobs:
       # Restore ccache cache
       - name: Restore CCache Cache
         uses: actions/cache@v4
+        continue-on-error: true
         with:
           path: ~/.ccache
-          key: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.gtk }}-${{ matrix.config.arch }}
+          key: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.gtk }}-${{ matrix.config.arch }}-${{ github.run_id }}
           restore-keys: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.gtk }}-${{ matrix.config.arch }}
-        continue-on-error: true
 
       - name: Build Basilisk
         run: ./build-scripts/linux/build_basilisk.sh
@@ -74,6 +74,6 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.gtk }}-${{ matrix.config.arch }}
+          key: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.gtk }}-${{ matrix.config.arch }}-${{ github.run_id }}
           restore-keys: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.gtk }}-${{ matrix.config.arch }}
         continue-on-error: true
