@@ -58,7 +58,7 @@ const MAX_SUGGESTIONS = 6;
  *     Performs a search.
  *     Any GetSuggestions messages in the queue from the same target will be
  *     cancelled.
- *     data: { engineName, searchString, healthReportKey, searchPurpose }
+ *     data: { engineName, searchString, searchPurpose }
  *   SetCurrentEngine
  *     Sets the current engine.
  *     data: the name of the engine
@@ -224,7 +224,6 @@ this.ContentSearch = {
     this._ensureDataHasProperties(data, [
       "engineName",
       "searchString",
-      "healthReportKey",
       "searchPurpose",
     ]);
     let engine = Services.search.getEngineByName(data.engineName);
