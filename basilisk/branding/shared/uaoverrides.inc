@@ -79,6 +79,6 @@ pref("@GUAO_PREF@.yuku.com","Mozilla/5.0 (%OS_SLICE% rv:@GK_VERSION@) @GK_SLICE@
 pref("@GUAO_PREF@.slack.com","Mozilla/5.0 (%OS_SLICE% rv:120.0) @GK_SLICE@ Firefox/120.0 @APP_SLICE@");
 
 // Domains that require a Pale Moon user agent override
-pref("@GUAO_PREF@.challenges.cloudflare.com","Mozilla/5.0 (%OS_SLICE% rv:@GK_VERSION@) @GK_SLICE@ @UXP_VERSION_SLICE@ @FX_SLICE@ @PM_SLICE@");
+//pref("@GUAO_PREF@.challenges.cloudflare.com","Mozilla/5.0 (%OS_SLICE% rv:@GK_VERSION@) @GK_SLICE@ @UXP_VERSION_SLICE@ @FX_SLICE@ @PM_SLICE@");
 
 // ============================================================================
