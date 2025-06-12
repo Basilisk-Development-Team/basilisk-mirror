@@ -2,12 +2,10 @@ name: Build Basilisk Linux aarch64
 
 on:  
   workflow_dispatch:
-  # We have to pay for this, so we'll only run it manually.
-  # When/if GitHub has free minutes for ARM64, we can enable this.
-  # push:
-  #   branches:
-  #     - master
-  #     - release
+   push:
+     branches:
+       - master
+       - release
 
 jobs:
   build-basilisk:
