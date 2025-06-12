@@ -185,6 +185,7 @@
                     accesskey="&javascriptWasm.accesskey;" />
         </vbox>
       </row>
+#ifdef MOZ_WEBRTC
       <row id="javascriptRow2">
         <vbox align="start">
           <checkbox id="javascriptWebRTCPolicy"
@@ -193,6 +194,7 @@
                     accesskey="&javascriptWebrtc.accesskey;" />
         </vbox>
       </row>
+#endif
     </rows>
   </grid>
 </groupbox>
