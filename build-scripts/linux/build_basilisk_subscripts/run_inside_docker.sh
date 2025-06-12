@@ -11,7 +11,7 @@ if [ "$SETUP_BUILD_IMAGE" = "1" ]; then
 
   dnf install -y gtk3-devel dbus-glib-devel GConf2-devel yasm mesa-libGL-devel \
     alsa-lib-devel libXt-devel openssl-devel sqlite-devel pulseaudio-libs-devel \
-    python2 gtk2-devel python2-devel wget xz make cmake
+    python2 gtk2-devel python2-devel wget xz make cmake python2
 
   dnf groupinstall -y 'Development Tools'
 
@@ -27,6 +27,8 @@ if [ "$SETUP_BUILD_IMAGE" = "1" ]; then
       libXfixes-devel.i686 libXcomposite-devel.i686 libXdamage-devel.i686 gdk-pixbuf2-devel.i686 \
       cairo-gobject-devel.i686
   fi
+
+  ln -s /usr/bin/python2 /usr/local/bin/python
 
   cd /tmp
   wget https://github.com/ccache/ccache/releases/download/v$CCACHE_VERSION/ccache-$CCACHE_VERSION.tar.xz
