@@ -72,6 +72,11 @@ jobs:
           C:\mozilla-build\start-shell.bat echo '/d/a'
           C:\mozilla-build\start-shell.bat ls /d/a
 
+      - name: Debug msvc redist dir
+        run: |
+          C:\mozilla-build\start-shell.bat echo 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\redist'
+          C:\mozilla-build\start-shell.bat tree -a /c/Program\ Files/Microsoft\ Visual\ Studio/2022/Enterprise/VC/redist
+
       - name: mach configure
         run: |
           C:\mozilla-build\start-shell.bat /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} configure
