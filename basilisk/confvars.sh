@@ -9,6 +9,7 @@ MOZ_PHOENIX=1
 MOZ_AUSTRALIS=1
 MC_BASILISK=1
 MOZ_UPDATER=
+MOZ_BUNDLED_FONTS=1
 
 if test "$MOZ_WIDGET_TOOLKIT" = "windows" -o \
         "$MOZ_WIDGET_TOOLKIT" = "gtk2" -o \
@@ -29,8 +30,8 @@ fi
 # When not exported at all we fall back the value in the version*.txt file.
 if test -n "$BASILISK_VERSION" ; then
     if [ "$BASILISK_VERSION" = "1" ]; then
-        MOZ_APP_VERSION=52.9.`date -u '+%Y.%m.%d'`
-        MOZ_APP_VERSION_DISPLAY=`date -u '+%Y.%m.%d'`
+        MOZ_APP_VERSION=52.9.2025.07.04
+        MOZ_APP_VERSION_DISPLAY=2025.07.04
     else
         MOZ_APP_VERSION=52.9.$BASILISK_VERSION
         MOZ_APP_VERSION_DISPLAY=$BASILISK_VERSION
