@@ -63,35 +63,41 @@ jobs:
 
       - name: debug dirs
         run: |
+          C:\mozilla-build\start-shell.bat echo '/c'
           C:\mozilla-build\start-shell.bat ls /c
+          C:\mozilla-build\start-shell.bat echo '/c/a'
           C:\mozilla-build\start-shell.bat ls /c/a
+          C:\mozilla-build\start-shell.bat echo '/d'
+          C:\mozilla-build\start-shell.bat ls /d
+          C:\mozilla-build\start-shell.bat echo '/d/a'
+          C:\mozilla-build\start-shell.bat ls /d/a
 
       - name: mach configure
         run: |
-          C:\mozilla-build\start-shell.bat /c/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /c/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} configure
+          C:\mozilla-build\start-shell.bat /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} configure
         shell: pwsh
 
       - name: mach build
         run: |
-          C:\mozilla-build\start-shell.bat /c/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /c/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} build
+          C:\mozilla-build\start-shell.bat /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} build
         shell: pwsh
 
       - name: mach package
         run: |
-          C:\mozilla-build\start-shell.bat /c/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /c/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} package
+          C:\mozilla-build\start-shell.bat /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} package
         shell: pwsh
 
       - name: mach installer if release branch
         if: github.ref == 'refs/heads/release'
         shell: pwsh
         run: |
-          C:\mozilla-build\start-shell.bat /c/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /c/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} installer
+          C:\mozilla-build\start-shell.bat /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} installer
 
       - name: mach mar if release branch
         if: github.ref == 'refs/heads/release'
         shell: pwsh
         run: |
-          C:\mozilla-build\start-shell.bat /c/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /c/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} mar
+          C:\mozilla-build\start-shell.bat /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }}/.github/workflows/build-basilisk-windows/mach-passthrough-windows.sh /d/a/${{ github.event.repository.name }}/${{ github.event.repository.name }} mar
 
       - uses: actions/upload-artifact@v4
         with:
