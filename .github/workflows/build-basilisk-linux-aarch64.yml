@@ -2,10 +2,10 @@ name: Build Basilisk Linux aarch64
 
 on:  
   workflow_dispatch:
-   push:
-     branches:
-       - master
-       - release
+  push:
+    branches:
+      - master
+      - release
 
 jobs:
   build-basilisk:
