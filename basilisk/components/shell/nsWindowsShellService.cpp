@@ -726,13 +726,13 @@ SettingsAppBelievesConnected()
 nsresult
 nsWindowsShellService::LaunchModernSettingsDialogDefaultApps()
 {
-  if (!IsWindowsBuildOrLater(14965) &&
-      !IsWindowsLogonConnected() && SettingsAppBelievesConnected()) {
-    // Use the classic Control Panel to work around a bug of older
-    // builds of Windows 10.
-    return LaunchControlPanelDefaultPrograms();
-  }
-
+    // Add an explicit conversion to 14965 to adapt to the type requirements of MSVC
+    if (!IsWindowsBuildOrLater(static_cast<mozilla::WinBuild>(14965)) &&
+        !IsWindowsLogonConnected() && SettingsAppBelievesConnected()) {
+        // Use the classic Control Panel to work around a bug of older
+        // builds of Windows 10.
+        return LaunchControlPanelDefaultPrograms();
+    }
   IApplicationActivationManager* pActivator;
   HRESULT hr = CoCreateInstance(CLSID_ApplicationActivationManager,
                                 nullptr,

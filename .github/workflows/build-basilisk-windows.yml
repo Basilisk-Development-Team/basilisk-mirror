@@ -36,7 +36,7 @@ jobs:
 
       - uses: ChristopheLav/windows-sdk-install@v1
         with:
-          version-sdk: 22621
+          version-sdk: ${{ matrix.config.arch == 'x86_64' && '26100' || '22621' }}
           features: 'OptionId.DesktopCPPx64,OptionId.DesktopCPPx86'
 
       - uses: actions/checkout@v4

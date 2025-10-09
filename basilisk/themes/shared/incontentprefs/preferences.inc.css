@@ -13,13 +13,13 @@
 }
 
 * {
-  -moz-user-select: text;
+  user-select: text;
 }
 
 button,
 treecol {
   /* override the * rule */
-  -moz-user-select: none;
+  user-select: none;
 }
 
 #engineList treechildren::-moz-tree-image(engineShown, checked),
@@ -337,7 +337,7 @@ description > html|a {
 
 #dialogTitle {
   text-align: center;
-  -moz-user-select: none;
+  user-select: none;
 }
 
 .close-icon {
