@@ -11,9 +11,12 @@ export CC="/usr/bin/clang -arch x86_64"
 # Build for MacOS 10.7 and above
 export MACOSX_DEPLOYMENT_TARGET=10.7
 
+# Link with ThinLTO
+export LDFLAGS="$LDFLAGS -flto=thin"
+
 # Standard build options for Basilisk
 ac_add_options --enable-application=basilisk
-ac_add_options --enable-optimize="-O3"
+ac_add_options --enable-optimize="-O3 -flto=thin"
 ac_add_options --enable-jemalloc
 ac_add_options --enable-strip
 ac_add_options --enable-devtools
@@ -31,7 +34,7 @@ ac_add_options --with-pthreads
 ac_add_options --disable-official-branding
 
 # Set MacOS SDK and target
-ac_add_options --with-macos-sdk=/Applications/Xcode_16.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.3.sdk
+ac_add_options --with-macos-sdk=/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.3.sdk
 ac_add_options --host=x86_64-apple-darwin
 ac_add_options --target=x86_64-apple-darwin
 ac_add_options --with-macbundle-type=hybrid
