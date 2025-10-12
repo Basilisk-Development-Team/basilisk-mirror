@@ -61,7 +61,7 @@ ac_add_options --disable-gconf
 
 # Updates and Branding (release builds only)
 ac_add_options --disable-updater
-ac_add_options --enable-official-branding
+ac_add_options --disable-official-branding
 
 # Threading
 ac_add_options --with-pthreads
