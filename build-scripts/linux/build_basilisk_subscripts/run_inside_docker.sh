@@ -23,7 +23,7 @@ if [ "$SETUP_BUILD_IMAGE" = "1" ]; then
       pulseaudio-libs-devel.i686 GConf2-devel.i686 dbus-devel.i686 atkmm-devel.i686 \
       libXrender-devel.i686 alsa-lib-devel.i686 atk-devel.i686  pango-devel.i686 dbus-glib-devel.i686 \
       libXfixes-devel.i686 libXcomposite-devel.i686 libXdamage-devel.i686 gdk-pixbuf2-devel.i686 \
-      cairo-gobject-devel.i686
+      cairo-gobject-devel.i686 gcc-toolset-11*.i686
   fi
 
   # Clang toolchain
