@@ -15,12 +15,31 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - name: GTK3 aarch64
+        - name: GTK3 aarch64 GCC
           gtk: gtk3
           arch: aarch64
-        - name: GTK2 aarch64
+          compiler: gcc
+        - name: GTK2 aarch64 GCC
           gtk: gtk2
           arch: aarch64
+          compiler: gcc
+        - name: GTK3 aarch64 Clang+LTO
+          gtk: gtk3
+          arch: aarch64
+          compiler: clang_lto
+        - name: GTK2 aarch64 Clang+LTO
+          gtk: gtk2
+          arch: aarch64
+          compiler: clang_lto
+        - name: GTK3 aarch64 Clang+LTO+Static libcxx
+          gtk: gtk3
+          arch: aarch64
+          compiler: clang_lto_libcxx
+        - name: GTK2 aarch64 Clang+LTO+Static libcxx
+          gtk: gtk2
+          arch: aarch64
+          compiler: clang_lto_libcxx
+
     steps:
       - name: Free Disk Space
         run: |
@@ -33,7 +52,12 @@ jobs:
           submodules: recursive
 
       - name: Copy mozconfig
-        run: cp mozconfigs/linux/${{ matrix.config.arch }}/${{ matrix.config.gtk }}_unofficial_branding.mozconfig .mozconfig
+        run: cp mozconfigs/linux/${{ matrix.config.arch }}/${{ matrix.config.gtk }}_unofficial_branding_${{ matrix.config.compiler }}.mozconfig .mozconfig
+
+      - name: Apply static libcxx patch
+        if: matrix.config.compiler == 'clang_lto_libcxx'
+        run: |
+          git apply patches/static-libcxx-fix.patch
 
       - name: Update mozconfig for release branch
         if: github.ref == 'refs/heads/release'

@@ -57,6 +57,35 @@ if [ ! -f .mozconfig ]; then
     fi
 fi
 
+mkdir -p /opt/llvm-libcxx-static
+cd thirdparty/libcxx-static
+
+# Install LLVM libc++ and libc++abi static libraries
+cmake -S runtimes -B build \
+  -DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;libcxx" \
+  -DLIBUNWIND_ENABLE_SHARED=OFF \
+  -DLIBUNWIND_USE_STATIC_LIBS=ON \
+  -DLIBCXXABI_ENABLE_SHARED=OFF \
+  -DLIBCXX_ENABLE_SHARED=OFF \
+  -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
+  -DLIBCXX_USE_COMPILER_RT=ON \
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_COMPILER=clang \
+  -DCMAKE_CXX_COMPILER=clang++ \
+  -DCMAKE_INSTALL_PREFIX=/opt/llvm-libcxx-static \
+  -DLIBCXX_CXX_ABI=libcxxabi \
+  -DLIBCXX_HAS_ATOMIC_LIB=OFF \
+  -DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=OFF \
+  -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
+  -DLIBCXX_ENABLE_EXCEPTIONS=OFF \
+  -DLIBCXX_ENABLE_RTTI=OFF \
+  -DCMAKE_CXX_FLAGS="-fPIC -fvisibility=hidden -fvisibility-inlines-hidden"
+
+cmake --build build -j$(nproc)
+cmake --install build
+
+cd ../../
 su -c "./mach clobber" $USERNAME
 su -c "./mach configure" $USERNAME
 su -c "./mach build" $USERNAME
