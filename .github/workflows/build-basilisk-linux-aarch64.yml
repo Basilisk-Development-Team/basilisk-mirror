@@ -58,7 +58,7 @@ jobs:
         if: matrix.config.compiler == 'clang_lto_libcxx'
         run: |
           cd platform
-          git apply patches/static-libcxx-fix.patch
+          git apply ../patches/static-libcxx-fix.patch
 
       - name: Update mozconfig for release branch
         if: github.ref == 'refs/heads/release'
