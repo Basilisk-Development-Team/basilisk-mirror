@@ -7,9 +7,22 @@ _GTK_VERSION=3
 # Set Basilisk version to date timestamp
 export BASILISK_VERSION=1
 
+# Use clang/llvm toolchain
+export CC="/usr/bin/clang"
+export CXX="/usr/bin/clang++"
+export AR="/usr/bin/llvm-ar"
+export NM="/usr/bin/llvm-nm"
+export RANLIB="/usr/bin/llvm-ranlib"
+export LD=ld.lld
+
+# ThinLTO with Clang/LLVM. -Wl,--undefined-version is needed due to differences between GNU ld and lld
+export LDFLAGS="-flto=thin -fuse-ld=lld -Wl,--undefined-version"
+
+# O3 for maximum optimization, -w to suppress all warnings, -flto=thin for ThinLTO
+ac_add_options --enable-optimize="-O3 -w -flto=thin"
+
 # Standard build options for Basilisk
 ac_add_options --enable-application=basilisk
-ac_add_options --enable-optimize="-O3 -w"
 ac_add_options --enable-default-toolkit=cairo-gtk$_GTK_VERSION
 ac_add_options --enable-jemalloc
 ac_add_options --enable-strip
