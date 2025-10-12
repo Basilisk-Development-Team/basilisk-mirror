@@ -3,8 +3,6 @@
 if [ "$SETUP_BUILD_IMAGE" = "1" ]; then
   set -e
 
-  CCACHE_VERSION="4.10.2"
-
   dnf install -y epel-release
 
   dnf config-manager --set-enabled ol8_codeready_builder
@@ -28,18 +26,10 @@ if [ "$SETUP_BUILD_IMAGE" = "1" ]; then
       cairo-gobject-devel.i686
   fi
 
+  # Clang toolchain
+  dnf install -y clang llvm lld
+
   ln -s /usr/bin/python2 /usr/local/bin/python
-
-  cd /tmp
-  wget https://github.com/ccache/ccache/releases/download/v$CCACHE_VERSION/ccache-$CCACHE_VERSION.tar.xz
-  tar -xvf ccache-$CCACHE_VERSION.tar.xz
-  cd ccache-$CCACHE_VERSION
-  cmake .
-  make install
-  cd ..
-  rm -rf ccache*
-
-  set +e
 
   exit 0
 fi
@@ -47,10 +37,6 @@ fi
 echo "Prepping user and group inside docker container..."
 groupadd -r -g $GID $GROUPNAME
 useradd -u $UID $USERNAME -g $GID
-
-chmod -R 775 /.ccache
-chown -R $USERNAME:$GROUPNAME /.ccache
-export CCACHE_DIR=/.ccache
 
 echo "Building Basilisk..."
 cd /share
@@ -61,12 +47,6 @@ fi
 
 # Enable GCC 11
 . /opt/rh/gcc-toolset-11/enable
-
-which ccache &> /dev/null
-if [ $? -eq 0 ]; then
-  export CC="ccache $(which gcc)"
-  export CXX="ccache $(which g++)"
-fi
 
 # Check for mozconfig before building, add fallback if none present
 if [ ! -f .mozconfig ]; then
