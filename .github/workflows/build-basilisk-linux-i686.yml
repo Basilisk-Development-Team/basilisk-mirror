@@ -31,6 +31,14 @@ jobs:
             gtk: gtk2
             arch: i686
             compiler: clang_lto
+          - name: GTK3 i686 Clang+LTO+Static libcxx
+            gtk: gtk3
+            arch: i686
+            compiler: clang_lto_libcxx
+          - name: GTK2 i686 Clang+LTO+Static libcxx
+            gtk: gtk2
+            arch: i686
+            compiler: clang_lto_libcxx
 
     steps:
       - name: Free Disk Space
