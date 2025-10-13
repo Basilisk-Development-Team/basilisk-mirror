@@ -15,21 +15,18 @@ export NM="/usr/bin/llvm-nm"
 export RANLIB="/usr/bin/llvm-ranlib"
 export LD=ld.lld
 
-# GCC toolchain (for headers/libgcc runtime)
+# Point Clang to the proper GCC toolchain (not needed for 64-bit builds)
 export GCC_TOOLCHAIN="/opt/rh/gcc-toolset-11/root/usr/"
 export CFLAGS="--gcc-toolchain=$GCC_TOOLCHAIN"
 export CXXFLAGS="--gcc-toolchain=$GCC_TOOLCHAIN"
 
-# ---- Static libc++ integration ----
-export LIBCXX_PREFIX="/opt/llvm-libcxx-static-i686"
-export CXXFLAGS="$CXXFLAGS -stdlib=libc++ -I$LIBCXX_PREFIX/include/c++/v1 -fPIC -D_LIBCPP_ENABLE_CXX17_REMOVED_AUTO_PTR"
-export CFLAGS="$CFLAGS -fPIC -D_LIBCPP_ENABLE_CXX17_REMOVED_AUTO_PTR"
-export LDFLAGS="-L$LIBCXX_PREFIX/lib -lc++ -lc++abi -lunwind -flto=thin -fuse-ld=lld -static-libstdc++ -static-libgcc -Wl,--as-needed -Wl,--undefined-version"
+# ThinLTO with Clang/LLVM. -Wl,--undefined-version fixes lld vs GNU ld behavior.
+export LDFLAGS="-flto=thin -fuse-ld=lld -Wl,--undefined-version"
 
 # Optimize for i686 with SSE2 and LTO
 ac_add_options --enable-optimize="-O3 -march=i686 -msse2 -mfpmath=sse -flto=thin -w"
 
-# Application settings
+# Standard build options for Basilisk
 ac_add_options --enable-application=basilisk
 ac_add_options --enable-default-toolkit=cairo-gtk$_GTK_VERSION
 ac_add_options --enable-jemalloc
@@ -49,13 +46,13 @@ ac_add_options --with-pthreads
 ac_add_options --disable-gconf
 ac_add_options --disable-official-branding
 
-# Explicit target
+# Set target architecture explicitly
 ac_add_options --target=i686-unknown-linux-gnu
 ac_add_options --with-arch=i686
 
 export MOZILLA_OFFICIAL=1
 
-# Processor arch specifics
+# Processor architecture specific build options
 if [ -n "$_BUILD_64" ]; then
   ac_add_options --x-libraries=/usr/lib64
 else
