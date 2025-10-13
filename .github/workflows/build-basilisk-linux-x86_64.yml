@@ -1,6 +1,6 @@
 name: Build Basilisk Linux x86_64
 
-on:  
+on:
   workflow_dispatch:
   push:
     branches:
@@ -15,12 +15,31 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - name: GTK3 x86_64
-          gtk: gtk3
-          arch: x86_64
-        - name: GTK2 x86_64
-          gtk: gtk2
-          arch: x86_64
+          - name: GTK3 x86_64 GCC
+            gtk: gtk3
+            arch: x86_64
+            compiler: gcc
+          - name: GTK2 x86_64 GCC
+            gtk: gtk2
+            arch: x86_64
+            compiler: gcc
+          - name: GTK3 x86_64 Clang+LTO
+            gtk: gtk3
+            arch: x86_64
+            compiler: clang_lto
+          - name: GTK2 x86_64 Clang+LTO
+            gtk: gtk2
+            arch: x86_64
+            compiler: clang_lto
+          - name: GTK3 x86_64 Clang+LTO+Static libcxx
+            gtk: gtk3
+            arch: x86_64
+            compiler: clang_lto_libcxx
+          - name: GTK2 x86_64 Clang+LTO+Static libcxx
+            gtk: gtk2
+            arch: x86_64
+            compiler: clang_lto_libcxx
+
     steps:
       - name: Free Disk Space
         run: |
@@ -33,7 +52,13 @@ jobs:
           submodules: recursive
 
       - name: Copy mozconfig
-        run: cp mozconfigs/linux/${{ matrix.config.arch }}/${{ matrix.config.gtk }}_unofficial_branding.mozconfig .mozconfig
+        run: cp mozconfigs/linux/${{ matrix.config.arch }}/${{ matrix.config.gtk }}_unofficial_branding_${{ matrix.config.compiler }}.mozconfig .mozconfig
+
+      - name: Apply static libcxx patch
+        if: matrix.config.compiler == 'clang_lto_libcxx'
+        run: |
+          cd platform
+          git apply ../patches/static-libcxx-fix.patch
 
       - name: Update mozconfig for release branch
         if: github.ref == 'refs/heads/release'
@@ -56,5 +81,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: basilisk-linux-${{ matrix.config.arch }}-${{ matrix.config.gtk }}
-          path: obj-${{ matrix.config.arch }}-pc-linux-gnu/dist/basilisk-*
+          name: basilisk-linux-${{ matrix.config.arch }}-${{ matrix.config.gtk }}-${{ matrix.config.compiler }}
+          path: obj-${{ matrix.config.arch }}-unknown-linux-gnu/dist/basilisk-*

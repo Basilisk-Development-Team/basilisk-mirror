@@ -1,0 +1,80 @@
+# =========================
+#  Basilisk Build Settings
+# =========================
+
+# --- Architecture / Toolkit ---
+export _BUILD_64=1
+export _GTK_VERSION=3
+
+# --- Version Info ---
+export BASILISK_VERSION=1
+export MOZILLA_OFFICIAL=1
+export MOZ_PKG_SPECIAL=gtk${_GTK_VERSION}
+
+# =========================
+#  Compiler / Toolchain
+# =========================
+
+# Use LLVM toolchain
+export CC="/usr/bin/clang"
+export CXX="/usr/bin/clang++"
+export AR="/usr/bin/llvm-ar"
+export NM="/usr/bin/llvm-nm"
+export RANLIB="/usr/bin/llvm-ranlib"
+export LD="/usr/bin/ld.lld"
+
+# Path to static libc++ toolchain
+export LIBCXX_PREFIX="/opt/llvm-libcxx-static"
+
+# Base flags
+export CFLAGS="-O3 -pipe -fno-exceptions -fno-math-errno -fno-strict-aliasing"
+export CXXFLAGS="$CFLAGS -stdlib=libc++ -I${LIBCXX_PREFIX}/include/c++/v1 -D_LIBCPP_ENABLE_CXX17_REMOVED_AUTO_PTR -Wno-visibility"
+export LDFLAGS="-fuse-ld=lld -flto=thin -L${LIBCXX_PREFIX}/lib \
+  -Wl,-Bstatic -lc++ -lc++abi -lunwind -Wl,-Bdynamic \
+  -Wl,--undefined-version"
+
+# =========================
+#  Build Options
+# =========================
+
+ac_add_options --enable-application=basilisk
+ac_add_options --enable-default-toolkit=cairo-gtk${_GTK_VERSION}
+
+# Optimization and linking
+ac_add_options --enable-optimize="-O3 -flto=thin -stdlib=libc++"
+ac_add_options --enable-strip
+ac_add_options --enable-pie
+
+# Features
+ac_add_options --enable-jemalloc
+ac_add_options --enable-devtools
+ac_add_options --enable-av1
+ac_add_options --enable-jxl
+ac_add_options --enable-webrtc
+ac_add_options --enable-gamepad
+
+# Disable unneeded components
+ac_add_options --disable-tests
+ac_add_options --disable-debug
+ac_add_options --disable-necko-wifi
+ac_add_options --disable-gconf
+
+# Updates and Branding (release builds only)
+ac_add_options --disable-updater
+ac_add_options --disable-official-branding
+
+# Threading
+ac_add_options --with-pthreads
+
+# Update channel
+ac_add_options --enable-update-channel=release
+
+# =========================
+#  Architecture Paths
+# =========================
+
+if [ -n "$_BUILD_64" ]; then
+  ac_add_options --x-libraries=/usr/lib64
+else
+  ac_add_options --x-libraries=/usr/lib
+fi
