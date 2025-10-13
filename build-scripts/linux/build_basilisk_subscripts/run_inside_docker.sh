@@ -23,7 +23,7 @@ if [ "$SETUP_BUILD_IMAGE" = "1" ]; then
       pulseaudio-libs-devel.i686 GConf2-devel.i686 dbus-devel.i686 atkmm-devel.i686 \
       libXrender-devel.i686 alsa-lib-devel.i686 atk-devel.i686  pango-devel.i686 dbus-glib-devel.i686 \
       libXfixes-devel.i686 libXcomposite-devel.i686 libXdamage-devel.i686 gdk-pixbuf2-devel.i686 \
-      cairo-gobject-devel.i686 gcc-toolset-11*.i686
+      cairo-gobject-devel.i686 gcc-toolset-11*.i686 gcc-toolset-14*.i686
   fi
 
   # Clang toolchain
@@ -87,27 +87,28 @@ cmake --install build
 
 if [ "$(uname -m)" = "x86_64" ]; then
   # Install 32-bit i686 LLVM libc++ and libc++abi static libraries
-cmake -S runtimes -B build-i686 \
-  -DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;libcxx" \
-  -DLIBUNWIND_ENABLE_SHARED=OFF \
-  -DLIBUNWIND_USE_STATIC_LIBS=ON \
-  -DLIBCXXABI_ENABLE_SHARED=OFF \
-  -DLIBCXX_ENABLE_SHARED=OFF \
-  -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
-  -DLIBCXX_USE_COMPILER_RT=ON \
-  -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_C_COMPILER=clang \
-  -DCMAKE_CXX_COMPILER=clang++ \
-  -DCMAKE_INSTALL_PREFIX=/opt/llvm-libcxx-static-i686 \
-  -DLIBCXX_CXX_ABI=libcxxabi \
-  -DLIBCXX_HAS_ATOMIC_LIB=OFF \
-  -DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=OFF \
-  -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
-  -DLIBCXX_ENABLE_EXCEPTIONS=OFF \
-  -DLIBCXX_ENABLE_RTTI=OFF \
-  -DCMAKE_CXX_FLAGS="-m32 -fPIC -fvisibility=hidden -fvisibility-inlines-hidden" \
-  -DCMAKE_C_FLAGS="-m32"
+  cmake -S runtimes -B build-i686 \
+    -DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;libcxx" \
+    -DLIBUNWIND_ENABLE_SHARED=OFF \
+    -DLIBUNWIND_USE_STATIC_LIBS=ON \
+    -DLIBCXXABI_ENABLE_SHARED=OFF \
+    -DLIBCXX_ENABLE_SHARED=OFF \
+    -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
+    -DLIBCXX_USE_COMPILER_RT=ON \
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER=clang \
+    -DCMAKE_CXX_COMPILER=clang++ \
+    -DCMAKE_INSTALL_PREFIX=/opt/llvm-libcxx-static-i686 \
+    -DLIBCXX_CXX_ABI=libcxxabi \
+    -DLIBCXX_HAS_ATOMIC_LIB=OFF \
+    -DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=OFF \
+    -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
+    -DLIBCXX_ENABLE_EXCEPTIONS=OFF \
+    -DLIBCXX_ENABLE_RTTI=OFF \
+    -DCMAKE_C_FLAGS="-m32 -fPIC -fvisibility=hidden -fvisibility-inlines-hidden" \
+    -DCMAKE_CXX_FLAGS="-m32 -fPIC -fvisibility=hidden -fvisibility-inlines-hidden" \
+    -DCMAKE_EXE_LINKER_FLAGS="-m32"
 
   cmake --build build-i686 -j$(nproc)
   cmake --install build-i686
