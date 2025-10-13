@@ -15,13 +15,16 @@ export NM="/usr/bin/llvm-nm"
 export RANLIB="/usr/bin/llvm-ranlib"
 export LD=ld.lld
 
-# Point Clang to the proper GCC toolchain (not needed for 64-bit builds)
-export GCC_TOOLCHAIN="/opt/rh/gcc-toolset-11/root/usr/"
-export CFLAGS="--gcc-toolchain=$GCC_TOOLCHAIN"
-export CXXFLAGS="--gcc-toolchain=$GCC_TOOLCHAIN"
+# Point to your static libc++ install
+export LIBCXX_PREFIX="/opt/llvm-libcxx-static-i686"
 
-# ThinLTO with Clang/LLVM. -Wl,--undefined-version fixes lld vs GNU ld behavior.
-export LDFLAGS="-flto=thin -fuse-ld=lld -Wl,--undefined-version"
+# Use libc++ instead of libstdc++
+export CFLAGS="--gcc-toolchain=$GCC_TOOLCHAIN -D_LIBCPP_ENABLE_CXX17_REMOVED_AUTO_PTR"
+export CXXFLAGS="--gcc-toolchain=$GCC_TOOLCHAIN -stdlib=libc++ -I$LIBCXX_PREFIX/include/c++/v1 -D_LIBCPP_ENABLE_CXX17_REMOVED_AUTO_PTR"
+
+export LDFLAGS="-fuse-ld=lld -flto=thin -Wl,--undefined-version \
+  -L$LIBCXX_PREFIX/lib -static-libstdc++ -static-libgcc \
+  -lc++ -lc++abi -lunwind"
 
 # Optimize for i686 with SSE2 and LTO
 ac_add_options --enable-optimize="-O3 -march=i686 -msse2 -mfpmath=sse -flto=thin -w"
