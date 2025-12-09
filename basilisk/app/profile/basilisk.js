@@ -21,6 +21,16 @@
 #endif
 #endif
 
+#ifdef MOZ_WIDGET_GTK
+#ifndef MOZ_WIDGET_GTK2
+#define NOT_GTK3
+#endif
+#endif
+
+#ifndef MOZ_WIDGET_GTK
+#define NOT_GTK3
+#endif
+
 pref("browser.chromeURL","chrome://browser/content/");
 pref("browser.hiddenWindowChromeURL", "chrome://browser/content/hiddenWindow.xul");
 
@@ -931,8 +941,10 @@ pref("browser.flash-protected-mode-flip.done", false);
 
 pref("dom.ipc.shims.enabledWarnings", false);
 
-// Whether plugins are run out-of-process
+// Whether plugins are run out-of-process. Only applicable in non-GTK3
+#ifdef NOT_GTK3
 pref("dom.ipc.plugins.enabled", true);
+#endif
 
 // This pref governs whether we attempt to work around problems caused by
 // plugins using OS calls to manipulate the cursor while running out-of-
