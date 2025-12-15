@@ -31,6 +31,11 @@
 #define NOT_GTK3
 #endif
 
+#ifndef MOZ_ENABLE_NPAPI
+#ifndef MOZ_GMP
+#define PLUGINS_SUPPORT_DISABLED
+#endif
+
 pref("browser.chromeURL","chrome://browser/content/");
 pref("browser.hiddenWindowChromeURL", "chrome://browser/content/hiddenWindow.xul");
 
@@ -941,12 +946,14 @@ pref("browser.flash-protected-mode-flip.done", false);
 
 pref("dom.ipc.shims.enabledWarnings", false);
 
-#ifdef MOZ_ENABLE_NPAPI
+#ifndef PLUGINS_SUPPORT_DISABLED
 // Whether plugins are run out-of-process. Only applicable in non-GTK3
 #ifdef NOT_GTK3
 pref("dom.ipc.plugins.enabled", true);
 #endif
+#endif
 
+#ifdef MOZ_ENABLE_NPAPI
 // This pref governs whether we attempt to work around problems caused by
 // plugins using OS calls to manipulate the cursor while running out-of-
 // process.  These workarounds all involve intercepting (hooking) certain
@@ -1186,6 +1193,7 @@ pref("browser.uiCustomization.state", "");
 pref("ui.key.menuAccessKeyFocuses", true);
 #endif
 
+#ifdef MOZ_GMP
 // Decode using Gecko Media Plugins in <video>, if a system decoder is not
 // availble and the preferred GMP is available.
 pref("media.gmp.decoder.enabled", false);
@@ -1207,6 +1215,7 @@ pref("browser.cache.frecency_experiment", -1);
 
 // Enable GMP support in the addon manager.
 pref("media.gmp-provider.enabled", true);
+#endif /* MOZ_GMP */
 
 #ifndef RELEASE_OR_BETA
 // At the moment, autostart.2 is used, while autostart.1 is unused.
