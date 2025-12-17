@@ -35,6 +35,7 @@
 #ifndef MOZ_GMP
 #define PLUGINS_SUPPORT_DISABLED
 #endif
+#endif
 
 pref("browser.chromeURL","chrome://browser/content/");
 pref("browser.hiddenWindowChromeURL", "chrome://browser/content/hiddenWindow.xul");
