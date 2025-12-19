@@ -1,6 +1,6 @@
 # Internal Userscripts (Polyfills Only)
 
-This directory contains a minimal, built-in userscript loader used to ship polyfill user scripts with Basilisk. This originally started as a fork of GreaseMonkey, however at this point very little of GreaseMonkey  remains.
+This directory contains a minimal, built-in userscript loader used to ship polyfill user scripts with Basilisk. This originally started as a fork of GreaseMonkey, however at this point very little of GreaseMonkey remains.
 
 ## How it works
 - The XPCOM component `@internaluserscripts.mozdev.org/service;1` observes document creation and, when `browser.internal-userscripts.enabled` is true, injects bundled polyfill scripts into each page.
