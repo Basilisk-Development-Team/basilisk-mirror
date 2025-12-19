@@ -1317,3 +1317,6 @@ pref("webchannel.allowObject.urlWhitelist", "");
 // The counter resets when the page is reloaded from the UI
 // (content-reloads do NOT clear this to mitigate reloading tricks).
 pref("prompts.authentication_dialog_abuse_limit", 3);
+
+// Enable full GC WeakRef Support
+pref("javascript.options.weakrefs", true);
