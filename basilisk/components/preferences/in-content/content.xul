@@ -20,6 +20,9 @@
   <preference id="javascript.options.wasm"
               name="javascript.options.wasm"
               type="bool"/>
+  <preference id="dom.serviceWorkers.enabled"
+              name="dom.serviceWorkers.enabled"
+              type="bool"/>
 #ifdef MOZ_WEBRTC
   <preference id="media.peerconnection.enabled"
               name="media.peerconnection.enabled"
@@ -185,8 +188,16 @@
                     accesskey="&javascriptWasm.accesskey;" />
         </vbox>
       </row>
-#ifdef MOZ_WEBRTC
       <row id="javascriptRow2">
+        <vbox align="start">
+          <checkbox id="javascriptServiceWorkers"
+                    preference="dom.serviceWorkers.enabled"
+                    label="&javascriptServiceWorkers.label;"
+                    accesskey="&javascriptServiceWorkers.accesskey;" />
+        </vbox>
+      </row>
+#ifdef MOZ_WEBRTC
+      <row id="javascriptRow3">
         <vbox align="start">
           <checkbox id="javascriptWebRTCPolicy"
                     preference="media.peerconnection.enabled"
