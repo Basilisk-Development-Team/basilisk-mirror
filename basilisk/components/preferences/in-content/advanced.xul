@@ -19,6 +19,9 @@
   <preference id="accessibility.typeaheadfind"
               name="accessibility.typeaheadfind"
               type="bool"/>
+  <preference id="ui.prefersReducedMotion"
+              name="ui.prefersReducedMotion"
+              type="int"/>
   <preference id="accessibility.blockautorefresh"
               name="accessibility.blockautorefresh"
               type="bool"/>
@@ -157,6 +160,12 @@
                   label="&searchStartTyping.label;"
                   accesskey="&searchStartTyping.accesskey;"
                   preference="accessibility.typeaheadfind"/>
+        <checkbox id="reduceMotion"
+                  label="&reduceMotion.label;"
+                  accesskey="&reduceMotion.accesskey;"
+                  onsyncfrompreference="return gAdvancedPane.readReducedMotion();"
+                  onsynctopreference="return gAdvancedPane.writeReducedMotion();"
+                  preference="ui.prefersReducedMotion"/>
         <checkbox id="blockAutoRefresh"
                   label="&blockAutoRefresh.label;"
                   accesskey="&blockAutoRefresh.accesskey;"
