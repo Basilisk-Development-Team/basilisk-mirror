@@ -1,0 +1,80 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#containersList {
+  min-height: 12em;
+}
+
+#containerActions {
+  margin-inline-start: 8px;
+}
+
+#containersActionButtons {
+  padding-bottom: 6px;
+}
+
+#containerColor > .menulist-label-box > .menulist-icon {
+  width: 16px;
+  height: 16px;
+  filter: url(chrome://browser/skin/filters.svg#fill);
+  fill: currentColor;
+}
+
+.usercontext-icon {
+  width: 16px;
+  height: 16px;
+  margin-inline-end: 6px;
+  filter: url(chrome://browser/skin/filters.svg#fill);
+  fill: var(--usercontext-color, currentColor);
+}
+
+menuitem.usercontext-color-item > .menu-iconic-left > .menu-iconic-icon,
+menuitem.usercontext-icon-item > .menu-iconic-left > .menu-iconic-icon {
+  filter: url(chrome://browser/skin/filters.svg#fill);
+  fill: currentColor;
+}
+
+menuitem.usercontext-color-item > .menu-iconic-left > .menu-iconic-icon {
+  fill: var(--usercontext-color, currentColor);
+}
+
+menuitem.usercontext-color-item[usercontextcolor="blue"] > .menu-iconic-left > .menu-iconic-icon,
+#containerColor[usercontextcolor="blue"] > .menulist-label-box > .menulist-icon {
+  fill: #37adff;
+}
+
+menuitem.usercontext-color-item[usercontextcolor="turquoise"] > .menu-iconic-left > .menu-iconic-icon,
+#containerColor[usercontextcolor="turquoise"] > .menulist-label-box > .menulist-icon {
+  fill: #00c79a;
+}
+
+menuitem.usercontext-color-item[usercontextcolor="green"] > .menu-iconic-left > .menu-iconic-icon,
+#containerColor[usercontextcolor="green"] > .menulist-label-box > .menulist-icon {
+  fill: #51cd00;
+}
+
+menuitem.usercontext-color-item[usercontextcolor="yellow"] > .menu-iconic-left > .menu-iconic-icon,
+#containerColor[usercontextcolor="yellow"] > .menulist-label-box > .menulist-icon {
+  fill: #ffcb00;
+}
+
+menuitem.usercontext-color-item[usercontextcolor="orange"] > .menu-iconic-left > .menu-iconic-icon,
+#containerColor[usercontextcolor="orange"] > .menulist-label-box > .menulist-icon {
+  fill: #ff9f00;
+}
+
+menuitem.usercontext-color-item[usercontextcolor="red"] > .menu-iconic-left > .menu-iconic-icon,
+#containerColor[usercontextcolor="red"] > .menulist-label-box > .menulist-icon {
+  fill: #ff613d;
+}
+
+menuitem.usercontext-color-item[usercontextcolor="pink"] > .menu-iconic-left > .menu-iconic-icon,
+#containerColor[usercontextcolor="pink"] > .menulist-label-box > .menulist-icon {
+  fill: #ff4bda;
+}
+
+menuitem.usercontext-color-item[usercontextcolor="purple"] > .menu-iconic-left > .menu-iconic-icon,
+#containerColor[usercontextcolor="purple"] > .menulist-label-box > .menulist-icon {
+  fill: #bf65ff;
+}

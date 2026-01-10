@@ -18,6 +18,7 @@ Cu.import("resource://gre/modules/NotificationDB.jsm");
   ["CharsetMenu", "resource://gre/modules/CharsetMenu.jsm"],
   ["Color", "resource://gre/modules/Color.jsm"],
   ["ContentSearch", "resource:///modules/ContentSearch.jsm"],
+  ["ContextualIdentityService", "resource:///modules/ContextualIdentityService.jsm"],
   ["Deprecated", "resource://gre/modules/Deprecated.jsm"],
   ["E10SUtils", "resource:///modules/E10SUtils.jsm"],
   ["FormValidationHandler", "resource:///modules/FormValidationHandler.jsm"],
@@ -971,6 +972,7 @@ var gBrowserInit = {
     TabletModeUpdater.init();
     CombinedStopReload.init();
     gPrivateBrowsingUI.init();
+    gContextualIdentity.init();
 
     if (window.matchMedia("(-moz-os-version: windows-win8)").matches &&
         window.matchMedia("(-moz-windows-default-theme)").matches) {
@@ -1337,6 +1339,7 @@ var gBrowserInit = {
     // uninit methods don't depend on the services having been initialized).
 
     CombinedStopReload.uninit();
+    gContextualIdentity.uninit();
 
     gGestureSupport.init(false);
 
@@ -1826,7 +1829,55 @@ function BrowserOpenTab(event) {
     }
   }
 
-  openUILinkIn(BROWSER_NEW_TAB_URL, where, { relatedToCurrent });
+  openUILinkIn(BROWSER_NEW_TAB_URL, where, {
+    relatedToCurrent,
+    userContextId: 0,
+  });
+}
+
+function onNewTabButtonMenuShowing(event) {
+  if (event.target != event.currentTarget) {
+    return;
+  }
+
+  onViewToolbarsPopupShowing(event,
+                             document.getElementById("new-tab-button-viewToolbarsMenuSeparator"));
+
+  let containerMenu = document.getElementById("new-tab-button-newcontainer");
+  if (containerMenu) {
+    containerMenu.hidden = !gContextualIdentity._canShowUI;
+  }
+}
+
+function openNewUserContextTab(event) {
+  let target = event && event.target;
+  let userContextId = target ? parseInt(target.getAttribute("usercontextid"), 10) || 0 : 0;
+  if (!userContextId) {
+    return;
+  }
+
+  let where = "tab";
+  let relatedToCurrent = false;
+  if (event) {
+    where = whereToOpenLink(event, false, true);
+    if (where == "current") {
+      where = "tab";
+    }
+    if (where == "tab" || where == "tabshifted") {
+      relatedToCurrent = true;
+    }
+  }
+
+  openUILinkIn(BROWSER_NEW_TAB_URL, where, {
+    relatedToCurrent,
+    userContextId,
+  });
+}
+
+function openContainerPreferences() {
+  window.openDialog("chrome://browser/content/preferences/containers.xul",
+                    "Browser:Containers",
+                    "chrome,dialog=no,centerscreen,resizable");
 }
 
 /* Called from the openLocation dialog. This allows that dialog to instruct
@@ -6005,6 +6056,188 @@ function formatURL(aFormat, aIsPref) {
   var formatter = Cc["@mozilla.org/toolkit/URLFormatterService;1"].getService(Ci.nsIURLFormatter);
   return aIsPref ? formatter.formatURLPref(aFormat) : formatter.formatURL(aFormat);
 }
+
+var gContextualIdentity = {
+  _initialized: false,
+
+  init() {
+    if (this._initialized) {
+      return;
+    }
+    this._initialized = true;
+
+    SessionStore.persistTabAttribute("usercontextid");
+
+    Services.obs.addObserver(this, "contextual-identity-added", false);
+    Services.obs.addObserver(this, "contextual-identity-updated", false);
+    Services.obs.addObserver(this, "contextual-identity-removed", false);
+
+    Services.prefs.addObserver("privacy.userContext.enabled", this, false);
+    Services.prefs.addObserver("privacy.userContext.ui.enabled", this, false);
+
+    gBrowser.tabContainer.addEventListener("TabSelect", this, false);
+    gBrowser.tabContainer.addEventListener("TabAttrModified", this, false);
+    gBrowser.tabContainer.addEventListener("TabOpen", this, false);
+
+    this.updateAllTabs();
+    this.updateContainerUI();
+  },
+
+  uninit() {
+    if (!this._initialized) {
+      return;
+    }
+    this._initialized = false;
+
+    Services.obs.removeObserver(this, "contextual-identity-added");
+    Services.obs.removeObserver(this, "contextual-identity-updated");
+    Services.obs.removeObserver(this, "contextual-identity-removed");
+
+    Services.prefs.removeObserver("privacy.userContext.enabled", this);
+    Services.prefs.removeObserver("privacy.userContext.ui.enabled", this);
+
+    gBrowser.tabContainer.removeEventListener("TabSelect", this, false);
+    gBrowser.tabContainer.removeEventListener("TabAttrModified", this, false);
+    gBrowser.tabContainer.removeEventListener("TabOpen", this, false);
+  },
+
+  observe(subject, topic, data) {
+    switch (topic) {
+      case "contextual-identity-added":
+      case "contextual-identity-updated":
+      case "contextual-identity-removed":
+      case "nsPref:changed":
+        this.updateAllTabs();
+        this.updateContainerUI();
+        break;
+    }
+  },
+
+  handleEvent(event) {
+    switch (event.type) {
+      case "TabOpen":
+        this.updateTab(event.target);
+        break;
+      case "TabSelect":
+        this.updateUserContextIndicator();
+        break;
+      case "TabAttrModified":
+        if (event.detail &&
+            event.detail.changed &&
+            event.detail.changed.includes("usercontextid")) {
+          this.updateTab(event.target);
+          if (event.target.selected) {
+            this.updateUserContextIndicator();
+          }
+        }
+        break;
+    }
+  },
+
+  get _canShowUI() {
+    return ContextualIdentityService.uiEnabled &&
+           !PrivateBrowsingUtils.isWindowPrivate(window);
+  },
+
+  updateAllTabs() {
+    for (let tab of gBrowser.tabs) {
+      this.updateTab(tab);
+    }
+    this.updateUserContextIndicator();
+    this.updateContainerMenuVisibility();
+  },
+
+  updateTab(tab) {
+    let userContextId = parseInt(tab.getAttribute("usercontextid"), 10) || 0;
+    let identity = ContextualIdentityService.getIdentityFromId(userContextId);
+    let browser = tab.linkedBrowser;
+
+    if (browser) {
+      if (userContextId) {
+        browser.setAttribute("usercontextid", userContextId);
+      } else {
+        browser.removeAttribute("usercontextid");
+      }
+    }
+
+    if (identity && this._canShowUI) {
+      tab.style.setProperty("--usercontext-tab-color",
+                            ContextualIdentityService.getColorCode(identity.color));
+    } else {
+      tab.style.removeProperty("--usercontext-tab-color");
+    }
+  },
+
+  updateUserContextIndicator() {
+    let container = document.getElementById("userContext-icons");
+    if (!container) {
+      return;
+    }
+
+    if (!this._canShowUI) {
+      container.hidden = true;
+      return;
+    }
+
+    let tab = gBrowser.selectedTab;
+    let userContextId = parseInt(tab.getAttribute("usercontextid"), 10) || 0;
+    let identity = ContextualIdentityService.getIdentityFromId(userContextId);
+    if (!identity) {
+      container.hidden = true;
+      return;
+    }
+
+    let label = document.getElementById("userContext-label");
+    let indicator = document.getElementById("userContext-indicator");
+    label.value = identity.name;
+    indicator.setAttribute("src",
+                           "chrome://browser/content/usercontext.svg#" + identity.icon);
+    container.style.setProperty("--usercontext-color",
+                                ContextualIdentityService.getColorCode(identity.color));
+    container.hidden = false;
+  },
+
+  updateContainerMenuVisibility() {
+    let menu = document.getElementById("menu_newUserContext");
+    if (menu) {
+      menu.hidden = !this._canShowUI;
+    }
+
+    let panelButton = document.getElementById("panelMenu_manageContainers");
+    if (panelButton) {
+      panelButton.hidden = !this._canShowUI;
+    }
+  },
+
+  updateContainerUI() {
+    this.updateContainerMenuVisibility();
+    this.updateUserContextIndicator();
+  },
+
+  populateNewTabMenu(popup) {
+    while (popup.firstChild) {
+      popup.firstChild.remove();
+    }
+
+    if (!this._canShowUI) {
+      return;
+    }
+
+    let identities = ContextualIdentityService.getPublicIdentities();
+    for (let identity of identities) {
+      let item = document.createElement("menuitem");
+      item.setAttribute("label", identity.name);
+      item.setAttribute("class", "menuitem-iconic usercontext-menuitem");
+      item.setAttribute("image",
+                        "chrome://browser/content/usercontext.svg#" + identity.icon);
+      item.setAttribute("usercontextid", identity.userContextId);
+      item.style.setProperty("--usercontext-color",
+                             ContextualIdentityService.getColorCode(identity.color));
+      item.setAttribute("oncommand", "openNewUserContextTab(event);");
+      popup.appendChild(item);
+    }
+  },
+};
 
 /**
  * Utility object to handle manipulations of the identity indicators in the UI

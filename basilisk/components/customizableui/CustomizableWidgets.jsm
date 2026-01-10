@@ -22,6 +22,8 @@ XPCOMUtils.defineLazyModuleGetter(this, "CharsetMenu",
   "resource://gre/modules/CharsetMenu.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PrivateBrowsingUtils",
   "resource://gre/modules/PrivateBrowsingUtils.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "ContextualIdentityService",
+  "resource:///modules/ContextualIdentityService.jsm");
 
 XPCOMUtils.defineLazyGetter(this, "CharsetBundle", function() {
   const kCharsetBundle = "chrome://global/locale/charsetMenu.properties";
@@ -280,6 +282,46 @@ const CustomizableWidgets = [
     },
     onViewHiding: function(aEvent) {
       log.debug("History view is being hidden!");
+    }
+  }, {
+    id: "containers-panelmenu",
+    type: "view",
+    viewId: "PanelUI-containers",
+    label: "containers-panelmenu.label",
+    tooltiptext: "containers-panelmenu.tooltiptext",
+    defaultArea: CustomizableUI.AREA_PANEL,
+    onViewShowing: function(aEvent) {
+      let doc = aEvent.target.ownerDocument;
+      let win = doc.defaultView;
+      let items = doc.getElementById("PanelUI-containersItems");
+
+      while (items.firstChild) {
+        items.firstChild.remove();
+      }
+
+      if (!ContextualIdentityService.uiEnabled ||
+          PrivateBrowsingUtils.isWindowPrivate(win)) {
+        aEvent.preventDefault();
+        aEvent.stopPropagation();
+        return;
+      }
+
+      let identities = ContextualIdentityService.getPublicIdentities();
+      for (let identity of identities) {
+        let item = doc.createElementNS(kNSXUL, "toolbarbutton");
+        item.setAttribute("label", identity.name);
+        item.setAttribute("class", "subviewbutton");
+        item.setAttribute("image",
+                          "chrome://browser/content/usercontext.svg#" + identity.icon);
+        item.setAttribute("usercontextid", identity.userContextId);
+        item.style.setProperty("--usercontext-color",
+                               ContextualIdentityService.getColorCode(identity.color));
+        item.addEventListener("command", event => {
+          win.openNewUserContextTab(event);
+          CustomizableUI.hidePanelForNode(item);
+        });
+        items.appendChild(item);
+      }
     }
   }, {
     id: "privatebrowsing-button",

@@ -24,6 +24,12 @@
 <!ENTITY  suggestionSettings.label      "Change preferences for search engine suggestions…">
 <!ENTITY  suggestionSettings.accesskey  "g">
 
+<!ENTITY  containers.label              "Containers">
+<!ENTITY  containers.enable.label       "Enable Container Tabs">
+<!ENTITY  containers.enable.accesskey   "E">
+<!ENTITY  containersSettings.label      "Settings...">
+<!ENTITY  containersSettings.accesskey  "S">
+
 <!ENTITY  acceptCookies.label           "Allow sites to store cookies and site data">
 <!ENTITY  acceptCookies.accesskey       "A">
 

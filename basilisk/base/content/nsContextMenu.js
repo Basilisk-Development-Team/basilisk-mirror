@@ -7,6 +7,7 @@
 Components.utils.import("resource://gre/modules/PrivateBrowsingUtils.jsm");
 Components.utils.import("resource://gre/modules/InlineSpellChecker.jsm");
 Components.utils.import("resource://gre/modules/LoginManagerContextMenu.jsm");
+Components.utils.import("resource:///modules/ContextualIdentityService.jsm");
 Components.utils.import("resource://gre/modules/BrowserUtils.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
@@ -142,9 +143,13 @@ nsContextMenu.prototype = {
 
     var shouldShow = this.onSaveableLink || isMailtoInternal || this.onPlainTextLink;
     var isWindowPrivate = PrivateBrowsingUtils.isWindowPrivate(window);
+    var showContainers = shouldShow &&
+                         !isWindowPrivate &&
+                         ContextualIdentityService.uiEnabled;
     this.showItem("context-openlink", shouldShow && !isWindowPrivate);
     this.showItem("context-openlinkprivate", shouldShow);
     this.showItem("context-openlinkintab", shouldShow);
+    this.showItem("context-openlinkincontainertab", showContainers);
     this.showItem("context-openlinkincurrent", this.onPlainTextLink);
     this.showItem("context-sep-open", shouldShow);
   },
@@ -951,6 +956,41 @@ nsContextMenu.prototype = {
     };
 
     openLinkIn(this.linkURL, "tab", this._openLinkInParameters(params));
+  },
+
+  populateOpenLinkInContainerTabMenu: function(popup) {
+    this._populateContainerMenu(popup);
+  },
+
+  openLinkInContainerTab: function(event) {
+    let target = event && event.target;
+    let userContextId = target ? parseInt(target.getAttribute("usercontextid"), 10) || 0 : 0;
+    if (!userContextId) {
+      return;
+    }
+    urlSecurityCheck(this.linkURL, this.principal);
+    openLinkIn(this.linkURL, "tab",
+               this._openLinkInParameters({ userContextId }));
+  },
+
+  _populateContainerMenu: function(popup) {
+    while (popup.firstChild) {
+      popup.firstChild.remove();
+    }
+
+    let identities = ContextualIdentityService.getPublicIdentities();
+    for (let identity of identities) {
+      let item = popup.ownerDocument.createElement("menuitem");
+      item.setAttribute("label", identity.name);
+      item.setAttribute("class", "menuitem-iconic usercontext-menuitem");
+      item.setAttribute("image",
+                        "chrome://browser/content/usercontext.svg#" + identity.icon);
+      item.setAttribute("usercontextid", identity.userContextId);
+      item.style.setProperty("--usercontext-color",
+                             ContextualIdentityService.getColorCode(identity.color));
+      item.addEventListener("command", this.openLinkInContainerTab.bind(this));
+      popup.appendChild(item);
+    }
   },
 
   // open URL in current tab

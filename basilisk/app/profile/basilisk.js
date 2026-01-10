@@ -532,6 +532,10 @@ pref("privacy.panicButton.enabled",         true);
 
 pref("privacy.firstparty.isolate",          false);
 
+// Container tabs
+pref("privacy.userContext.enabled",         false);
+pref("privacy.userContext.ui.enabled",      false);
+
 // Enable including the content title in the window title for console errors.
 // Default disabled for PBM users to avoid a possible source of disk leaks.
 pref("privacy.exposeContentTitleInWindow", true);

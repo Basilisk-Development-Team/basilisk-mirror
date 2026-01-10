@@ -1,0 +1,26 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY containers.dialog.title "Manage Containers">
+<!ENTITY containers.dialog.description "Create and edit containers for separate browsing sessions.">
+<!ENTITY containers.list.label "Containers">
+<!ENTITY containers.details.label "Container Details">
+
+<!ENTITY containers.addButton.label "New Container">
+<!ENTITY containers.addButton.accesskey "A">
+<!ENTITY containers.removeButton.label "Remove">
+<!ENTITY containers.removeButton.accesskey "R">
+<!ENTITY containers.saveButton.label "Save">
+<!ENTITY containers.saveButton.accesskey "S">
+<!ENTITY containers.closeButton.label "Close">
+<!ENTITY containers.closeButton.accesskey "L">
+
+<!ENTITY containers.name.label "Name:">
+<!ENTITY containers.name.accesskey "N">
+<!ENTITY containers.icon.label "Icon:">
+<!ENTITY containers.icon.accesskey "I">
+<!ENTITY containers.color.label "Color:">
+<!ENTITY containers.color.accesskey "C">
+
+<!ENTITY window.width "46em">

@@ -1158,6 +1158,8 @@ menuitem[checked="true"].subviewbutton > .menu-iconic-left {
 #PanelUI-containersItems > .subviewbutton > .toolbarbutton-icon {
   width: 16px;
   height: 16px;
+  filter: url(chrome://browser/skin/filters.svg#fill);
+  fill: var(--usercontext-color, currentColor);
 }
 
 .panel-mainview[panelid=customizationui-widget-panel],

@@ -222,6 +222,8 @@ These should match what Safari and other Apple applications use on OS X Lion. --
 <!ENTITY viewBookmarksToolbar.label         "View Bookmarks Toolbar">
 
 <!ENTITY containersMenu.label "Containers">
+<!ENTITY containersSettings.label "Manage Containers">
+<!ENTITY containersSettings.accesskey "M">
 
 <!-- LOCALIZATION NOTE (bookmarksSidebarGtkCmd.commandkey): This command
   -  key should not contain the letters A-F, since these are reserved

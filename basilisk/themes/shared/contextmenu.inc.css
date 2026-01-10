@@ -45,3 +45,8 @@
 #context-reload:-moz-locale-dir(rtl) {
   transform: scaleX(-1);
 }
+
+menuitem.usercontext-menuitem > .menu-iconic-left > .menu-iconic-icon {
+  filter: url(chrome://browser/skin/filters.svg#fill);
+  fill: var(--usercontext-color, currentColor);
+}

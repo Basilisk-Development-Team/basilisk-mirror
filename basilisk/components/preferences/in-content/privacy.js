@@ -45,9 +45,12 @@ var gPrivacyPane = {
     this.updatePrivacyMicroControls();
     this.initAutoStartPrivateBrowsingReverter();
     this._initAutocomplete();
+    this.updateContainersUI();
 
     setEventListener("privacy.sanitize.sanitizeOnShutdown", "change",
                      gPrivacyPane._updateSanitizeSettingsButton);
+    setEventListener("privacy.userContext.enabled", "change",
+                     gPrivacyPane.updateContainersUI);
     setEventListener("browser.privatebrowsing.autostart", "change",
                      gPrivacyPane.updatePrivacyMicroControls);
     setEventListener("historyMode", "command", function () {
@@ -76,6 +79,10 @@ var gPrivacyPane = {
                      gPrivacyPane.showCookies);
     setEventListener("clearDataSettings", "command",
                      gPrivacyPane.showClearPrivateDataSettings);
+    setEventListener("enableContainers", "command",
+                     gPrivacyPane.onContainersCheckboxCommand);
+    setEventListener("containersSettings", "command",
+                     gPrivacyPane.showContainersSettings);
   },
 
   // HISTORY MODE
@@ -442,6 +449,39 @@ var gPrivacyPane = {
   showCookies: function (aCategory)
   {
     gSubDialog.open("chrome://browser/content/preferences/cookies.xul");
+  },
+
+  /**
+   * Keep container prefs and settings button in sync.
+   */
+  updateContainersUI: function () {
+    let enabledPref = document.getElementById("privacy.userContext.enabled");
+    let checkbox = document.getElementById("enableContainers");
+    let settingsButton = document.getElementById("containersSettings");
+
+    if (!enabledPref || !checkbox || !settingsButton) {
+      return;
+    }
+
+    let enabled = checkbox.checked;
+    checkbox.disabled = enabledPref.locked;
+    settingsButton.disabled = enabledPref.locked || !enabled;
+  },
+
+  /**
+   * Sync the UI pref to the main containers pref.
+   */
+  onContainersCheckboxCommand: function () {
+    let enabled = document.getElementById("enableContainers").checked;
+    document.getElementById("privacy.userContext.ui.enabled").value = enabled;
+    this.updateContainersUI();
+  },
+
+  /**
+   * Displays the Containers settings dialog.
+   */
+  showContainersSettings: function () {
+    gSubDialog.open("chrome://browser/content/preferences/containers.xul");
   },
 
   // CLEAR PRIVATE DATA

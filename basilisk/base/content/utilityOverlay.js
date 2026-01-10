@@ -226,6 +226,7 @@ function openLinkIn(url, where, params) {
   var aIndicateErrorPageLoad = params.indicateErrorPageLoad;
   var aPrincipal            = params.originPrincipal;
   var aTriggeringPrincipal  = params.triggeringPrincipal;
+  var aUserContextId        = params.userContextId;
   var aForceAboutBlankViewerInCurrent =
       params.forceAboutBlankViewerInCurrent;
 
@@ -241,6 +242,9 @@ function openLinkIn(url, where, params) {
   // Can only do this after we're sure of what |w| will be the rest of this function.
   // Note that if |w| is null we might have no current browser (we'll open a new window).
   var aCurrentBrowser = params.currentBrowser || (w && w.gBrowser.selectedBrowser);
+  if (aUserContextId === undefined && aCurrentBrowser) {
+    aUserContextId = parseInt(aCurrentBrowser.getAttribute("usercontextid"), 10) || 0;
+  }
 
   if (where == "save") {
     // TODO(1073187): propagate referrerPolicy.
@@ -269,6 +273,7 @@ function openLinkIn(url, where, params) {
     if (principal && principal.isCodebasePrincipal) {
       let attrs = {
         privateBrowsingId: aIsPrivate || (w && PrivateBrowsingUtils.isWindowPrivate(w)),
+        userContextId: aUserContextId || 0,
       };
       return Services.scriptSecurityManager.createCodebasePrincipal(principal.URI, attrs);
     }
@@ -433,6 +438,7 @@ function openLinkIn(url, where, params) {
       noReferrer: aNoReferrer,
       originPrincipal: aPrincipal,
       triggeringPrincipal: aTriggeringPrincipal,
+      userContextId: aUserContextId,
     });
     browserUsedForLoad = tabUsedForLoad.linkedBrowser;
     break;

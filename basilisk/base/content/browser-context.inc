@@ -57,6 +57,13 @@
                 accesskey="&openLinkCmdInTab.accesskey;"
                 oncommand="gContextMenu.openLinkInTab();"/>
 
+      <menu id="context-openlinkincontainertab"
+            label="&openLinkCmdInContainerTab.label;"
+            accesskey="&openLinkCmdInContainerTab.accesskey;"
+            hidden="true">
+        <menupopup onpopupshowing="gContextMenu.populateOpenLinkInContainerTabMenu(this);"/>
+      </menu>
+
       <menuitem id="context-openlink"
                 label="&openLinkCmd.label;"
                 accesskey="&openLinkCmd.accesskey;"

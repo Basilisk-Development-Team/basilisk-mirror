@@ -407,6 +407,27 @@
 
 /* End selected tab */
 
+/* Container tab indicator */
+.tabbrowser-tab[usercontextid] > .tab-stack > .tab-content {
+  position: relative;
+}
+
+.tabbrowser-tab[usercontextid] > .tab-stack > .tab-content::before {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 2px;
+  background-image: linear-gradient(to right,
+                                    transparent,
+                                    var(--usercontext-tab-color, transparent) 20%,
+                                    var(--usercontext-tab-color, transparent) 80%,
+                                    transparent);
+  pointer-events: none;
+}
+
 /* new tab button border and gradient on hover */
 .tabbrowser-tab:hover > .tab-stack > .tab-background:not([selected=true]),
 .tabs-newtab-button:hover {
