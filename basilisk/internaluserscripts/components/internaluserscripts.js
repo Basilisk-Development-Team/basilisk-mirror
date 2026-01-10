@@ -72,6 +72,15 @@ InternalUserscriptsService.prototype = {
     }
 
     try {
+      Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/transformstream-polyfill.user.js",
+        contentWin
+      );
+    } catch (e) {
+      // ignore
+    }
+
+    try {
       const source = `
         (function(){
           var global = this;

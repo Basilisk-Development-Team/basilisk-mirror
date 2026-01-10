@@ -9,6 +9,7 @@ This directory contains a minimal, built-in userscript loader used to ship polyf
 
 ## Bundled polyfills
 - `finalizationregistry-polyfill.user.js`: best-effort FinalizationRegistry stub that immediately invokes cleanup callbacks after registration (cannot observe GC). It exposes `window.__internalUserscriptsFinalizationRegistryPolyfill = true` for verification.
+- `transformstream-polyfill.user.js`: minimal TransformStream polyfill backed by ReadableStream with a lightweight WritableStream shim. It exposes `window.__internalUserscriptsTransformStreamPolyfill = true` for verification.
 
 ## Adding new polyfills
 1. Drop a `*.user.js` file into `bundled-scripts/` with the appropriate header.
