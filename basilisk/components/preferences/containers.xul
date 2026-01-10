@@ -61,7 +61,7 @@
             <label control="containerIcon"
                    value="&containers.icon.label;"
                    accesskey="&containers.icon.accesskey;"/>
-            <menulist id="containerIcon" oncommand="gContainers.onInput();">
+            <menulist id="containerIcon" flex="1" oncommand="gContainers.onInput();">
               <menupopup id="containerIconPopup"/>
             </menulist>
           </row>
@@ -69,7 +69,7 @@
             <label control="containerColor"
                    value="&containers.color.label;"
                    accesskey="&containers.color.accesskey;"/>
-            <menulist id="containerColor" oncommand="gContainers.onInput();">
+            <menulist id="containerColor" flex="1" oncommand="gContainers.onInput();">
               <menupopup id="containerColorPopup"/>
             </menulist>
           </row>
