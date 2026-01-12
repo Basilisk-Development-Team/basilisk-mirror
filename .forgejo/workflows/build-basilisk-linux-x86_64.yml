@@ -34,16 +34,14 @@ jobs:
             compiler: clang_lto
 
     steps:
-      - name: Install Actions Dependencies
+      - name: Install Git
         run: |
-          dnf config-manager --set-enabled ol8_appstream
-          dnf module enable nodejs:20 -y
-          dnf module install nodejs -y
           dnf install git -y
 
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - name: Checkout Basilisk source code
+        run: |
+          git clone "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" .
+          git checkout "$GITHUB_SHA"
 
       - name: Copy mozconfig
         run: cp mozconfigs/linux/${{ matrix.config.arch }}/${{ matrix.config.gtk }}_unofficial_branding_${{ matrix.config.compiler }}.mozconfig .mozconfig
