@@ -40,8 +40,9 @@ jobs:
 
       - name: Checkout Basilisk source code
         run: |
-          git clone "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" .
+          git clone --recursive "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" .
           git checkout "$GITHUB_SHA"
+          git submodule update
 
       - name: Copy mozconfig
         run: cp mozconfigs/linux/${{ matrix.config.arch }}/${{ matrix.config.gtk }}_unofficial_branding_${{ matrix.config.compiler }}.mozconfig .mozconfig
