@@ -34,6 +34,12 @@ jobs:
             compiler: clang_lto
 
     steps:
+      - Install Node:
+          run: |
+            dnf config-manager --set-enabled ol8_appstream
+            dnf module enable nodejs:20 -y
+            dnf module install nodejs -y
+
       - uses: actions/checkout@v4
         with:
           submodules: recursive
