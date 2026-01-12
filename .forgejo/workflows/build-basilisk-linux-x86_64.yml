@@ -1,0 +1,61 @@
+name: Build Basilisk Linux x86_64
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - forgejo-test
+
+jobs:
+  build-basilisk:
+    name: Build Basilisk Linux ${{ matrix.config.name }}
+    runs-on: docker
+    container:
+      image: oraclelinux:8
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: GTK3 x86_64 GCC
+            gtk: gtk3
+            arch: x86_64
+            compiler: gcc
+          - name: GTK2 x86_64 GCC
+            gtk: gtk2
+            arch: x86_64
+            compiler: gcc
+          - name: GTK3 x86_64 Clang+LTO
+            gtk: gtk3
+            arch: x86_64
+            compiler: clang_lto
+          - name: GTK2 x86_64 Clang+LTO
+            gtk: gtk2
+            arch: x86_64
+            compiler: clang_lto
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Copy mozconfig
+        run: cp mozconfigs/linux/${{ matrix.config.arch }}/${{ matrix.config.gtk }}_unofficial_branding_${{ matrix.config.compiler }}.mozconfig .mozconfig
+
+      - name: Apply static libcxx patch
+        if: matrix.config.compiler == 'clang_lto_libcxx'
+        run: |
+          cd platform
+          git apply ../patches/static-libcxx-fix.patch
+
+      - name: Update mozconfig for release branch
+        run: |
+          sed -i 's/disable-updater/enable-updater/g' .mozconfig
+          sed -i 's/disable-official-branding/enable-official-branding/g' .mozconfig
+
+      - name: Build Basilisk
+        run: ./forgejo/workflows/scripts/build.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: basilisk-linux-${{ matrix.config.arch }}-${{ matrix.config.gtk }}-${{ matrix.config.compiler }}
+          path: obj-${{ matrix.config.arch }}-unknown-linux-gnu/dist/basilisk-*
