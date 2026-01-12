@@ -34,11 +34,12 @@ jobs:
             compiler: clang_lto
 
     steps:
-      - name: Install Node
+      - name: Install Actions Dependencies
         run: |
           dnf config-manager --set-enabled ol8_appstream
           dnf module enable nodejs:20 -y
           dnf module install nodejs -y
+          dnf install git -y
 
       - uses: actions/checkout@v4
         with:
