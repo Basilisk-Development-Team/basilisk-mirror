@@ -58,7 +58,7 @@ jobs:
           sed -i 's/disable-official-branding/enable-official-branding/g' .mozconfig
 
       - name: Build Basilisk
-        run: ./forgejo/workflows/scripts/build.sh
+        run: ./.forgejo/workflows/scripts/build.sh
 
       - uses: actions/upload-artifact@v4
         with:
