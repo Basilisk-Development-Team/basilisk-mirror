@@ -24,7 +24,7 @@ function InternalUserscriptsService() {
 
 InternalUserscriptsService.prototype = {
   classDescription: "Internal Userscripts Loader",
-  classID: Components.ID("{77bf3650-1cd6-11da-8cd6-0800200c9a66}"),
+  classID: Components.ID("{d8b4bd27-b458-4417-8dfe-3b80bb6375bc}"),
   contractID: "@internaluserscripts.mozdev.org/service;1",
 
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIObserver]),
