@@ -9,6 +9,9 @@ This directory contains a minimal, built-in userscript loader used to ship polyf
 
 ## Bundled polyfills
 - `finalizationregistry-polyfill.user.js`: best-effort FinalizationRegistry stub that immediately invokes cleanup callbacks after registration (cannot observe GC). It exposes `window.__internalUserscriptsFinalizationRegistryPolyfill = true` for verification.
+- `readablestream-pipethrough-polyfill.user.js`: best-effort ReadableStream `pipeThrough` implementation backed by `pipeTo` or reader/writer pumping. It exposes `window.__internalUserscriptsReadableStreamPipeThroughPolyfill = true` for verification.
+- `readablestream-pipeto-polyfill.user.js`: best-effort ReadableStream `pipeTo` implementation using reader/writer pumping. It exposes `window.__internalUserscriptsReadableStreamPipeToPolyfill = true` for verification.
+- `textencoderstream-polyfill.user.js`: best-effort TextEncoderStream implementation backed by TransformStream. It exposes `window.__internalUserscriptsTextEncoderStreamPolyfill = true` for verification.
 - `transformstream-polyfill.user.js`: minimal TransformStream polyfill backed by ReadableStream with a lightweight WritableStream shim. It exposes `window.__internalUserscriptsTransformStreamPolyfill = true` for verification.
 
 ## Adding new polyfills

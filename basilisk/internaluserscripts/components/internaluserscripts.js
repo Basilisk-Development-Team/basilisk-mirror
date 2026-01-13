@@ -97,6 +97,33 @@ InternalUserscriptsService.prototype = {
     }
 
     try {
+      Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/textencoderstream-polyfill.user.js",
+        contentWin
+      );
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/readablestream-pipeto-polyfill.user.js",
+        contentWin
+      );
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/readablestream-pipethrough-polyfill.user.js",
+        contentWin
+      );
+    } catch (e) {
+      // ignore
+    }
+
+    try {
       const source = `
         (function(){
           var global = this;
