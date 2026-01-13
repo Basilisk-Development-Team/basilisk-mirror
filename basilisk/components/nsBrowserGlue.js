@@ -408,7 +408,7 @@ BrowserGlue.prototype = {
     os.addObserver(this, "flash-plugin-hang", false);
     os.addObserver(this, "xpi-signature-changed", false);
     os.addObserver(this, "autocomplete-did-enter-text", false);
-    Services.prefs.addObserver(PREF_INTERNAL_USERSCRIPTS_ENABLED, this);
+    Services.prefs.addObserver(PREF_INTERNAL_USERSCRIPTS_ENABLED, this, false);
 
     this._flashHangCount = 0;
     this._firstWindowReady = new Promise(resolve => this._firstWindowLoaded = resolve);
@@ -916,6 +916,11 @@ BrowserGlue.prototype = {
     AutoCompletePopup.init();
     DateTimePickerHelper.init();
 
+    if (typeof this._firstWindowLoaded != "function") {
+      let resolveFirstWindow;
+      this._firstWindowReady = new Promise(resolve => resolveFirstWindow = resolve);
+      this._firstWindowLoaded = resolveFirstWindow;
+    }
     this._firstWindowLoaded();
   },
 
