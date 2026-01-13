@@ -12,7 +12,7 @@
 #endif
                                   this.setAttribute('openedwithkey',
                                                     event.target.parentNode.openedWithKey);"
-                style="border:0px;padding:0px;margin:0px;-moz-appearance:none">
+                style="border:0px;padding:0px;margin:0px;apperance:none">
             <menu id="file-menu" label="&fileMenu.label;"
                   accesskey="&fileMenu.accesskey;">
               <menupopup id="menu_FilePopup">

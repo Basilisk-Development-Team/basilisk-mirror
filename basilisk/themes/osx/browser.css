@@ -81,7 +81,7 @@
 }
 
 #main-window {
-  -moz-appearance: none;
+  apperance: none;
   background-color: #eeeeee;
 }
 
@@ -105,7 +105,7 @@
 }
 
 #main-window:not(:-moz-lwtheme) > #titlebar {
-  -moz-appearance: -moz-window-titlebar;
+  apperance: -moz-window-titlebar;
 }
 
 #main-window:not([tabsintitlebar]) > #titlebar {
@@ -138,7 +138,7 @@
 }
 
 #main-window[customize-entered] > #titlebar {
-  -moz-appearance: none;
+  apperance: none;
 }
 
 /** End titlebar **/
@@ -148,7 +148,7 @@
 }
 
 #navigator-toolbox > toolbar:not(#TabsToolbar):not(#nav-bar):not(:-moz-lwtheme) {
-  -moz-appearance: none;
+  apperance: none;
   background: url(chrome://browser/skin/Toolbar-background-noise.png) hsl(0,0%,83%);
 }
 
@@ -176,7 +176,7 @@
 }
 
 #nav-bar {
-  -moz-appearance: none;
+  apperance: none;
   background: url(chrome://browser/skin/Toolbar-background-noise.png),
               linear-gradient(hsl(0,0%,93%), hsl(0,0%,83%));
   background-clip: border-box;
@@ -210,7 +210,7 @@
 }
 
 /* Draw the bottom border of the tabs toolbar when it's not using
-   -moz-appearance: toolbar. */
+   apperance: toolbar. */
 #main-window:-moz-any([sizemode="fullscreen"],[customize-entered]) #TabsToolbar:not([collapsed="true"]) + #nav-bar,
 #main-window:not([tabsintitlebar]) #TabsToolbar:not([collapsed="true"]) + #nav-bar,
 #TabsToolbar:not([collapsed="true"]) + #nav-bar:-moz-lwtheme {
@@ -1455,7 +1455,7 @@ toolbar .toolbarbutton-1 > .toolbarbutton-menubutton-button {
 #urlbar,
 .searchbar-textbox {
   font: icon;
-  -moz-appearance: none;
+  apperance: none;
   box-shadow: 0 1px 0 hsla(0,0%,100%,.2),
               inset 0 0 1px hsla(0,0%,0%,.05),
               inset 0 1px 2px hsla(0,0%,0%,.1);
@@ -1686,7 +1686,7 @@ toolbar .toolbarbutton-1 > .toolbarbutton-menubutton-button {
 }
 
 #urlbar-search-settings {
-  -moz-appearance: none;
+  apperance: none;
   -moz-user-focus: ignore;
   color: GrayText;
   margin: 0;
@@ -2048,7 +2048,7 @@ html|span.ac-emphasize-text-url {
 
 #editBMPanel_rows > row > textbox,
 #editBMPanel_rows > row > hbox > textbox {
-  -moz-appearance: none;
+  apperance: none;
   background: linear-gradient(#fafafa, #fff);
   background-clip: padding-box;
   border-radius: 3px;
@@ -2117,7 +2117,7 @@ html|span.ac-emphasize-text-url {
 }
 
 #editBMPanel_newFolderButton {
-  -moz-appearance: none;
+  apperance: none;
   border: 0 solid #a5a5a5;
   border-inline-end-width: 1px;
   padding: 0 9px;
@@ -2164,7 +2164,7 @@ html|span.ac-emphasize-text-url {
 }
 
 #editBMPanel_folderMenuList > .menulist-dropmarker {
-  -moz-appearance: none;
+  apperance: none;
   display: -moz-box;
   background-color: transparent;
   border: 0;
@@ -2182,7 +2182,7 @@ html|span.ac-emphasize-text-url {
 
 #editBMPanel_folderTree,
 #editBMPanel_tagsSelector {
-  -moz-appearance: none;
+  apperance: none;
   background: linear-gradient(#fafafa, #fff);
   background-clip: padding-box;
   border-radius: 3px;
@@ -2285,7 +2285,7 @@ html|span.ac-emphasize-text-url {
 /* ----- SIDEBAR ELEMENTS ----- */
 
 #sidebar-box {
-  -moz-appearance: -moz-mac-source-list;
+  apperance: -moz-mac-source-list;
   box-shadow: inset -2px 0 0 hsla(0,0%,100%,.2);
 }
 
@@ -2528,14 +2528,14 @@ toolbarbutton.chevron > .toolbarbutton-menu-dropmarker {
 }
 
 #TabsToolbar {
-  -moz-appearance: none;
+  apperance: none;
   /* overlap the nav-bar's top border */
   margin-bottom: calc(-1 * var(--tab-toolbar-navbar-overlap));
 }
 
 #main-window:not([customizing]) #navigator-toolbox[inFullscreen] > #TabsToolbar:not(:-moz-lwtheme),
 #main-window:not(:-moz-any([customizing],[tabsintitlebar])) #navigator-toolbox > #TabsToolbar:not(:-moz-lwtheme) {
-  -moz-appearance: toolbar;
+  apperance: toolbar;
 }
 
 #TabsToolbar:not(:-moz-lwtheme) {
@@ -2581,7 +2581,7 @@ toolbarbutton.chevron > .toolbarbutton-menu-dropmarker {
 }
 
 .tab-close-button {
-  -moz-appearance: none;
+  apperance: none;
   border: none !important;
   background: none;
   cursor: default;
@@ -2709,7 +2709,7 @@ toolbarbutton.chevron > .toolbarbutton-menu-dropmarker {
 #TabsToolbar .toolbarbutton-1,
 #TabsToolbar .toolbarbutton-1 > .toolbarbutton-menubutton-button,
 #TabsToolbar .toolbarbutton-1 > .toolbarbutton-menubutton-dropmarker {
-  -moz-appearance: none;
+  apperance: none;
   margin: 0;
   /* !important flags needed because of bug 561154: */
   /* Bug 990390: -moz-any is no longer used in the selector so the !important aren't necessary for that anymore. */

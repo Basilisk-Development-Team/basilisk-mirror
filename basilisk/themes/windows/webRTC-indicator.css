@@ -11,7 +11,7 @@ window {
 #firefoxButton {
   height: 29px;
   margin: 0;
-  -moz-appearance: none;
+  apperance: none;
   border-style: none;
 }
 

@@ -7,7 +7,7 @@
 /* Ctrl-Tab */
 
 #ctrlTab-panel {
-  -moz-appearance: none;
+  apperance: none;
 %ifdef XP_MACOSX
   -moz-window-shadow: none;
 %endif

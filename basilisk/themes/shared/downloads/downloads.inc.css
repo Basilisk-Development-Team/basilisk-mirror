@@ -26,7 +26,7 @@
 #downloadsListBox {
   background: transparent;
   color: inherit;
-  -moz-appearance: none;
+  apperance: none;
   margin: 0;
 }
 
@@ -49,11 +49,11 @@
   border: 0;
   min-width: 0;
   border-left: 1px solid var(--panel-separator-color);
-  -moz-appearance: none;
+  apperance: none;
 }
 
 .downloadsPanelFooterButton {
-  -moz-appearance: none;
+  apperance: none;
   background-color: transparent;
   color: inherit;
   margin: 0;
@@ -127,7 +127,7 @@ toolbarseparator.downloadsDropmarkerSplitter {
 
 .downloadsDropmarker > .button-box > .button-menu-dropmarker {
   /* This is to override the linux !important */
-  -moz-appearance: none !important;
+  apperance: none !important;
   display: -moz-box;
   padding: 0;
   margin: 0;
@@ -237,7 +237,7 @@ richlistitem[type="download"]:last-child {
 }
 
 .downloadButton {
-  -moz-appearance: none;
+  apperance: none;
   min-width: 58px;
   margin: 0;
   border: none;
