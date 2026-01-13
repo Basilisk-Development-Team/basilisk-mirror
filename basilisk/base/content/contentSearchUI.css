@@ -104,7 +104,7 @@
 }
 
 .contentSearchOneOffItem {
-  apperance: none;
+  -moz-appearance: none;
   height: 32px;
   margin: 0;
   padding: 0;

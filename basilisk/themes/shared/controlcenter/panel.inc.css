@@ -123,7 +123,7 @@
   min-width: auto;
   width: var(--identity-popup-expander-width);
   border: 0 none;
-  apperance: none;
+  -moz-appearance: none;
   background: url("chrome://browser/skin/controlcenter/arrow-subview.svg") center no-repeat;
   background-size: 16px, auto;
 }
@@ -141,7 +141,7 @@
 
 .identity-popup-expander > .button-box {
   padding: 0;
-  apperance: none;
+  -moz-appearance: none;
   border-style: none;
   border-left: 1px solid var(--panel-separator-color);
 }
@@ -280,7 +280,7 @@
 }
 
 #identity-popup-securityView-footer > button {
-  apperance: none;
+  -moz-appearance: none;
   margin: 0;
   border: none;
   border-top: 1px solid var(--panel-separator-color);
@@ -404,7 +404,7 @@ description#identity-popup-content-verifier,
 }
 
 .identity-popup-permission-remove-button {
-  apperance: none;
+  -moz-appearance: none;
   margin: 0;
   border-width: 0;
   border-radius: 50%;
@@ -415,7 +415,7 @@ description#identity-popup-content-verifier,
 
 .identity-popup-permission-remove-button > .button-box {
   padding: 0;
-  apperance: none;
+  -moz-appearance: none;
 }
 
 .identity-popup-permission-remove-button > .button-box > .button-icon {

@@ -34,7 +34,7 @@
 
 .tabbrowser-tab,
 .tabs-newtab-button {
-  apperance: none;
+  -moz-appearance: none;
   background-color: transparent;
   border-radius: 0;
   border-width: 0;

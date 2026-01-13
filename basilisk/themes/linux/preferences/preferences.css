@@ -7,7 +7,7 @@
 
 /* Global Styles */
 .checkbox-check {
-  apperance: checkbox;
+  -moz-appearance: checkbox;
 }
 
 /* General Pane */

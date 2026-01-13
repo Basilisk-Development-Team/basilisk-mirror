@@ -5,7 +5,7 @@
 
 /* Toolbar */
 #placesToolbar {
-  apperance: menubar;
+  -moz-appearance: menubar;
 }
 
 #placesToolbar:-moz-system-metric(menubar-drag) {
@@ -58,14 +58,14 @@
 
 /* Menu */
 #placesMenu {
-  apperance: none;
+  -moz-appearance: none;
   border: none;
 }
 
 #placesMenu > menu {
   padding-inline-start: 4px;
   -moz-binding: url("chrome://browser/skin/places/organizer.xml#toolbarbutton-dropdown");
-  apperance: toolbarbutton;
+  -moz-appearance: toolbarbutton;
 }
 
 #placesMenu > menu:active,
@@ -75,7 +75,7 @@
 }
 
 #placesMenu > menu > .menubar-right {
-  apperance: toolbarbutton-dropdown;
+  -moz-appearance: toolbarbutton-dropdown;
   width: 12px;
   height: 12px;
 }

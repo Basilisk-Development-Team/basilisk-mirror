@@ -17,11 +17,11 @@
 }
 
 #placesList > treechildren::-moz-tree-row(selected) {  
-  apperance: -moz-mac-source-list-selection;
+  -moz-appearance: -moz-mac-source-list-selection;
 }
 
 #placesList > treechildren::-moz-tree-row(selected,focus) {  
-  apperance: -moz-mac-active-source-list-selection;
+  -moz-appearance: -moz-mac-active-source-list-selection;
 }
 
 #placesList > treechildren::-moz-tree-row(History),
@@ -44,7 +44,7 @@
 }
 
 #placesList > treechildren::-moz-tree-twisty {
-  apperance: none;
+  -moz-appearance: none;
   padding: 0 2px;
   list-style-image: url("chrome://global/skin/tree/arrow-disclosure.svg#arrow-disclosure-collapsed");
 }
@@ -127,7 +127,7 @@
   margin: 4px 4px 5px;
   padding: 0;
   height: 22px;
-  apperance: toolbarbutton;
+  -moz-appearance: toolbarbutton;
 }
 
 #placesToolbar > toolbarbutton > .toolbarbutton-icon {
@@ -217,7 +217,7 @@
 
 /* Place List, Place Content */
 #placesList {
-  apperance: -moz-mac-source-list;
+  -moz-appearance: -moz-mac-source-list;
   box-shadow: inset -2px 0 0 hsla(0,0%,100%,.2);
   width: 160px;
 }
@@ -236,7 +236,7 @@
 }
 
 #placeContent {
-  apperance: none;
+  -moz-appearance: none;
   border: 0px;
 }
 
@@ -278,11 +278,11 @@
 }
 
 .expander-up {
-  apperance: -moz-mac-disclosure-button-open;
+  -moz-appearance: -moz-mac-disclosure-button-open;
 }
 
 .expander-down {
-  apperance: -moz-mac-disclosure-button-closed;
+  -moz-appearance: -moz-mac-disclosure-button-closed;
 }
 
 /**

@@ -21,7 +21,7 @@
 /* bookmark panel submenus */
 
 #BMB_bookmarksPopup menupopup[placespopup=true] {
-  apperance: none;
+  -moz-appearance: none;
   background: transparent;
   border: none;
   padding: 6px;
@@ -61,7 +61,7 @@
 
 /* Disabled empty item looks too small otherwise, because it has no icon. */
 menuitem.subviewbutton[disabled]:not(.menuitem-iconic),
-/* Same for checkbox menu items, whose icons lose size due to apperance: none: */
+/* Same for checkbox menu items, whose icons lose size due to -moz-appearance: none: */
 menuitem[type="checkbox"].subviewbutton {
   /* This is 16px for an icon + 3px for its margins + 1px for its padding +
    * 2px for its border, see above */
@@ -74,7 +74,7 @@ menuitem[type="checkbox"].subviewbutton {
 }
 
 .widget-overflow-list .toolbarbutton-1 > .toolbarbutton-menubutton-button {
-  apperance: none;
+  -moz-appearance: none;
   border: 0;
   margin-inline-start: 3px;
 }
@@ -102,7 +102,7 @@ menuitem[type="checkbox"].subviewbutton {
 }
 
 menu.subviewbutton > .menu-right {
-  apperance: none;
+  -moz-appearance: none;
   list-style-image: url(chrome://browser/skin/customizableui/menu-arrow.svg#arrow);
   /* Reset the rect we inherit from the button: */
   -moz-image-region: auto;

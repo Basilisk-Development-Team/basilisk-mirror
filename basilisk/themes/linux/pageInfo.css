@@ -11,7 +11,7 @@
   list-style-image: url("chrome://browser/skin/pageInfo.png");
   -moz-box-orient: vertical;
   -moz-box-align: center;
-  apperance: none;
+  -moz-appearance: none;
   min-width: 4.5em;
   margin: 0;
   padding: 3px;
@@ -24,7 +24,7 @@
 }
 
 #topBar {
-  apperance: listbox;
+  -moz-appearance: listbox;
   margin: 8px 8px 0;
 }
 
@@ -71,7 +71,7 @@ textbox {
   border: none;
   padding: 0px;
   margin-top: 1px;
-  apperance: none;
+  -moz-appearance: none;
 }
 
 textbox.header {
@@ -143,7 +143,7 @@ groupbox.treebox .groupbox-body {
 }
 
 #mediaSplitter {
-  apperance: none;
+  -moz-appearance: none;
   height: .8em;
 }
 
@@ -165,7 +165,7 @@ treechildren::-moz-tree-cell-text(broken) {
 }
 
 #mediaPreviewBox .inset {
-  apperance: listbox;
+  -moz-appearance: listbox;
   margin-bottom: 0;
 }
 
@@ -214,7 +214,7 @@ treechildren::-moz-tree-cell-text(broken) {
 }
 
 #permList {
-  apperance: listbox;
+  -moz-appearance: listbox;
   margin-top: .5em;
   overflow: auto;
   border: 2px solid;

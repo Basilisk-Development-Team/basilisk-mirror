@@ -10,7 +10,7 @@
 #history-panel,
 #sidebar-search-container,
 #tabs-panel {
-  apperance: none !important;
+  -moz-appearance: none !important;
   background-color: transparent !important;
   border-top: none !important;
 }
@@ -24,7 +24,7 @@
 }
 
 .sidebar-placesTree {
-  apperance: -moz-mac-source-list;
+  -moz-appearance: -moz-mac-source-list;
 }
 
 .sidebar-placesTreechildren {
@@ -41,11 +41,11 @@
 }
 
 .sidebar-placesTreechildren::-moz-tree-row(selected) {
-  apperance: -moz-mac-source-list-selection;
+  -moz-appearance: -moz-mac-source-list-selection;
 }
 
 .sidebar-placesTreechildren::-moz-tree-row(selected,focus) {
-  apperance: -moz-mac-active-source-list-selection;
+  -moz-appearance: -moz-mac-active-source-list-selection;
 }
 
 .sidebar-placesTreechildren::-moz-tree-cell-text {
@@ -62,7 +62,7 @@
 }
 
 .sidebar-placesTreechildren::-moz-tree-twisty {
-  apperance: none;
+  -moz-appearance: none;
   padding: 0 2px;
   list-style-image: url("chrome://global/skin/tree/arrow-disclosure.svg#arrow-disclosure-collapsed");
 }
@@ -123,7 +123,7 @@
 }
 
 #viewButton {
-  apperance: none;
+  -moz-appearance: none;
   padding-bottom: 1px;
   padding-inline-start: 5px;
   padding-inline-end: 0px;
@@ -267,7 +267,7 @@ treechildren::-moz-tree-cell-text(title, separator, selected, focus) {
 }
 
 treechildren::-moz-tree-twisty(title, separator) {
-  apperance: none;
+  -moz-appearance: none;
   padding: 0px;
 }
 

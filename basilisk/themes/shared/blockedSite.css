@@ -44,7 +44,7 @@ body {
    since there is already a mechanism in browser.js for trapping
    oncommand events from unprivileged chrome pages (BrowserOnCommand).*/
 #ignoreWarningButton {
-  apperance: none;
+  -moz-appearance: none;
   background: transparent;
   border: none;
   color: white;

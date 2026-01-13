@@ -6,7 +6,7 @@
 
 .treecol-sortdirection {
   /* override the Linux only toolkit rule */
-  apperance: none;
+  -moz-appearance: none;
 }
 
 .actionsMenu {

@@ -236,7 +236,7 @@ toolbar[customizing] > .overflow-button {
 }
 
 #titlebar-buttonbox {
-  apperance: -moz-window-button-box;
+  -moz-appearance: -moz-window-button-box;
 }
 
 #personal-bookmarks {
@@ -245,7 +245,7 @@ toolbar[customizing] > .overflow-button {
 
 %ifdef XP_MACOSX
 #titlebar-fullscreen-button {
-  apperance: -moz-mac-fullscreen-button;
+  -moz-appearance: -moz-mac-fullscreen-button;
 }
 
 /* Fullscreen and caption buttons don't move with RTL on OS X so override the automatic ordering. */
@@ -278,7 +278,7 @@ toolbar[customizing] > .overflow-button {
 
 %ifdef XP_WIN
 #main-window[sizemode="maximized"] #titlebar-buttonbox {
-  apperance: -moz-window-button-box-maximized;
+  -moz-appearance: -moz-window-button-box-maximized;
 }
 
 #main-window[tabletmode] #titlebar-min,
@@ -1018,7 +1018,7 @@ toolbarpaletteitem[place="palette"] > #downloads-button[indicator] > #downloads-
 
 /* Give this menupopup an arrow panel styling */
 #BMB_bookmarksPopup {
-  apperance: none;
+  -moz-appearance: none;
   -moz-binding: url("chrome://browser/content/places/menu.xml#places-popup-arrow");
   background: transparent;
   border: none;
@@ -1202,7 +1202,7 @@ toolbarpaletteitem[place="palette"][hidden] {
 }
 
 .dragfeedback-tab {
-  apperance: none;
+  -moz-appearance: none;
   opacity: 0.65;
   -moz-window-shadow: none;
 }

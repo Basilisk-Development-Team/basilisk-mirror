@@ -118,7 +118,7 @@ toolbar:-moz-lwtheme {
 }
 
 #navigator-toolbox {
-  apperance: none;
+  -moz-appearance: none;
   background-color: transparent;
   border-top: none;
 }
@@ -157,7 +157,7 @@ toolbar:-moz-lwtheme {
 }
 
 #navigator-toolbox > toolbar {
-  apperance: none;
+  -moz-appearance: none;
   border-style: none;
 }
 
@@ -342,7 +342,7 @@ toolbar:-moz-lwtheme {
 }
 
 #print-preview-toolbar:not(:-moz-lwtheme) {
-  apperance: toolbox;
+  -moz-appearance: toolbox;
 }
 
 #browser-bottombox:not(:-moz-lwtheme) {
@@ -352,11 +352,11 @@ toolbar:-moz-lwtheme {
 /* ::::: titlebar ::::: */
 
 #main-window[sizemode="normal"] > #titlebar {
-  apperance: -moz-window-titlebar;
+  -moz-appearance: -moz-window-titlebar;
 }
 
 #main-window[sizemode="maximized"] > #titlebar {
-  apperance: -moz-window-titlebar-maximized;
+  -moz-appearance: -moz-window-titlebar-maximized;
 }
 
 @media (-moz-windows-classic) {
@@ -382,19 +382,19 @@ toolbar:-moz-lwtheme {
 /* titlebar command buttons */
 
 #titlebar-min {
-  apperance: -moz-window-button-minimize;
+  -moz-appearance: -moz-window-button-minimize;
 }
 
 #titlebar-max {
-  apperance: -moz-window-button-maximize;
+  -moz-appearance: -moz-window-button-maximize;
 }
 
 #main-window[sizemode="maximized"] #titlebar-max {
-  apperance: -moz-window-button-restore;
+  -moz-appearance: -moz-window-button-restore;
 }
 
 #titlebar-close {
-  apperance: -moz-window-button-close;
+  -moz-appearance: -moz-window-button-close;
 }
 
 @media not all and (-moz-windows-classic) {
@@ -409,7 +409,7 @@ toolbarbutton.bookmark-item:not(.subviewbutton),
 #personal-bookmarks[cui-areatype="toolbar"]:not([overflowedItem=true]) > #bookmarks-toolbar-placeholder {
   margin: 0;
   padding: 2px 3px;
-  apperance: none;
+  -moz-appearance: none;
   border: 1px solid transparent;
   border-radius: 1px;
   background-origin: padding-box !important;
@@ -640,7 +640,7 @@ toolbar[brighttext] .toolbarbutton-1 > .toolbarbutton-menubutton-dropmarker {
 .findbar-button,
 #nav-bar .toolbarbutton-1,
 #nav-bar .toolbarbutton-1 > .toolbarbutton-menubutton-button {
-  apperance: none;
+  -moz-appearance: none;
   border: none;
   padding: 0;
   background: none;
@@ -838,7 +838,7 @@ toolbar[brighttext] .toolbarbutton-1 > .toolbarbutton-menubutton-dropmarker {
 #TabsToolbar .toolbarbutton-1 > .toolbarbutton-menubutton-button,
 .tabbrowser-arrowscrollbox > .scrollbutton-up,
 .tabbrowser-arrowscrollbox > .scrollbutton-down {
-  apperance: none;
+  -moz-appearance: none;
   border-style: none;
   padding: 0 3px;
 }
@@ -973,7 +973,7 @@ toolbar[brighttext] .toolbarbutton-1 > .toolbarbutton-menubutton-dropmarker {
 #minimize-button,
 #restore-button,
 #close-button {
-  apperance: none;
+  -moz-appearance: none;
   border: none;
   margin: 0 !important;
   padding: 6px 12px;
@@ -1064,7 +1064,7 @@ toolbar[brighttext] #close-button {
 
   #close-button {
     -moz-image-region: rect(0, 48px, 16px, 32px);
-    apperance: none;
+    -moz-appearance: none;
     border-style: none;
     margin: 2px;
   }
@@ -1086,7 +1086,7 @@ toolbar[brighttext] #close-button {
   #minimize-button,
   #restore-button,
   #close-button {
-    apperance: none;
+    -moz-appearance: none;
     border-style: none;
     margin: 0;
   }
@@ -1140,7 +1140,7 @@ toolbar[brighttext] #close-button {
 
 #urlbar,
 .searchbar-textbox {
-  apperance: none;
+  -moz-appearance: none;
   margin: 0 3px;
   padding: 0;
   background-clip: padding-box;
@@ -1310,7 +1310,7 @@ html|*.urlbar-input:-moz-lwtheme::placeholder,
 }
 
 #urlbar-zoom-button {
-  apperance: none;
+  -moz-appearance: none;
   margin: 0 3px;
   font-size: .8em;
   padding: 0 8px;
@@ -1351,7 +1351,7 @@ html|*.urlbar-input:-moz-lwtheme::placeholder,
 }
 
 #urlbar-search-settings {
-  apperance: none;
+  -moz-appearance: none;
   -moz-user-focus: ignore;
   color: GrayText;
   margin: 0;
@@ -1402,7 +1402,7 @@ html|*.urlbar-input:-moz-lwtheme::placeholder,
 /* Location bar dropmarker */
 
 .urlbar-history-dropmarker {
-  apperance: none;
+  -moz-appearance: none;
   padding: 0 3px;
   background-color: transparent;
   border: none;
@@ -1646,7 +1646,7 @@ html|span.ac-emphasize-text-url {
 #urlbar-go-button,
 #urlbar-reload-button,
 #urlbar-stop-button {
-  apperance: none;
+  -moz-appearance: none;
   border-style: none;
   list-style-image: url("chrome://browser/skin/reload-stop-go.png");
   padding: 0 9px;
@@ -1842,7 +1842,7 @@ html|span.ac-emphasize-text-url {
 }
 
 #sidebar-header > .close-icon {
-  apperance: none;
+  -moz-appearance: none;
   padding: 2px;
   margin: 0;
   border: none;
@@ -1938,7 +1938,7 @@ html|span.ac-emphasize-text-url {
 
 /* Tab close button */
 .tab-close-button {
-  apperance: none;
+  -moz-appearance: none;
   border: none;
 }
 
@@ -2077,7 +2077,7 @@ toolbarbutton.chevron > .toolbarbutton-icon {
 }
 
 toolbarbutton.bookmark-item[dragover="true"][open="true"] {
-  apperance: none;
+  -moz-appearance: none;
   background: Highlight !important;
   color: HighlightText !important;
 }

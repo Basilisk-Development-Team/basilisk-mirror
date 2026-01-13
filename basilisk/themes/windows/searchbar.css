@@ -183,7 +183,7 @@
 }
 
 .searchbar-engine-one-off-item {
-  apperance: none;
+  -moz-appearance: none;
   display: inline-block;
   border: none;
   min-width: 48px;
@@ -239,7 +239,7 @@
 }
 
 .addengine-item {
-  apperance: none;
+  -moz-appearance: none;
   border: none;
   height: 32px;
   margin: 0;
@@ -313,7 +313,7 @@
 }
 
 .search-setting-button {
-  apperance: none;
+  -moz-appearance: none;
   min-height: 32px;
 }
 
