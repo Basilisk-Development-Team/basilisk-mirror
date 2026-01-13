@@ -256,6 +256,8 @@
       nextArgs = {};
     }
     nextArgs.isEvalSupported = false;
+    nextArgs.enableScripting = false;
+    nextArgs.enableXfa = false;
     return originalOpen.call(this, nextArgs);
   };
 
@@ -263,6 +265,8 @@
   window.PDFViewerApplication.run = async function (config) {
     window.PDFViewerApplicationOptions.set("defaultUrl", "");
     window.PDFViewerApplicationOptions.set("isEvalSupported", false);
+    window.PDFViewerApplicationOptions.set("enableScripting", false);
+    window.PDFViewerApplicationOptions.set("enableXfa", false);
     await originalRun.call(this, config);
     wireSidebarButtons();
     if (!/(?:^|[?&])file=/.test(document.location.search)) {
