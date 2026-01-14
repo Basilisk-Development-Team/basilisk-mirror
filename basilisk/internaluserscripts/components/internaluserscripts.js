@@ -89,6 +89,15 @@ InternalUserscriptsService.prototype = {
 
     try {
       Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/intl-displaynames-polyfill.user.js",
+        contentWin
+      );
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      Services.scriptloader.loadSubScript(
         "chrome://internaluserscripts/content/bundled-scripts/transformstream-polyfill.user.js",
         contentWin
       );
