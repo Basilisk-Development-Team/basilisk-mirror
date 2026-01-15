@@ -31,14 +31,6 @@ jobs:
             gtk: gtk2
             arch: x86_64
             compiler: clang_lto
-          - name: GTK3 x86_64 Clang+LTO+Static libcxx
-            gtk: gtk3
-            arch: x86_64
-            compiler: clang_lto_libcxx
-          - name: GTK2 x86_64 Clang+LTO+Static libcxx
-            gtk: gtk2
-            arch: x86_64
-            compiler: clang_lto_libcxx
 
     steps:
       - name: Free Disk Space
@@ -53,12 +45,6 @@ jobs:
 
       - name: Copy mozconfig
         run: cp mozconfigs/linux/${{ matrix.config.arch }}/${{ matrix.config.gtk }}_unofficial_branding_${{ matrix.config.compiler }}.mozconfig .mozconfig
-
-      - name: Apply static libcxx patch
-        if: matrix.config.compiler == 'clang_lto_libcxx'
-        run: |
-          cd platform
-          git apply ../patches/static-libcxx-fix.patch
 
       - name: Update mozconfig for release branch
         if: github.ref == 'refs/heads/release'
