@@ -9,6 +9,7 @@ This directory contains a minimal, built-in userscript loader used to ship polyf
 
 ## Bundled polyfills
 - `finalizationregistry-polyfill.user.js`: best-effort FinalizationRegistry stub that immediately invokes cleanup callbacks after registration (cannot observe GC). It exposes `window.__internalUserscriptsFinalizationRegistryPolyfill = true` for verification.
+- `imagedecode-polyfill.user.js`: best-effort `HTMLImageElement.decode()` shim that resolves on load and rejects on error. It exposes `window.__internalUserscriptsImageDecodePolyfill = true` for verification.
 - `intl-displaynames-polyfill.user.js`: minimal Intl.DisplayNames shim that validates options and returns the input code when display data is unavailable. It exposes `window.__internalUserscriptsIntlDisplayNamesPolyfill = true` for verification.
 - `readablestream-pipethrough-polyfill.user.js`: best-effort ReadableStream `pipeThrough` implementation backed by `pipeTo` or reader/writer pumping. It exposes `window.__internalUserscriptsReadableStreamPipeThroughPolyfill = true` for verification.
 - `readablestream-pipeto-polyfill.user.js`: best-effort ReadableStream `pipeTo` implementation using reader/writer pumping. It exposes `window.__internalUserscriptsReadableStreamPipeToPolyfill = true` for verification.
