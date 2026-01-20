@@ -1324,3 +1324,6 @@ pref("prompts.authentication_dialog_abuse_limit", 3);
 
 // Enable full GC WeakRef Support
 pref("javascript.options.weakrefs", true);
+
+// Stop Slow Scripts to help with slow site issues (Example: GitHub Actions "Show all jobs" functionality)
+pref("dom.always_stop_slow_scripts", true);
