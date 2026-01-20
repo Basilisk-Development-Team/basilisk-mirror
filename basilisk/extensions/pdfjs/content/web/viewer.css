@@ -379,7 +379,7 @@
 
 .annotationLayer .buttonWidgetAnnotation:is(.checkBox, .radioButton) input {
   -webkit-appearance: none;
-     -moz-appearance: none;
+     appearance: none;
           appearance: none;
 }
 
@@ -797,7 +797,7 @@
 
   .xfaSelect {
     -webkit-appearance: none;
-       -moz-appearance: none;
+       appearance: none;
             appearance: none;
     text-indent: 1px;
     text-overflow: "";
@@ -1675,7 +1675,7 @@
 
 #altTextDialog #altTextContainer .radio .radioButton input {
           -webkit-appearance: none;
-             -moz-appearance: none;
+             appearance: none;
                   appearance: none;
           box-sizing: border-box;
           width: 16px;
@@ -2798,7 +2798,7 @@ body {
 
 .dropdownToolbarButton > select {
   -webkit-appearance: none;
-     -moz-appearance: none;
+     appearance: none;
           appearance: none;
   width: inherit;
   height: 28px;
@@ -3125,7 +3125,7 @@ a:is(.toolbarButton, .secondaryToolbarButton)[href="#"] {
 }
 
 #pageNumber {
-  -moz-appearance: textfield; /* hides the spinner in moz */
+  appearance: textfield; /* hides the spinner in moz */
   text-align: end;
   width: 40px;
   background-size: 0 0;

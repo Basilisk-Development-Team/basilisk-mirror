@@ -39,11 +39,11 @@
 }
 
 .expander-up {
-  -moz-appearance: -moz-mac-disclosure-button-open;
+  appearance: -moz-mac-disclosure-button-open;
 }
 
 .expander-down {
-  -moz-appearance: -moz-mac-disclosure-button-closed;
+  appearance: -moz-mac-disclosure-button-closed;
 }
 
 #editBookmarkPanelContent {

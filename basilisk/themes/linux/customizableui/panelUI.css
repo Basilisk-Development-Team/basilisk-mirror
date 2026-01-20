@@ -9,11 +9,11 @@
 }
 
 #BMB_bookmarksPopup > menuitem[type="checkbox"] {
-  -moz-appearance: none !important; /* important, to override toolkit rule */
+  appearance: none !important; /* important, to override toolkit rule */
 }
 
 #BMB_bookmarksPopup menupopup {
-  -moz-appearance: none;
+  appearance: none;
   background: var(--arrowpanel-background);
   color: var(--arrowpanel-color);
   border: 1px solid var(--arrowpanel-border-color);
@@ -32,7 +32,7 @@
 }
 
 .widget-overflow-list .toolbarbutton-1 > .toolbarbutton-menubutton-button {
-  -moz-appearance: none;
+  appearance: none;
   border: 0;
   margin-inline-start: 3px;
 }
@@ -54,11 +54,11 @@
 }
 
 menuitem.subviewbutton {
-  -moz-appearance: none !important;
+  appearance: none !important;
 }
 
 menu.subviewbutton > .menu-right {
-  -moz-appearance: none;
+  appearance: none;
   list-style-image: url(chrome://browser/skin/places/bookmarks-menu-arrow.png);
   -moz-image-region: rect(0, 16px, 16px, 0);
   width: 16px;
@@ -86,5 +86,5 @@ menu.subviewbutton > .menu-right:-moz-locale-dir(rtl) {
 }
 
 .subviewradio > .radio-label-box {
-  -moz-appearance: none;
+  appearance: none;
 }

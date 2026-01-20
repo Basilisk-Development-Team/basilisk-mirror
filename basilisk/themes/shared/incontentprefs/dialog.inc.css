@@ -9,7 +9,7 @@ window,
 prefpane,
 prefwindow,
 .windowDialog {
-  -moz-appearance: none;
+  appearance: none;
   background-color: #fbfbfb;
   color: #424e5a;
   margin: 0;
