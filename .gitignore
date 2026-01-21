@@ -17,6 +17,9 @@ ID
 # Vim swap files.
 .*.sw[a-z]
 
+# VSCode files
+.vscode
+
 # User files that may appear at the root
 /.mozconfig*
 /mozconfig
@@ -25,6 +28,7 @@ ID
 /config.log
 /.clang_complete
 /mach.ini
+*mozconfig
 
 # Empty marker file that's generated when we check out NSS
 security/manager/.nss.checkout
