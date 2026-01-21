@@ -123,7 +123,8 @@ toolbar:-moz-lwtheme {
   border-top: none;
 }
 
-@media (-moz-os-version: windows-win10) and (-moz-windows-theme: aero) {
+@media (-moz-os-version: windows-win10) and (-moz-windows-theme: aero),
+       (-moz-os-version: windows-win11) and (-moz-windows-theme: aero) {
   #navigator-toolbox {
     /* Override the global style for Windows 10 that adds a bottom border */
     border-bottom: none;
@@ -145,7 +146,8 @@ toolbar:-moz-lwtheme {
   }
 
   @media (-moz-os-version: windows-win8),
-         (-moz-os-version: windows-win10) {
+         (-moz-os-version: windows-win10),
+         (-moz-os-version: windows-win11) {
     #navigator-toolbox::after {
       border-bottom-color: #c2c2c2;
     }
@@ -1130,7 +1132,8 @@ toolbar[brighttext] #close-button {
     }
   }
 
-  @media (-moz-os-version: windows-win10) {
+  @media (-moz-os-version: windows-win10),
+         (-moz-os-version: windows-win11) {
     #main-window:not(:-moz-lwtheme) {
       --urlbar-border-color: hsl(0,0%,90%);
       --urlbar-border-color-hover: hsl(0,0%,80%);
@@ -1168,7 +1171,8 @@ toolbar[brighttext] #close-button {
     }
   }
 
-  @media (-moz-os-version: windows-win10) {
+  @media (-moz-os-version: windows-win10),
+         (-moz-os-version: windows-win11) {
     #urlbar:not(:-moz-lwtheme),
     .searchbar-textbox:not(:-moz-lwtheme) {
       padding: 1px;
@@ -1188,7 +1192,8 @@ toolbar[brighttext] #close-button {
   }
 }
 
-@media (-moz-os-version: windows-win10) {
+@media (-moz-os-version: windows-win10),
+       (-moz-os-version: windows-win11) {
   #urlbar,
   .searchbar-textbox {
     font-size: 1.15em;
@@ -1239,7 +1244,8 @@ toolbar[brighttext] #close-button {
   margin-inline-start: calc(-1 * var(--backbutton-urlbar-overlap));
 }
 
-@media (-moz-os-version: windows-win10) {
+@media (-moz-os-version: windows-win10),
+       (-moz-os-version: windows-win11) {
   @conditionalForwardWithUrlbar@ {
     clip-path: url("chrome://browser/content/browser.xul#urlbar-back-button-clip-path-win10");
   }

@@ -174,7 +174,8 @@
   }
 }
 
-@media (-moz-os-version: windows-win10) and (-moz-windows-theme: aero) {
+@media (-moz-os-version: windows-win10) and (-moz-windows-theme: aero),
+       (-moz-os-version: windows-win11) and (-moz-windows-theme: aero) {
   #placesToolbox {
     /* Override the global style for Windows 10 that adds a bottom border */
     border-bottom: none;
