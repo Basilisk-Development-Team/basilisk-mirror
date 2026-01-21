@@ -458,6 +458,11 @@ pref("browser.ghostbuster.enabled",               true);
 // Disable GC on memory pressure, avoid incessant recycling when websites
 // misbehave. Should also avoid spurious GCs during ghostbusting.
 pref("javascript.options.gc_on_memory_pressure",  false);
+// Increase UXP's default gc settings to potentially help with crashes and slowdowns
+pref("javascript.options.mem.gc_allocation_threshold_mb",  60);
+pref("javascript.options.mem.gc_max_empty_chunk_count",  60);
+pref("javascript.options.mem.gc_min_empty_chunk_count",  2);
+pref("javascript.options.mem.high_water_mark",  256);
 
 // This is the pref to control the location bar, change this to true to
 // force this - this makes the origin of popup windows more obvious to avoid
