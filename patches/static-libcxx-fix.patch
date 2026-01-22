@@ -1,0 +1,20 @@
+diff --git a/ipc/chromium/moz.build b/ipc/chromium/moz.build
+index e79c7f3753..af1b08f8ae 100644
+--- a/ipc/chromium/moz.build
++++ b/ipc/chromium/moz.build
+@@ -158,3 +158,5 @@ DIRS += [
+ 
+ if CONFIG['GNU_CXX']:
+     CXXFLAGS += ['-Wno-error=shadow']
++
++CXXFLAGS += ['-D_LIBCPP_ENABLE_CXX17_REMOVED_AUTO_PTR']
+diff --git a/media/libjxl/moz.build b/media/libjxl/moz.build
+index 269f60c6a3..45871b3d10 100644
+--- a/media/libjxl/moz.build
++++ b/media/libjxl/moz.build
+@@ -139,3 +139,5 @@ if CONFIG['_MSC_VER']:
+ # This should be okay since we are using the C API.
+ if CONFIG["CC_TYPE"] == "clang":
+     CXXFLAGS += ["-std=c++11"]
++
++NO_VISIBILITY_FLAGS = True

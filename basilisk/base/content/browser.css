@@ -107,7 +107,6 @@ tabbrowser {
   -moz-binding: url("chrome://browser/content/tabbrowser.xml#tabbrowser-tabs");
 }
 
-#tabbrowser-tabs:not([overflow="true"]) ~ #alltabs-button,
 #tabbrowser-tabs:not([overflow="true"]) + #new-tab-button,
 #tabbrowser-tabs[overflow="true"] > .tabbrowser-arrowscrollbox > .tabs-newtab-button,
 #TabsToolbar[currentset]:not([currentset*="tabbrowser-tabs,new-tab-button"]) > #tabbrowser-tabs > .tabbrowser-arrowscrollbox > .tabs-newtab-button,
@@ -237,7 +236,7 @@ toolbar[customizing] > .overflow-button {
 }
 
 #titlebar-buttonbox {
-  -moz-appearance: -moz-window-button-box;
+  appearance: -moz-window-button-box;
 }
 
 #personal-bookmarks {
@@ -246,7 +245,7 @@ toolbar[customizing] > .overflow-button {
 
 %ifdef XP_MACOSX
 #titlebar-fullscreen-button {
-  -moz-appearance: -moz-mac-fullscreen-button;
+  appearance: -moz-mac-fullscreen-button;
 }
 
 /* Fullscreen and caption buttons don't move with RTL on OS X so override the automatic ordering. */
@@ -279,7 +278,7 @@ toolbar[customizing] > .overflow-button {
 
 %ifdef XP_WIN
 #main-window[sizemode="maximized"] #titlebar-buttonbox {
-  -moz-appearance: -moz-window-button-box-maximized;
+  appearance: -moz-window-button-box-maximized;
 }
 
 #main-window[tabletmode] #titlebar-min,
@@ -597,6 +596,25 @@ toolbar:not(#TabsToolbar) > #personal-bookmarks {
 
 #identity-icon-labels {
   max-width: 18em;
+}
+
+#userContext-icons {
+  margin-inline-start: 6px;
+  padding-inline-start: 6px;
+  color: var(--usercontext-color, currentColor);
+}
+
+#userContext-label {
+  color: var(--usercontext-color, currentColor);
+  font-weight: 600;
+}
+
+#userContext-indicator {
+  width: 16px;
+  height: 16px;
+  margin-inline-start: 4px;
+  filter: url(chrome://browser/skin/filters.svg#fill);
+  fill: var(--usercontext-color, currentColor);
 }
 @media (max-width: 700px) {
   #urlbar-container {
@@ -1000,7 +1018,7 @@ toolbarpaletteitem[place="palette"] > #downloads-button[indicator] > #downloads-
 
 /* Give this menupopup an arrow panel styling */
 #BMB_bookmarksPopup {
-  -moz-appearance: none;
+  appearance: none;
   -moz-binding: url("chrome://browser/content/places/menu.xml#places-popup-arrow");
   background: transparent;
   border: none;
@@ -1184,7 +1202,7 @@ toolbarpaletteitem[place="palette"][hidden] {
 }
 
 .dragfeedback-tab {
-  -moz-appearance: none;
+  appearance: none;
   opacity: 0.65;
   -moz-window-shadow: none;
 }

@@ -6,6 +6,9 @@ browser.jar:
     content/browser/preferences/applicationManager.xul
     content/browser/preferences/applicationManager.js
 *   content/browser/preferences/colors.xul
+    content/browser/preferences/containers.css
+    content/browser/preferences/containers.js
+    content/browser/preferences/containers.xul
 *   content/browser/preferences/cookies.xul
 *   content/browser/preferences/cookies.js
 *   content/browser/preferences/connection.xul

@@ -1,7 +1,7 @@
-This is a port of IsaacSchemm's PDF.JS for SeaMonkey addon, https://github.com/IsaacSchemm/pdf.js-seamonkey
+This is a port of the PDF.js viewer for Basilisk.
 
-Current extension version is: 2.3.235
+Current extension version is: 3.11.174
 
-Taken from https://github.com/IsaacSchemm/pdf.js-seamonkey/releases/tag/v2.3.235
+Taken from https://github.com/mozilla/pdf.js/releases/tag/v3.11.174 (legacy dist)
 
 PdfJs.jsm ported from Firefox 60.9.0's version of PDF.js

@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
+<?xml-stylesheet href="chrome://browser/skin/preferences/preferences.css" type="text/css"?>
+<?xml-stylesheet href="chrome://browser/content/preferences/containers.css" type="text/css"?>
+
+<!DOCTYPE dialog SYSTEM "chrome://browser/locale/preferences/containers.dtd" >
+
+<window id="ContainersDialog" windowtype="Browser:Containers"
+        class="windowDialog"
+        title="&containers.dialog.title;"
+        xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+        style="width: &window.width;;"
+        onload="gContainers.onLoad();"
+        onunload="gContainers.onUnload();"
+        persist="screenX screenY width height">
+
+  <script src="chrome://browser/content/preferences/containers.js"/>
+
+  <vbox class="contentPane largeDialogContainer" flex="1">
+    <description>&containers.dialog.description;</description>
+    <separator class="thin"/>
+    <hbox flex="1">
+      <vbox flex="1">
+        <label control="containersList" value="&containers.list.label;"/>
+        <richlistbox id="containersList" flex="1" seltype="single"
+                     onselect="gContainers.onSelect();"/>
+      </vbox>
+      <vbox id="containerActions">
+        <button id="addContainer"
+                label="&containers.addButton.label;"
+                accesskey="&containers.addButton.accesskey;"
+                oncommand="gContainers.startNew();"/>
+        <button id="removeContainer"
+                label="&containers.removeButton.label;"
+                accesskey="&containers.removeButton.accesskey;"
+                oncommand="gContainers.removeContainer();"
+                disabled="true"/>
+      </vbox>
+    </hbox>
+    <groupbox id="containerDetails">
+      <caption><label>&containers.details.label;</label></caption>
+      <grid>
+        <columns>
+          <column/>
+          <column flex="1"/>
+        </columns>
+        <rows>
+          <row align="center">
+            <label control="containerName"
+                   value="&containers.name.label;"
+                   accesskey="&containers.name.accesskey;"/>
+            <textbox id="containerName" flex="1"
+                     oninput="gContainers.onInput();"/>
+          </row>
+          <row align="center">
+            <label control="containerIcon"
+                   value="&containers.icon.label;"
+                   accesskey="&containers.icon.accesskey;"/>
+            <menulist id="containerIcon" flex="1" oncommand="gContainers.onInput();">
+              <menupopup id="containerIconPopup"/>
+            </menulist>
+          </row>
+          <row align="center">
+            <label control="containerColor"
+                   value="&containers.color.label;"
+                   accesskey="&containers.color.accesskey;"/>
+            <menulist id="containerColor" flex="1" oncommand="gContainers.onInput();">
+              <menupopup id="containerColorPopup"/>
+            </menulist>
+          </row>
+        </rows>
+      </grid>
+      <hbox align="end">
+        <button id="saveContainer"
+                label="&containers.saveButton.label;"
+                accesskey="&containers.saveButton.accesskey;"
+                oncommand="gContainers.saveContainer();"
+                disabled="true"/>
+      </hbox>
+    </groupbox>
+  </vbox>
+  <hbox align="end">
+    <hbox id="containersActionButtons" class="actionButtons" flex="1">
+      <spacer flex="1"/>
+      <button id="closeContainers"
+              label="&containers.closeButton.label;"
+              accesskey="&containers.closeButton.accesskey;"
+              oncommand="close();"/>
+    </hbox>
+  </hbox>
+</window>

@@ -266,7 +266,7 @@ panelview:not([mainview]) .toolbarbutton-text,
 toolbaritem[cui-areatype="menu-panel"][sdkstylewidget="true"]:not(.panel-wide-item),
 .panelUI-grid .toolbarbutton-1,
 .panel-customization-placeholder-child {
-  -moz-appearance: none;
+  appearance: none;
   -moz-box-orient: vertical;
   width: calc(@menuPanelButtonWidth@);
   height: calc(51px + 2.2em);
@@ -294,12 +294,12 @@ toolbarpaletteitem:-moz-any([place="palette"], [place="panel"]) > toolbaritem[sd
 }
 
 .customization-palette .toolbarbutton-1 {
-  -moz-appearance: none;
+  appearance: none;
   -moz-box-orient: vertical;
 }
 
 .panelUI-grid .toolbarbutton-1 > .toolbarbutton-menubutton-button {
-  -moz-appearance: none;
+  appearance: none;
   -moz-box-orient: vertical;
   width: calc(@menuPanelButtonWidth@ - 2px);
   height: calc(49px + 2.2em);
@@ -506,7 +506,7 @@ toolbarpaletteitem[place="palette"] > toolbaritem > toolbarbutton {
   border: 0;
   border-left: 1px solid var(--panel-separator-color);
   margin: 7px 0 7px;
-  -moz-appearance: none;
+  appearance: none;
 }
 
 #PanelUI-footer-inner:hover > toolbarseparator {
@@ -521,7 +521,7 @@ toolbarpaletteitem[place="palette"] > toolbaritem > toolbarbutton {
   padding: 11px 0;
   box-sizing: border-box;
   min-height: 40px;
-  -moz-appearance: none;
+  appearance: none;
   box-shadow: none;
   border: none;
   border-radius: 0;
@@ -708,7 +708,7 @@ panelview .toolbarbutton-1,
 .widget-overflow-list .toolbarbutton-1,
 .panelUI-grid .toolbarbutton-1 > .toolbarbutton-menubutton-button,
 .toolbaritem-combined-buttons@inAnyPanel@ > toolbarbutton {
-  -moz-appearance: none;
+  appearance: none;
   padding: 0 6px;
   background-color: transparent;
   border-radius: 2px;
@@ -729,7 +729,7 @@ panelview .toolbarbutton-1,
 }
 
 .subviewbutton.panel-subview-footer > .menu-text {
-  -moz-appearance: none;
+  appearance: none;
   margin-inline-start: 0px !important;
   padding-inline-start: 6px;
   padding-inline-end: 6px;
@@ -842,7 +842,7 @@ menuitem.panel-subview-footer@menuStateActive@,
 
 #BMB_bookmarksPopup .panel-arrowcontainer > .panel-arrowcontent > .popup-internal-box > .autorepeatbutton-up,
 #BMB_bookmarksPopup .panel-arrowcontainer > .panel-arrowcontent > .popup-internal-box > .autorepeatbutton-down {
-  -moz-appearance: none;
+  appearance: none;
   margin-top: 0;
   margin-bottom: 0;
 }
@@ -874,7 +874,7 @@ menuitem.panel-subview-footer@menuStateActive@,
 .PanelUI-subView menuseparator,
 .PanelUI-subView toolbarseparator,
 .cui-widget-panelview menuseparator {
-  -moz-appearance: none;
+  appearance: none;
   min-height: 0;
   border-top: 1px solid var(--panel-separator-color);
   border-bottom: none;
@@ -1062,7 +1062,7 @@ toolbarpaletteitem[haswideitem][place="panel"] + toolbarpaletteitem[haswideitem]
 }
 
 .toolbaritem-combined-buttons@inAnyPanel@ > separator {
-  -moz-appearance: none;
+  appearance: none;
   -moz-box-align: stretch;
   margin: .5em 0;
   width: 1px;
@@ -1147,7 +1147,7 @@ toolbaritem[overflowedItem=true],
 }
 
 .subviewbutton > .menu-iconic-left {
-  -moz-appearance: none;
+  appearance: none;
   margin-inline-end: 3px;
 }
 
@@ -1158,6 +1158,8 @@ menuitem[checked="true"].subviewbutton > .menu-iconic-left {
 #PanelUI-containersItems > .subviewbutton > .toolbarbutton-icon {
   width: 16px;
   height: 16px;
+  filter: url(chrome://browser/skin/filters.svg#fill);
+  fill: var(--usercontext-color, currentColor);
 }
 
 .panel-mainview[panelid=customizationui-widget-panel],
@@ -1223,7 +1225,7 @@ menuitem[checked="true"].subviewbutton > .menu-iconic-left {
 
 .subviewradio {
   -moz-binding: url(chrome://global/content/bindings/radio.xml#radio);
-  -moz-appearance: none;
+  appearance: none;
   -moz-box-align: center;
   padding: 1px;
   margin: 0 0 2px;
@@ -1246,7 +1248,7 @@ menuitem[checked="true"].subviewbutton > .menu-iconic-left {
 }
 
 .subviewradio > .radio-check {
-  -moz-appearance: none;
+  appearance: none;
   width: 16px;
   height: 16px;
   border: 1px solid #e7e7e7;
@@ -1307,7 +1309,7 @@ menuitem[checked="true"].subviewbutton > .menu-iconic-left {
 }
 
 #PanelUI-panic-view-button {
-  -moz-appearance: none;
+  appearance: none;
   background-color: #d92316;
   color: white;
   margin: 5px 15px 11px;
@@ -1338,7 +1340,7 @@ menuitem[checked="true"].subviewbutton > .menu-iconic-left {
   border: 1px solid #ccc;
   border-radius: 3px;
   padding: 10px;
-  -moz-appearance: none;
+  appearance: none;
 }
 
 #panic-button-success-closebutton:hover {

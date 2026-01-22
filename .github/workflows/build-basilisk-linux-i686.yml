@@ -15,12 +15,23 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - name: GTK3 i686
+          - name: GTK3 i686 GCC
             gtk: gtk3
             arch: i686
-          - name: GTK2 i686
+            compiler: gcc
+          - name: GTK2 i686 GCC
             gtk: gtk2
             arch: i686
+            compiler: gcc
+          - name: GTK3 i686 Clang+LTO
+            gtk: gtk3
+            arch: i686
+            compiler: clang_lto
+          - name: GTK2 i686 Clang+LTO
+            gtk: gtk2
+            arch: i686
+            compiler: clang_lto
+
     steps:
       - name: Free Disk Space
         run: |
@@ -33,7 +44,7 @@ jobs:
           submodules: recursive
 
       - name: Copy mozconfig
-        run: cp mozconfigs/linux/${{ matrix.config.arch }}/${{ matrix.config.gtk }}_unofficial_branding.mozconfig .mozconfig
+        run: cp mozconfigs/linux/${{ matrix.config.arch }}/${{ matrix.config.gtk }}_unofficial_branding_${{ matrix.config.compiler }}.mozconfig .mozconfig
 
       - name: Update mozconfig for release branch
         if: github.ref == 'refs/heads/release'
@@ -41,39 +52,15 @@ jobs:
           sed -i 's/disable-updater/enable-updater/g' .mozconfig
           sed -i 's/disable-official-branding/enable-official-branding/g' .mozconfig
 
-      - name: Pull official branding files for release branch
-        if: github.ref == 'refs/heads/release'
-        run: |
-          cd basilisk/branding && git clone https://${{ secrets.RPMO_CLONE_CREDENTIALS }}@repo.palemoon.org/Basilisk-Dev/${{ secrets.OFFICIAL_BRANDING_REPO_NAME }}.git official
-
       - name: Update docker build script for release branch
         if: github.ref == 'refs/heads/release'
         run: |
           echo 'su -c "./mach mar" $USERNAME' >> build-scripts/linux/build_basilisk_subscripts/run_inside_docker.sh
-
-      # Restore ccache cache
-      - name: Restore CCache Cache
-        uses: actions/cache@v4
-        continue-on-error: true
-        with:
-          path: ~/.ccache
-          key: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.gtk }}-${{ matrix.config.arch }}-${{ github.run_id }}
-          restore-keys: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.gtk }}-${{ matrix.config.arch }}
 
       - name: Build Basilisk
         run: ./build-scripts/linux/build_basilisk.sh
 
       - uses: actions/upload-artifact@v4
         with:
-          name: basilisk-linux-${{ matrix.config.arch }}-${{ matrix.config.gtk }}
+          name: basilisk-linux-${{ matrix.config.arch }}-${{ matrix.config.gtk }}-${{ matrix.config.compiler }}
           path: obj-${{ matrix.config.arch }}-unknown-linux-gnu/dist/basilisk-*
-
-      # Save ccache cache
-      - name: Save CCache Cache
-        if: always() # Ensures the cache step runs even if the build fails
-        uses: actions/cache@v4
-        with:
-          path: ~/.ccache
-          key: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.gtk }}-${{ matrix.config.arch }}-${{ github.run_id }}
-          restore-keys: ${{ runner.os }}-ccache-${{ github.ref }}-${{ matrix.config.gtk }}-${{ matrix.config.arch }}
-        continue-on-error: true

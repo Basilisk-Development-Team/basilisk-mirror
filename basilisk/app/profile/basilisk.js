@@ -21,6 +21,22 @@
 #endif
 #endif
 
+#ifdef MOZ_WIDGET_GTK
+#if MOZ_WIDGET_GTK == 2
+#define NOT_GTK3
+#endif
+#endif
+
+#ifndef MOZ_WIDGET_GTK
+#define NOT_GTK3
+#endif
+
+#ifndef MOZ_ENABLE_NPAPI
+#ifndef MOZ_GMP
+#define PLUGINS_SUPPORT_DISABLED
+#endif
+#endif
+
 pref("browser.chromeURL","chrome://browser/content/");
 pref("browser.hiddenWindowChromeURL", "chrome://browser/content/hiddenWindow.xul");
 
@@ -442,6 +458,11 @@ pref("browser.ghostbuster.enabled",               true);
 // Disable GC on memory pressure, avoid incessant recycling when websites
 // misbehave. Should also avoid spurious GCs during ghostbusting.
 pref("javascript.options.gc_on_memory_pressure",  false);
+// Increase UXP's default gc settings to potentially help with crashes and slowdowns
+pref("javascript.options.mem.gc_allocation_threshold_mb",  60);
+pref("javascript.options.mem.gc_max_empty_chunk_count",  60);
+pref("javascript.options.mem.gc_min_empty_chunk_count",  2);
+pref("javascript.options.mem.high_water_mark",  256);
 
 // This is the pref to control the location bar, change this to true to
 // force this - this makes the origin of popup windows more obvious to avoid
@@ -515,6 +536,10 @@ pref("privacy.sanitize.migrateFx3Prefs",    false);
 pref("privacy.panicButton.enabled",         true);
 
 pref("privacy.firstparty.isolate",          false);
+
+// Container tabs
+pref("privacy.userContext.enabled",         false);
+pref("privacy.userContext.ui.enabled",      false);
 
 // Enable including the content title in the window title for console errors.
 // Default disabled for PBM users to avoid a possible source of disk leaks.
@@ -931,6 +956,14 @@ pref("browser.flash-protected-mode-flip.done", false);
 
 pref("dom.ipc.shims.enabledWarnings", false);
 
+#ifndef PLUGINS_SUPPORT_DISABLED
+// Whether plugins are run out-of-process. Only applicable in non-GTK3
+#ifdef NOT_GTK3
+pref("dom.ipc.plugins.enabled", true);
+#endif
+#endif
+
+#ifdef MOZ_ENABLE_NPAPI
 // This pref governs whether we attempt to work around problems caused by
 // plugins using OS calls to manipulate the cursor while running out-of-
 // process.  These workarounds all involve intercepting (hooking) certain
@@ -941,6 +974,7 @@ pref("dom.ipc.shims.enabledWarnings", false);
 #ifdef XP_MACOSX
 pref("dom.ipc.plugins.nativeCursorSupport", true);
 #endif
+#endif /* MOZ_ENABLE_NPAPI */
 
 #ifdef XP_WIN
 pref("browser.taskbar.previews.enable", false);
@@ -1169,6 +1203,7 @@ pref("browser.uiCustomization.state", "");
 pref("ui.key.menuAccessKeyFocuses", true);
 #endif
 
+#ifdef MOZ_GMP
 // Decode using Gecko Media Plugins in <video>, if a system decoder is not
 // availble and the preferred GMP is available.
 pref("media.gmp.decoder.enabled", false);
@@ -1190,6 +1225,7 @@ pref("browser.cache.frecency_experiment", -1);
 
 // Enable GMP support in the addon manager.
 pref("media.gmp-provider.enabled", true);
+#endif /* MOZ_GMP */
 
 #ifndef RELEASE_OR_BETA
 // At the moment, autostart.2 is used, while autostart.1 is unused.
@@ -1290,3 +1326,9 @@ pref("webchannel.allowObject.urlWhitelist", "");
 // The counter resets when the page is reloaded from the UI
 // (content-reloads do NOT clear this to mitigate reloading tricks).
 pref("prompts.authentication_dialog_abuse_limit", 3);
+
+// Enable full GC WeakRef Support
+pref("javascript.options.weakrefs", true);
+
+// Stop Slow Scripts to help with slow site issues (Example: GitHub Actions "Show all jobs" functionality)
+pref("dom.always_stop_slow_scripts", true);

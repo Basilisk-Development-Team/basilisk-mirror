@@ -70,6 +70,13 @@
   <preference id="browser.privatebrowsing.autostart"
               name="browser.privatebrowsing.autostart"
               type="bool"/>
+  <!-- Containers -->
+  <preference id="privacy.userContext.enabled"
+              name="privacy.userContext.enabled"
+              type="bool"/>
+  <preference id="privacy.userContext.ui.enabled"
+              name="privacy.userContext.ui.enabled"
+              type="bool"/>
 </preferences>
 
 <hbox id="header-privacy"
@@ -216,6 +223,21 @@
       </vbox>
     </vbox>
   </deck>
+</groupbox>
+
+<!-- Containers -->
+<groupbox id="containersGroup" data-category="panePrivacy" hidden="true">
+  <caption><label>&containers.label;</label></caption>
+  <hbox align="center">
+    <checkbox id="enableContainers"
+              preference="privacy.userContext.enabled"
+              accesskey="&containers.enable.accesskey;"
+              label="&containers.enable.label;"/>
+    <spacer flex="1"/>
+    <button id="containersSettings"
+            label="&containersSettings.label;"
+            accesskey="&containersSettings.accesskey;"/>
+  </hbox>
 </groupbox>
 
 <!-- Location Bar -->

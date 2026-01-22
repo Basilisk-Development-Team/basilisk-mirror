@@ -124,6 +124,69 @@
                 oncommand="gBrowser.removeTab(TabContextMenu.contextTab, { animate: true });"/>
     </menupopup>
 
+    <menupopup id="new-tab-button-popup"
+               onpopupshowing="onNewTabButtonMenuShowing(event);">
+      <menuitem id="new-tab-button-newtab"
+                label="&tabCmd.label;"
+                accesskey="&tabCmd.accesskey;"
+                command="cmd_newNavigatorTab"/>
+      <menu id="new-tab-button-newcontainer"
+            label="&newUserContext.label;"
+            accesskey="&newUserContext.accesskey;"
+            hidden="true">
+        <menupopup id="new-tab-button-newcontainer-popup"
+                   onpopupshowing="gContextualIdentity.populateNewTabMenu(this);"/>
+      </menu>
+      <menuseparator/>
+      <menuitem id="new-tab-button-newwindow"
+                label="&newNavigatorCmd.label;"
+                accesskey="&newNavigatorCmd.accesskey;"
+                command="cmd_newNavigator"/>
+      <menuitem id="new-tab-button-newprivatewindow"
+                label="&newPrivateWindow.label;"
+                accesskey="&newPrivateWindow.accesskey;"
+                command="Tools:PrivateBrowsing"/>
+      <menuseparator/>
+      <menuitem id="new-tab-button-moveToPanel"
+                oncommand="gCustomizeMode.addToPanel(document.popupNode)"
+                accesskey="&customizeMenu.moveToPanel.accesskey;"
+                label="&customizeMenu.moveToPanel.label;"
+                contexttype="toolbaritem"
+                class="customize-context-moveToPanel"/>
+      <menuitem id="new-tab-button-removeFromToolbar"
+                oncommand="gCustomizeMode.removeFromArea(document.popupNode)"
+                accesskey="&customizeMenu.removeFromToolbar.accesskey;"
+                label="&customizeMenu.removeFromToolbar.label;"
+                contexttype="toolbaritem"
+                class="customize-context-removeFromToolbar"/>
+      <menuitem id="new-tab-button-reloadAllTabs"
+                class="toolbaritem-tabsmenu"
+                contexttype="tabbar"
+                oncommand="gBrowser.reloadAllTabs();"
+                label="&toolbarContextMenu.reloadAllTabs.label;"
+                accesskey="&toolbarContextMenu.reloadAllTabs.accesskey;"/>
+      <menuitem id="new-tab-button-bookmarkAllTabs"
+                class="toolbaritem-tabsmenu"
+                contexttype="tabbar"
+                command="Browser:BookmarkAllTabs"
+                label="&toolbarContextMenu.bookmarkAllTabs.label;"
+                accesskey="&toolbarContextMenu.bookmarkAllTabs.accesskey;"/>
+      <menuitem id="new-tab-button-undoCloseTab"
+                class="toolbaritem-tabsmenu"
+                contexttype="tabbar"
+                label="&toolbarContextMenu.undoCloseTab.label;"
+                accesskey="&toolbarContextMenu.undoCloseTab.accesskey;"
+                observes="History:UndoCloseTab"/>
+      <menuseparator/>
+      <menuseparator id="new-tab-button-viewToolbarsMenuSeparator"/>
+      <menuitem id="new-tab-button-customizeToolbar"
+                oncommand="BrowserCustomizeToolbar()"
+                observes="cmd_CustomizeToolbars"
+                class="viewCustomizeToolbar"
+                label="&viewCustomizeToolbar.label;"
+                accesskey="&viewCustomizeToolbar.accesskey;"/>
+    </menupopup>
+
     <!-- bug 415444/582485: event.stopPropagation is here for the cloned version
          of this menupopup -->
     <menupopup id="backForwardMenu"
@@ -474,6 +537,7 @@
                      label="&tabCmd.label;"
                      command="cmd_newNavigatorTab"
                      onclick="checkForMiddleClick(this, event);"
+                     context="new-tab-button-popup"
                      tooltip="dynamic-shortcut-tooltip"
                      ondrop="newTabButtonObserver.onDrop(event)"
                      ondragover="newTabButtonObserver.onDragOver(event)"
@@ -487,7 +551,7 @@
                      type="menu"
                      label="&listAllTabs.label;"
                      tooltiptext="&listAllTabs.label;"
-                     removable="false">
+                     removable="true">
         <menupopup id="alltabs-popup"
                    position="after_end">
           <menuitem id="alltabs_undoCloseTab"

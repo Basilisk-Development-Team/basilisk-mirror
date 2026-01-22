@@ -51,7 +51,6 @@ echo "Starting Container..."
 docker run -t \
   --rm \
   -v $PWD:/share \
-  -v $HOME/.ccache:/.ccache \
   -e APPLYPATCHES=$APPLYPATCHES \
   -e CCACHE_DIR=/.ccache \
   -e UID=$(id -u) \

@@ -54,13 +54,6 @@ jobs:
             (Get-Content .\.mozconfig) -replace 'disable-updater', 'enable-updater' | Set-Content .\.mozconfig
             (Get-Content .\.mozconfig) -replace 'disable-official-branding', 'enable-official-branding' | Set-Content .\.mozconfig
 
-      - name: Pull official branding files for release branch
-        if: github.ref == 'refs/heads/release'
-        run: |
-          cd basilisk/branding
-          git clone https://${{ secrets.RPMO_CLONE_CREDENTIALS }}@repo.palemoon.org/Basilisk-Dev/${{ secrets.OFFICIAL_BRANDING_REPO_NAME }}.git official
-        shell: pwsh
-
       - name: debug dirs
         run: |
           C:\mozilla-build\start-shell.bat echo '/c'

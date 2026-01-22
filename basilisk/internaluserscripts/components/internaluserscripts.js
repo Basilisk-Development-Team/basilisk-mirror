@@ -1,0 +1,209 @@
+/* This source file is licensed under the MIT License.
+ * A copy of the MIT License should have been distributed with this
+ * file. If not, see https://opensource.org/licenses/MIT.
+ */
+
+if (typeof Cc === "undefined") {
+  var Cc = Components.classes;
+}
+if (typeof Ci === "undefined") {
+  var Ci = Components.interfaces;
+}
+if (typeof Cu === "undefined") {
+  var Cu = Components.utils;
+}
+
+const { Services } = Cu.import("resource://gre/modules/Services.jsm", {});
+const { XPCOMUtils } = Cu.import("resource://gre/modules/XPCOMUtils.jsm", {});
+
+const PREF_ENABLED = "browser.internal-userscripts.enabled";
+
+function InternalUserscriptsService() {
+  this.wrappedJSObject = this;
+}
+
+InternalUserscriptsService.prototype = {
+  classDescription: "Internal Userscripts Loader",
+  classID: Components.ID("{d8b4bd27-b458-4417-8dfe-3b80bb6375bc}"),
+  contractID: "@internaluserscripts.mozdev.org/service;1",
+
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsIObserver]),
+
+  observe: function(subject, topic, data) {
+    if (topic === "profile-after-change") {
+      this._startup();
+    } else if (topic === "quit-application") {
+      this._shutdown();
+    } else if (topic === "nsPref:changed" && data === PREF_ENABLED) {
+      this._updateObserverState();
+    } else if (topic === "document-element-inserted") {
+      this._inject(subject && subject.defaultView);
+    }
+  },
+
+  _startup: function() {
+    Services.obs.addObserver(this, "quit-application", false);
+    Services.prefs.addObserver(PREF_ENABLED, this, false);
+    this._updateObserverState();
+  },
+
+  _shutdown: function() {
+    try { Services.obs.removeObserver(this, "document-element-inserted"); } catch (e) {}
+    try { Services.obs.removeObserver(this, "quit-application"); } catch (e) {}
+    try { Services.prefs.removeObserver(PREF_ENABLED, this); } catch (e) {}
+    this._observingDocuments = false;
+  },
+
+  _updateObserverState: function() {
+    let enabled = true;
+    try {
+      enabled = Services.prefs.getBoolPref(PREF_ENABLED, true);
+    } catch (e) {}
+
+    if (enabled && !this._observingDocuments) {
+      Services.obs.addObserver(this, "document-element-inserted", false);
+      this._observingDocuments = true;
+    } else if (!enabled && this._observingDocuments) {
+      try { Services.obs.removeObserver(this, "document-element-inserted"); } catch (e) {}
+      this._observingDocuments = false;
+    }
+  },
+
+  _inject: function(win) {
+    if (!Services.prefs.getBoolPref(PREF_ENABLED, true)) {
+      return;
+    }
+    if (!win) {
+      return;
+    }
+    let contentWin = win.wrappedJSObject || win;
+
+    try {
+      Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/finalizationregistry-polyfill.user.js",
+        contentWin
+      );
+    } catch (e) {
+      // ignore; fallback below
+    }
+
+    try {
+      Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/intl-displaynames-polyfill.user.js",
+        contentWin
+      );
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/imagedecode-polyfill.user.js",
+        contentWin
+      );
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/transformstream-polyfill.user.js",
+        contentWin
+      );
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/textencoderstream-polyfill.user.js",
+        contentWin
+      );
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/readablestream-pipeto-polyfill.user.js",
+        contentWin
+      );
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/readablestream-pipethrough-polyfill.user.js",
+        contentWin
+      );
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      const source = `
+        (function(){
+          var global = this;
+          if (typeof global.FinalizationRegistry === "function" &&
+              global.FinalizationRegistry.prototype &&
+              typeof global.FinalizationRegistry.prototype.register === "function") {
+            try { global.__internalUserscriptsFinalizationRegistryPolyfill = true; } catch (e) {}
+            return;
+          }
+          function PolyfillFinalizationRegistry(cleanupCallback) {
+            if (typeof cleanupCallback !== "function") {
+              throw new TypeError("cleanup callback must be a function");
+            }
+            this._cleanupCallback = cleanupCallback;
+            this._entries = [];
+            this._pending = false;
+          }
+          PolyfillFinalizationRegistry.prototype.register = function (target, heldValue, unregisterToken) {
+            if (target == null || (typeof target !== "object" && typeof target !== "function")) {
+              throw new TypeError("register target must be an object");
+            }
+            var key = unregisterToken || target;
+            this._entries.push({ key: key, held: heldValue });
+            if (!this._pending) {
+              this._pending = true;
+              var self = this;
+              global.setTimeout(function () {
+                self._pending = false;
+                self._runCleanup(self._cleanupCallback);
+              }, 0);
+            }
+          };
+          PolyfillFinalizationRegistry.prototype.unregister = function (unregisterToken) {
+            if (unregisterToken == null) {
+              return false;
+            }
+            var before = this._entries.length;
+            this._entries = this._entries.filter(function (e) { return e.key !== unregisterToken; });
+            return this._entries.length !== before;
+          };
+          PolyfillFinalizationRegistry.prototype._runCleanup = function (cb) {
+            cb = cb || function () {};
+            var entries = this._entries.slice(0);
+            this._entries.length = 0;
+            for (var i = 0; i < entries.length; i++) {
+              try { cb(entries[i].held); } catch (e) {}
+            }
+          };
+          PolyfillFinalizationRegistry.prototype.cleanupSome = function (callback) {
+            this._runCleanup(callback || this._cleanupCallback);
+          };
+          global.FinalizationRegistry = PolyfillFinalizationRegistry;
+          try { global.__internalUserscriptsFinalizationRegistryPolyfill = true; } catch (e) {}
+        })();
+      `;
+      if (typeof contentWin.eval === "function") {
+        contentWin.eval(source);
+      }
+    } catch (e) {
+      // ignore
+    }
+  },
+};
+
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([InternalUserscriptsService]);

@@ -138,6 +138,11 @@
     <panelview id="PanelUI-containers" flex="1">
       <label value="&containersMenu.label;" class="panel-subview-header"/>
       <vbox id="PanelUI-containersItems"/>
+      <toolbarbutton id="panelMenu_manageContainers"
+                     label="&containersSettings.label;"
+                     class="subviewbutton panel-subview-footer"
+                     command="Browser:OpenAboutContainers"
+                     onclick="PanelUI.hide();"/>
     </panelview>
 
     <panelview id="PanelUI-helpView" flex="1" class="PanelUI-subView">

@@ -1,0 +1,62 @@
+# Clear this if not a 64bit build
+_BUILD_64=
+
+# Set GTK Version to 2 or 3
+_GTK_VERSION=2
+
+# Set Basilisk version to date timestamp
+export BASILISK_VERSION=1
+
+# Use Clang/LLVM toolchain
+export CC="/usr/bin/clang"
+export CXX="/usr/bin/clang++"
+export AR="/usr/bin/llvm-ar"
+export NM="/usr/bin/llvm-nm"
+export RANLIB="/usr/bin/llvm-ranlib"
+export LD=ld.lld
+
+# Point Clang to the proper GCC toolchain (not needed for 64-bit builds)
+export GCC_TOOLCHAIN="/opt/rh/gcc-toolset-11/root/usr/"
+export CFLAGS="--gcc-toolchain=$GCC_TOOLCHAIN"
+export CXXFLAGS="--gcc-toolchain=$GCC_TOOLCHAIN"
+
+# ThinLTO with Clang/LLVM. -Wl,--undefined-version fixes lld vs GNU ld behavior.
+export LDFLAGS="-flto=thin -fuse-ld=lld -Wl,--undefined-version"
+
+# Optimize for i686 with SSE2 and LTO
+ac_add_options --enable-optimize="-O3 -march=i686 -msse2 -mfpmath=sse -flto=thin -w"
+
+# Standard build options for Basilisk
+ac_add_options --enable-application=basilisk
+ac_add_options --enable-default-toolkit=cairo-gtk$_GTK_VERSION
+ac_add_options --enable-jemalloc
+ac_add_options --enable-strip
+ac_add_options --enable-devtools
+ac_add_options --enable-av1
+ac_add_options --enable-jxl
+ac_add_options --enable-webrtc
+ac_add_options --enable-gamepad
+ac_add_options --enable-pie
+ac_add_options --enable-update-channel=release
+ac_add_options --disable-tests
+ac_add_options --disable-debug
+ac_add_options --disable-necko-wifi
+ac_add_options --disable-updater
+ac_add_options --with-pthreads
+ac_add_options --disable-official-branding
+
+# Set target architecture explicitly
+ac_add_options --target=i686-unknown-linux-gnu
+ac_add_options --with-arch=i686
+
+export MOZILLA_OFFICIAL=1
+
+# Processor architecture specific build options
+if [ -n "$_BUILD_64" ]; then
+  ac_add_options --x-libraries=/usr/lib64
+else
+  ac_add_options --x-libraries=/usr/lib
+  export PKG_CONFIG_PATH=/usr/lib/pkgconfig
+fi
+
+export MOZ_PKG_SPECIAL=gtk$_GTK_VERSION

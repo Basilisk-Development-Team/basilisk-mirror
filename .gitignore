@@ -17,6 +17,9 @@ ID
 # Vim swap files.
 .*.sw[a-z]
 
+# VSCode files
+.vscode
+
 # User files that may appear at the root
 /.mozconfig*
 /mozconfig
@@ -25,6 +28,7 @@ ID
 /config.log
 /.clang_complete
 /mach.ini
+*mozconfig
 
 # Empty marker file that's generated when we check out NSS
 security/manager/.nss.checkout
@@ -64,9 +68,6 @@ toolkit/devtools/chrome.manifest
 
 # Ignore misc files that need not be in the repo
 other-licenses/7zstub/firefox/7zSD - Copy.sfx.exe
-
-# Ignore official branding
-basilisk/branding/official/
 
 # External Projects
 # Account for someone being clever with ntfs junctions or other filesystem links ;)

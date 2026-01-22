@@ -351,7 +351,7 @@ description > html|a {
 }
 
 #dialogBox > .groupbox-body {
-  -moz-appearance: none;
+  appearance: none;
   padding: 20px;
 }
 

@@ -2190,10 +2190,12 @@ var SessionStoreInternal = {
       throw Components.Exception("Invalid window object: no gBrowser", Cr.NS_ERROR_INVALID_ARG);
     }
 
+    let userContextId = parseInt(aTab.getAttribute("usercontextid"), 10) || 0;
+
     // Create a new tab.
     let newTab = aTab == aWindow.gBrowser.selectedTab ?
-      aWindow.gBrowser.addTab(null, {relatedToCurrent: true, ownerTab: aTab}) :
-      aWindow.gBrowser.addTab();
+      aWindow.gBrowser.addTab(null, {relatedToCurrent: true, ownerTab: aTab, userContextId}) :
+      aWindow.gBrowser.addTab(null, {userContextId});
 
     // Set tab title to "Connecting..." and start the throbber to pretend we're
     // doing something while actually waiting for data from the frame script.
@@ -2282,7 +2284,11 @@ var SessionStoreInternal = {
 
     // create a new tab
     let tabbrowser = aWindow.gBrowser;
-    let tab = tabbrowser.selectedTab = tabbrowser.addTab();
+    let userContextId = 0;
+    if (state.attributes && state.attributes.usercontextid) {
+      userContextId = parseInt(state.attributes.usercontextid, 10) || 0;
+    }
+    let tab = tabbrowser.selectedTab = tabbrowser.addTab(null, {userContextId});
 
     // restore tab content
     this.restoreTab(tab, state);
@@ -3059,6 +3065,20 @@ var SessionStoreInternal = {
     var openTabCount = overwriteTabs ? tabbrowser.browsers.length : -1;
     var newTabCount = winData.tabs.length;
     var tabs = [];
+    var tabsToRemove = [];
+
+    if (overwriteTabs && openTabCount > 0) {
+      let hasUserContext = winData.tabs.some(tabData => {
+        if (!tabData.attributes || !tabData.attributes.usercontextid) {
+          return false;
+        }
+        return (parseInt(tabData.attributes.usercontextid, 10) || 0) != 0;
+      });
+      if (hasUserContext) {
+        tabsToRemove = Array.slice(tabbrowser.tabs);
+        openTabCount = 0;
+      }
+    }
 
     // disable smooth scrolling while adding, moving, removing and selecting tabs
     var tabstrip = tabbrowser.tabContainer.mTabstrip;
@@ -3086,13 +3106,21 @@ var SessionStoreInternal = {
     let numVisibleTabs = 0;
 
     for (var t = 0; t < newTabCount; t++) {
-      tabs.push(t < openTabCount ?
+      let tabData = winData.tabs[t];
+      let userContextId = 0;
+      if (tabData.attributes && tabData.attributes.usercontextid) {
+        userContextId = parseInt(tabData.attributes.usercontextid, 10) || 0;
+      }
+      let tab = t < openTabCount ?
                 tabbrowser.tabs[t] :
                 tabbrowser.addTab("about:blank", {
                   skipAnimation: true,
                   forceNotRemote: true,
-                  skipBackgroundNotify: true
-                }));
+                  skipBackgroundNotify: true,
+                  userContextId,
+                });
+
+      tabs.push(tab);
 
       if (winData.tabs[t].pinned)
         tabbrowser.pinTab(tabs[t]);
@@ -3188,6 +3216,14 @@ var SessionStoreInternal = {
     if (winData.tabs.length) {
       this.restoreTabs(aWindow, tabs, winData.tabs,
         (overwriteTabs ? (parseInt(winData.selected || "1")) : 0));
+    }
+
+    if (tabsToRemove.length) {
+      for (let tab of tabsToRemove) {
+        if (tabs.indexOf(tab) == -1 && !tab.closing) {
+          tabbrowser.removeTab(tab, {animate: false, skipPermitUnload: true});
+        }
+      }
     }
 
     // set smoothScroll back to the original value
@@ -3400,6 +3436,18 @@ var SessionStoreInternal = {
     if ("attributes" in tabData) {
       // Ensure that we persist tab attributes restored from previous sessions.
       Object.keys(tabData.attributes).forEach(a => TabAttributes.persist(a));
+    }
+
+    let userContextId = 0;
+    if (tabData.attributes && tabData.attributes.usercontextid) {
+      userContextId = parseInt(tabData.attributes.usercontextid, 10) || 0;
+    }
+    if (userContextId) {
+      tab.setAttribute("usercontextid", userContextId);
+      browser.setAttribute("usercontextid", userContextId);
+    } else {
+      tab.removeAttribute("usercontextid");
+      browser.removeAttribute("usercontextid");
     }
 
     if (!tabData.entries) {

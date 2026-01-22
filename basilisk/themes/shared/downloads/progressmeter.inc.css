@@ -6,7 +6,7 @@
   margin-inline-end: 12px;
 
   /* for overriding rules in progressmeter.css */
-  -moz-appearance: none;
+  appearance: none;
   border-style: none;
   background-color: transparent;
   min-width: initial;
@@ -22,7 +22,7 @@
   background-color: Highlight;
 
   /* for overriding rules in progressmeter.css */
-  -moz-appearance: none;
+  appearance: none;
 }
 
 .downloadProgress[paused="true"] > .progress-bar {

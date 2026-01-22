@@ -6,6 +6,9 @@
 
 this.EXPORTED_SYMBOLS = ["TabAttributes"];
 
+const Cu = Components.utils;
+const Cr = Components.results;
+
 // We never want to directly read or write these attributes.
 // 'image' should not be accessed directly but handled by using the
 //         gBrowser.getIcon()/setIcon() methods.
@@ -39,7 +42,15 @@ this.TabAttributes = Object.freeze({
 var TabAttributesInternal = {
   _attrs: new Set(),
 
+  _isSafeAttributeName: function (name) {
+    return typeof name == "string" && /^[A-Za-z_][A-Za-z0-9._-]*$/.test(name);
+  },
+
   persist: function (name) {
+    if (!this._isSafeAttributeName(name)) {
+      return false;
+    }
+
     if (this._attrs.has(name) || ATTRIBUTES_TO_SKIP.has(name)) {
       return false;
     }
@@ -63,15 +74,47 @@ var TabAttributesInternal = {
   set: function (tab, data = {}) {
     // Clear attributes.
     for (let name of this._attrs) {
-      tab.removeAttribute(name);
+      if (!this._isSafeAttributeName(name)) {
+        this._attrs.delete(name);
+        continue;
+      }
+
+      try {
+        tab.removeAttribute(name);
+      } catch (ex) {
+        if (ex.result == Cr.NS_ERROR_ILLEGAL_VALUE) {
+          this._attrs.delete(name);
+          continue;
+        }
+        Cu.reportError(ex);
+      }
     }
 
     // Set attributes.
     for (let name in data) {
-      if (!ATTRIBUTES_TO_SKIP.has(name)) {
-        tab.setAttribute(name, data[name]);
+      if (ATTRIBUTES_TO_SKIP.has(name) || !this._isSafeAttributeName(name)) {
+        continue;
+      }
+
+      let value = data[name];
+      if (value === null || value === undefined) {
+        continue;
+      }
+
+      value = String(value);
+      if (value.indexOf("\0") != -1) {
+        value = value.replace(/\0/g, "");
+      }
+
+      try {
+        tab.setAttribute(name, value);
+      } catch (ex) {
+        if (ex.result == Cr.NS_ERROR_ILLEGAL_VALUE) {
+          this._attrs.delete(name);
+          continue;
+        }
+        Cu.reportError(ex);
       }
     }
   }
 };
-
