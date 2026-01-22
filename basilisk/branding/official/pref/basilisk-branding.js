@@ -9,7 +9,7 @@
 #define BRANDING_BASEURL basilisk-browser.org
 #define BRANDING_SITEURL www.@BRANDING_BASEURL@
 #define BRANDING_RELNOTESPATH releasenotes.html
-#define BRANDING_FIRSTRUNPATH firstrun/
+#define BRANDING_FIRSTRUNPATH firstrun.html
 #define BRANDING_APPUPDATEURL aus.@BRANDING_BASEURL@
 #define BRANDING_APPUPDATEPATH ?application=%PRODUCT%&version=%VERSION%&arch=%BUILD_TARGET%&flavor=%BUILD_SPECIAL%&toolkit=%WIDGET_TOOLKIT%&buildid=%BUILD_ID%&channel=%CHANNEL%
 
