@@ -30,8 +30,8 @@ fi
 # When not exported at all we fall back the value in the version*.txt file.
 if test -n "$BASILISK_VERSION" ; then
     if [ "$BASILISK_VERSION" = "1" ]; then
-        MOZ_APP_VERSION=52.9.2025.10.10
-        MOZ_APP_VERSION_DISPLAY=2025.10.10
+        MOZ_APP_VERSION=52.9.2026.01.23
+        MOZ_APP_VERSION_DISPLAY=2026.01.23
     else
         MOZ_APP_VERSION=52.9.$BASILISK_VERSION
         MOZ_APP_VERSION_DISPLAY=$BASILISK_VERSION
