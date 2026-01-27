@@ -67,6 +67,10 @@
 #ifdef MOZ_SHARED_MOZGLUE
 @BINPATH@/@DLL_PREFIX@mozglue@DLL_SUFFIX@
 #endif
+#if defined(XP_WIN) && defined(MOZ_MIMALLOC)
+; * needed because 32-bit also has a DLL called mimalloc-redirect32.dll
+@BINPATH@/mimalloc*@DLL_SUFFIX@
+#endif
 #ifndef MOZ_STATIC_JS
 @BINPATH@/@DLL_PREFIX@mozjs@DLL_SUFFIX@
 #endif
