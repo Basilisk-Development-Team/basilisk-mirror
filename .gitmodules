@@ -1,6 +1,6 @@
 [submodule "platform"]
 	path = platform
-	url = https://repo.palemoon.org/MoonchildProductions/UXP.git
+	url = https://github.com/Basilisk-Development-Team/UXP-mirror.git
 [submodule "thirdparty/libcxx-static"]
 	path = thirdparty/libcxx-static
 	url = https://github.com/llvm/llvm-project.git
