@@ -76,13 +76,31 @@ InternalUserscriptsService.prototype = {
     if (!win) {
       return;
     }
+    try {
+      let doc = win.document;
+      let uri = doc && doc.documentURIObject;
+      if (uri && (uri.schemeIs("chrome") || uri.schemeIs("resource"))) {
+        return;
+      }
+    } catch (e) {}
     let contentWin = win.wrappedJSObject || win;
+    let logPolyfill = function(name, source) {
+      try {
+        if (contentWin.console && typeof contentWin.console.info === "function") {
+          let suffix = source ? " (" + source + ")" : "";
+          contentWin.console.info("[internal userscripts] Loaded polyfill script: " + name + suffix);
+        }
+      } catch (e) {}
+    };
 
     try {
       Services.scriptloader.loadSubScript(
         "chrome://internaluserscripts/content/bundled-scripts/finalizationregistry-polyfill.user.js",
         contentWin
       );
+      if (contentWin.__internalUserscriptsFinalizationRegistryPolyfill) {
+        logPolyfill("FinalizationRegistry", "bundled");
+      }
     } catch (e) {
       // ignore; fallback below
     }
@@ -92,6 +110,9 @@ InternalUserscriptsService.prototype = {
         "chrome://internaluserscripts/content/bundled-scripts/intl-displaynames-polyfill.user.js",
         contentWin
       );
+      if (contentWin.__internalUserscriptsIntlDisplayNamesPolyfill) {
+        logPolyfill("Intl.DisplayNames", "bundled");
+      }
     } catch (e) {
       // ignore
     }
@@ -101,6 +122,9 @@ InternalUserscriptsService.prototype = {
         "chrome://internaluserscripts/content/bundled-scripts/imagedecode-polyfill.user.js",
         contentWin
       );
+      if (contentWin.__internalUserscriptsImageDecodePolyfill) {
+        logPolyfill("HTMLImageElement.decode", "bundled");
+      }
     } catch (e) {
       // ignore
     }
@@ -110,6 +134,9 @@ InternalUserscriptsService.prototype = {
         "chrome://internaluserscripts/content/bundled-scripts/transformstream-polyfill.user.js",
         contentWin
       );
+      if (contentWin.__internalUserscriptsTransformStreamPolyfill) {
+        logPolyfill("TransformStream", "bundled");
+      }
     } catch (e) {
       // ignore
     }
@@ -119,6 +146,9 @@ InternalUserscriptsService.prototype = {
         "chrome://internaluserscripts/content/bundled-scripts/textencoderstream-polyfill.user.js",
         contentWin
       );
+      if (contentWin.__internalUserscriptsTextEncoderStreamPolyfill) {
+        logPolyfill("TextEncoderStream", "bundled");
+      }
     } catch (e) {
       // ignore
     }
@@ -128,6 +158,9 @@ InternalUserscriptsService.prototype = {
         "chrome://internaluserscripts/content/bundled-scripts/readablestream-pipeto-polyfill.user.js",
         contentWin
       );
+      if (contentWin.__internalUserscriptsReadableStreamPipeToPolyfill) {
+        logPolyfill("ReadableStream.pipeTo", "bundled");
+      }
     } catch (e) {
       // ignore
     }
@@ -137,6 +170,9 @@ InternalUserscriptsService.prototype = {
         "chrome://internaluserscripts/content/bundled-scripts/readablestream-pipethrough-polyfill.user.js",
         contentWin
       );
+      if (contentWin.__internalUserscriptsReadableStreamPipeThroughPolyfill) {
+        logPolyfill("ReadableStream.pipeThrough", "bundled");
+      }
     } catch (e) {
       // ignore
     }
@@ -198,7 +234,12 @@ InternalUserscriptsService.prototype = {
         })();
       `;
       if (typeof contentWin.eval === "function") {
+        var hadFinalizationRegistryPolyfill = !!contentWin.__internalUserscriptsFinalizationRegistryPolyfill;
         contentWin.eval(source);
+        if (!hadFinalizationRegistryPolyfill &&
+            contentWin.__internalUserscriptsFinalizationRegistryPolyfill) {
+          logPolyfill("FinalizationRegistry", "inline fallback");
+        }
       }
     } catch (e) {
       // ignore
