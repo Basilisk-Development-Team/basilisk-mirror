@@ -3680,9 +3680,9 @@ function BrowserCustomizeToolbar() {
 function updateEditUIVisibility()
 {
 #ifdef XP_MACOSX
+  // No-op on macOS; edit UI is always considered visible.
   return;
-#endif
-
+#else
   let editMenuPopupState = document.getElementById("menu_EditPopup").state;
   let contextMenuPopupState = document.getElementById("contentAreaContextMenu").state;
   let placesContextMenuPopupState = document.getElementById("placesContext").state;
@@ -3716,6 +3716,7 @@ function updateEditUIVisibility()
     goSetCommandEnabled("cmd_delete", true);
     goSetCommandEnabled("cmd_switchTextDirection", true);
   }
+#endif
 }
 
 /**
