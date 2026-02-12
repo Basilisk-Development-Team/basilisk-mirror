@@ -37,7 +37,14 @@ InternalUserscriptsService.prototype = {
     } else if (topic === "nsPref:changed" && data === PREF_ENABLED) {
       this._updateObserverState();
     } else if (topic === "document-element-inserted") {
-      this._inject(subject && subject.defaultView);
+      let win = subject && subject.defaultView;
+      if (!win) {
+        return;
+      }
+      let self = this;
+      Services.tm.mainThread.dispatch(function() {
+        self._inject(win);
+      }, Ci.nsIThread.DISPATCH_NORMAL);
     }
   },
 
