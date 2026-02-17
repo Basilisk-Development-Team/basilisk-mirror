@@ -126,6 +126,30 @@ InternalUserscriptsService.prototype = {
 
     try {
       Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/elementfrompoint-finite-polyfill.user.js",
+        contentWin
+      );
+      if (contentWin.__internalUserscriptsElementFromPointFinitePolyfill) {
+        logPolyfill("Document.elementFromPoint finite-args shim", "bundled");
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/getanimations-polyfill.user.js",
+        contentWin
+      );
+      if (contentWin.__internalUserscriptsGetAnimationsPolyfill) {
+        logPolyfill("getAnimations", "bundled");
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      Services.scriptloader.loadSubScript(
         "chrome://internaluserscripts/content/bundled-scripts/imagedecode-polyfill.user.js",
         contentWin
       );
