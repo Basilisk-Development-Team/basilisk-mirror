@@ -151,6 +151,18 @@ InternalUserscriptsService.prototype = {
 
     try {
       Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/webauthn-microsoft-shim.user.js",
+        contentWin,
+      );
+      if (contentWin.__internalUserscriptsWebAuthnMicrosoftShim) {
+        logPolyfill("WebAuthn Microsoft unsupported shim", "bundled");
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      Services.scriptloader.loadSubScript(
         "chrome://internaluserscripts/content/bundled-scripts/elementfrompoint-finite-polyfill.user.js",
         contentWin,
       );

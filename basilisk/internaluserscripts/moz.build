@@ -27,4 +27,5 @@ FINAL_TARGET_FILES['internal-userscripts'] += [
     'bundled-scripts/readablestream-pipeto-polyfill.user.js',
     'bundled-scripts/textencoderstream-polyfill.user.js',
     'bundled-scripts/transformstream-polyfill.user.js',
+    'bundled-scripts/webauthn-microsoft-shim.user.js',
 ]

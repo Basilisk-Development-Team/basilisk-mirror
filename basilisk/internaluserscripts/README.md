@@ -18,6 +18,7 @@ This directory contains a minimal, built-in userscript loader used to ship polyf
 - `readablestream-pipeto-polyfill.user.js`: best-effort ReadableStream `pipeTo` implementation using reader/writer pumping. It exposes `window.__internalUserscriptsReadableStreamPipeToPolyfill = true` for verification.
 - `textencoderstream-polyfill.user.js`: best-effort TextEncoderStream implementation backed by TransformStream. It exposes `window.__internalUserscriptsTextEncoderStreamPolyfill = true` for verification.
 - `transformstream-polyfill.user.js`: minimal TransformStream polyfill backed by ReadableStream with a lightweight WritableStream shim. It exposes `window.__internalUserscriptsTransformStreamPolyfill = true` for verification.
+- `webauthn-microsoft-shim.user.js`: Microsoft-domain WebAuthn capability shim that reports WebAuthn as unsupported by providing rejecting `navigator.credentials.create/get` stubs (when `navigator.credentials` is missing) and a `PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()` fallback that resolves `false`. It exposes `window.__internalUserscriptsWebAuthnMicrosoftShim = true` for verification.
 
 ## Adding new polyfills
 1. Drop a `*.user.js` file into `bundled-scripts/` with the appropriate header.
