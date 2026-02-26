@@ -151,6 +151,18 @@ InternalUserscriptsService.prototype = {
 
     try {
       Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/intl-segmenter-polyfill.user.js",
+        contentWin,
+      );
+      if (contentWin.__internalUserscriptsIntlSegmenterPolyfill) {
+        logPolyfill("Intl.Segmenter", "bundled");
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      Services.scriptloader.loadSubScript(
         "chrome://internaluserscripts/content/bundled-scripts/webauthn-microsoft-shim.user.js",
         contentWin,
       );
