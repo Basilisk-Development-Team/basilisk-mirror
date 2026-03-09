@@ -6,6 +6,10 @@
   min-height: 12em;
 }
 
+label[control="containersList"] {
+  font-weight: bold;
+}
+
 #containerActions {
   margin-inline-start: 8px;
 }

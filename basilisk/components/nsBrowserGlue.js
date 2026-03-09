@@ -346,9 +346,11 @@ BrowserGlue.prototype = {
                           hiddenList.join(","));
         }
         break;
+#ifdef MOZ_ENABLE_NPAPI
       case "flash-plugin-hang":
         this._handleFlashHang();
         break;
+#endif
       case "xpi-signature-changed":
         let disabledAddons = JSON.parse(data).disabled;
         AddonManager.getAddonsByIDs(disabledAddons, (addons) => {
@@ -405,12 +407,16 @@ BrowserGlue.prototype = {
     os.addObserver(this, "profile-before-change", false);
     os.addObserver(this, "browser-search-engine-modified", false);
     os.addObserver(this, "restart-in-safe-mode", false);
+#ifdef MOZ_ENABLE_NPAPI
     os.addObserver(this, "flash-plugin-hang", false);
+#endif
     os.addObserver(this, "xpi-signature-changed", false);
     os.addObserver(this, "autocomplete-did-enter-text", false);
     Services.prefs.addObserver(PREF_INTERNAL_USERSCRIPTS_ENABLED, this, false);
 
+#ifdef MOZ_ENABLE_NPAPI
     this._flashHangCount = 0;
+#endif
     this._firstWindowReady = new Promise(resolve => this._firstWindowLoaded = resolve);
   },
 
@@ -445,7 +451,9 @@ BrowserGlue.prototype = {
     os.removeObserver(this, "handle-xul-text-link");
     os.removeObserver(this, "profile-before-change");
     os.removeObserver(this, "browser-search-engine-modified");
+#ifdef MOZ_ENABLE_NPAPI
     os.removeObserver(this, "flash-plugin-hang");
+#endif
     os.removeObserver(this, "xpi-signature-changed");
     os.removeObserver(this, "autocomplete-did-enter-text");
     Services.prefs.removeObserver(PREF_INTERNAL_USERSCRIPTS_ENABLED, this);
@@ -2152,6 +2160,7 @@ BrowserGlue.prototype = {
     AlertsService.showAlertNotification(null, title, body, true, null, clickCallback);
   },
 
+#ifdef MOZ_ENABLE_NPAPI
   _handleFlashHang: function() {
     ++this._flashHangCount;
     if (this._flashHangCount < 2) {
@@ -2192,6 +2201,7 @@ BrowserGlue.prototype = {
     nb.appendNotification(message, "flash-hang", null,
                           nb.PRIORITY_INFO_MEDIUM, buttons);
   },
+#endif /* MOZ_ENABLE_NPAPI */
 
   // for XPCOM
   classID:          Components.ID("{eab9012e-5f74-4cbc-b2b5-a590235513cc}"),

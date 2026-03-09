@@ -62,6 +62,42 @@
     var signal = options && options.signal;
     var abortHandler = null;
 
+    function safeReleaseLock(stream, maybeReader, lockedProp) {
+      if (!maybeReader) {
+        return;
+      }
+      var isLocked = true;
+      if (typeof lockedProp === "function") {
+        try {
+          var lockedValue = lockedProp();
+          if (typeof lockedValue === "boolean") {
+            isLocked = lockedValue;
+          }
+        } catch (e) {
+          isLocked = true;
+        }
+      }
+      if (!isLocked) {
+        return;
+      }
+      var releaseFn = null;
+      try {
+        releaseFn = maybeReader.releaseLock;
+      } catch (e) {
+        releaseFn = null;
+      }
+      if (typeof releaseFn === "function") {
+        try { releaseFn.call(maybeReader); } catch (e) {}
+      }
+    }
+
+    function releaseLocks() {
+      safeReleaseLock(source, reader, function () { return source.locked; });
+      safeReleaseLock(writable, writer, function () { return writable.locked; });
+      reader = null;
+      writer = null;
+    }
+
     function cleanupAbort() {
       if (abortHandler && signal && typeof signal.removeEventListener === "function") {
         signal.removeEventListener("abort", abortHandler);
@@ -81,6 +117,7 @@
       if (signal.aborted) {
         abortHandler();
         cleanupAbort();
+        releaseLocks();
         return;
       }
       if (typeof signal.addEventListener === "function") {
@@ -89,14 +126,32 @@
     }
 
     function pump() {
-      return reader.read().then(function (result) {
+      var readPromise;
+      try {
+        readPromise = reader.read();
+      } catch (e) {
+        return PromiseCtor.reject(e);
+      }
+      return readPromise.then(function (result) {
         if (result.done) {
           if (!preventClose) {
-            return writer.close();
+            var closePromise;
+            try {
+              closePromise = writer.close();
+            } catch (e) {
+              return PromiseCtor.reject(e);
+            }
+            return PromiseCtor.resolve(closePromise);
           }
           return undefined;
         }
-        return PromiseCtor.resolve(writer.write(result.value)).then(pump);
+        var writePromise;
+        try {
+          writePromise = writer.write(result.value);
+        } catch (e) {
+          return PromiseCtor.reject(e);
+        }
+        return PromiseCtor.resolve(writePromise).then(pump);
       });
     }
 
@@ -107,7 +162,13 @@
       if (!preventAbort) {
         try { writer.abort(err); } catch (e) {}
       }
-    }).then(cleanupAbort, cleanupAbort);
+    }).then(function () {
+      cleanupAbort();
+      releaseLocks();
+    }, function () {
+      cleanupAbort();
+      releaseLocks();
+    });
   }
 
   function pipeThrough(transform, options) {

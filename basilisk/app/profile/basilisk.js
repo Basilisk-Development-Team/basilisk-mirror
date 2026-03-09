@@ -487,6 +487,11 @@ pref("dom.enable_performance_navigation_timing", false);
 // beginning to expect this to be present.
 pref("dom.enable_performance_observer", true);
 
+// This pref controls whether getAnimations is enabled or not.
+// We enable it by default, unlike UXP and Pale Moon because several sites are
+// beginning to expect this to be present.
+pref("dom.animations-api.getAnimations", true);
+
 // Controls Whether <dialog> element support is enabled or not.
 // GitHub is broken without this enabled so we set this to true.
 // See https://developer.mozilla.org/en-US/docs/Web/HTML/Element/dialog
@@ -680,6 +685,7 @@ pref("findbar.modalHighlight", true);
 // Tracks when accessibility is loaded into the previous session.
 pref("accessibility.loadedInLastSession", false);
 
+#ifdef MOZ_ENABLE_NPAPI
 pref("plugins.click_to_play", true);
 pref("plugins.testmode", false);
 
@@ -695,6 +701,7 @@ pref("plugin.state.java", 1);
 
 // On ESR only, we re-enable all plugins instead of only loading Flash.
 pref("plugin.load_flash_only", false);
+#endif
 
 #ifdef XP_MACOSX
 pref("browser.preferences.animateFadeIn", true);
@@ -946,6 +953,7 @@ pref("browser.privatebrowsing.autostart", false);
 // bookmarking dialog
 pref("browser.bookmarks.editDialog.firstEditField", "namePicker");
 
+#ifdef MOZ_ENABLE_NPAPI
 pref("dom.ipc.plugins.flash.disable-protected-mode", false);
 
 // Feature-disable the protected-mode auto-flip
@@ -953,6 +961,7 @@ pref("browser.flash-protected-mode-flip.enable", false);
 
 // Whether we've already flipped protected mode automatically
 pref("browser.flash-protected-mode-flip.done", false);
+#endif
 
 pref("dom.ipc.shims.enabledWarnings", false);
 

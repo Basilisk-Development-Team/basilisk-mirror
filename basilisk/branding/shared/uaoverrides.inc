@@ -27,8 +27,6 @@ pref("@GUAO_PREF@.canva.com","Mozilla/5.0 (%OS_SLICE% rv:@GK_VERSION@) @GK_SLICE
 pref("@GUAO_PREF@.chase.com","Mozilla/5.0 (%OS_SLICE% rv:102.0) @GK_SLICE@ Firefox/102.0");
 pref("@GUAO_PREF@.dropbox.com","Mozilla/5.0 (%OS_SLICE% rv:68.9) @GK_SLICE@ Firefox/68.9 (Basilisk)");
 pref("@GUAO_PREF@.kroger.com","Mozilla/5.0 (%OS_SLICE% rv:86.0) @GK_SLICE@ Firefox/86.0 (Basilisk)");
-pref("@GUAO_PREF@.live.com","Mozilla/5.0 (%OS_SLICE% rv:@GK_VERSION@) @GK_SLICE@ @FX_SLICE@ (Basilisk)");
-pref("@GUAO_PREF@.msn.com","Mozilla/5.0 (%OS_SLICE% rv:@GK_VERSION@) @GK_SLICE@ @FX_SLICE@ (Basilisk)");
 pref("@GUAO_PREF@.netteller.com","Mozilla/5.0 (%OS_SLICE% rv:@GK_VERSION@) @GK_SLICE@ @FX_SLICE@");
 pref("@GUAO_PREF@.patientaccess.com","Mozilla/5.0 (%OS_SLICE% rv:60.0) @GK_SLICE@ Firefox/60.0 @APP_SLICE@");
 pref("@GUAO_PREF@.outlook.com","Mozilla/5.0 (%OS_SLICE% rv:@GK_VERSION@) @GK_SLICE@ @FX_SLICE@ (Basilisk)");
@@ -75,7 +73,7 @@ pref("@GUAO_PREF@.ldoceonline.com","Mozilla/5.0 (%OS_SLICE% rv:@GK_VERSION@) @GK
 pref("@GUAO_PREF@.yuku.com","Mozilla/5.0 (%OS_SLICE% rv:@GK_VERSION@) @GK_SLICE@ @FX_SLICE@ @APP_SLICE@");
 
 // Domains Basilisk overrides that are not in the Pale Moon overrides
-pref("@GUAO_PREF@.slack.com","Mozilla/5.0 (%OS_SLICE% rv:120.0) @GK_SLICE@ Firefox/120.0 @APP_SLICE@");
+pref("@GUAO_PREF@.slack.com","Mozilla/5.0 (%OS_SLICE% rv:140.0) @GK_SLICE@ Firefox/140.0 @APP_SLICE@");
 
 // Domains that require a Pale Moon user agent override
 //pref("@GUAO_PREF@.challenges.cloudflare.com","Mozilla/5.0 (%OS_SLICE% rv:@GK_VERSION@) @GK_SLICE@ @UXP_VERSION_SLICE@ @FX_SLICE@ @PM_SLICE@");

@@ -151,7 +151,13 @@
       if (aborted) {
         return PromiseCtor.reject(abortReason);
       }
-      return reader.read().then(function (result) {
+      var readPromise;
+      try {
+        readPromise = reader.read();
+      } catch (e) {
+        return PromiseCtor.reject(e);
+      }
+      return readPromise.then(function (result) {
         if (aborted) {
           throw abortReason;
         }
@@ -161,7 +167,13 @@
           }
           return undefined;
         }
-        return PromiseCtor.resolve(writer.write(result.value)).then(pump);
+        var writePromise;
+        try {
+          writePromise = writer.write(result.value);
+        } catch (e) {
+          return PromiseCtor.reject(e);
+        }
+        return PromiseCtor.resolve(writePromise).then(pump);
       });
     }
 
