@@ -2,10 +2,10 @@ name: Build Basilisk MacOS
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-      - release
+  # push:
+  #   branches:
+  #     - master
+  #     - release
 
 jobs:
   build-basilisk:
@@ -40,7 +40,7 @@ jobs:
       - name: Install Dependencies
         run: |
           brew install yasm pyenv
-          
+
           # Setup Python 2 with pyenv
           pyenv install 2.7.18
           pyenv global 2.7.18
@@ -52,11 +52,11 @@ jobs:
         run: |
           # Use Python 2 we installed earler
           export PATH="$(pyenv root)/shims:${PATH}"
-          
+
           ./mach configure
           ./mach build
           ./mach package
-          
+
       - uses: actions/upload-artifact@v4
         with:
           name: basilisk-macos-${{ matrix.config.arch }}

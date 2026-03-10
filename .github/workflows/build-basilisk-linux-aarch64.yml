@@ -1,11 +1,11 @@
 name: Build Basilisk Linux aarch64
 
-on:  
+on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-      - release
+  # push:
+  #   branches:
+  #     - master
+  #     - release
 
 jobs:
   build-basilisk:
@@ -15,22 +15,22 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - name: GTK3 aarch64 GCC
-          gtk: gtk3
-          arch: aarch64
-          compiler: gcc
-        - name: GTK2 aarch64 GCC
-          gtk: gtk2
-          arch: aarch64
-          compiler: gcc
-        - name: GTK3 aarch64 Clang+LTO
-          gtk: gtk3
-          arch: aarch64
-          compiler: clang_lto
-        - name: GTK2 aarch64 Clang+LTO
-          gtk: gtk2
-          arch: aarch64
-          compiler: clang_lto
+          - name: GTK3 aarch64 GCC
+            gtk: gtk3
+            arch: aarch64
+            compiler: gcc
+          - name: GTK2 aarch64 GCC
+            gtk: gtk2
+            arch: aarch64
+            compiler: gcc
+          - name: GTK3 aarch64 Clang+LTO
+            gtk: gtk3
+            arch: aarch64
+            compiler: clang_lto
+          - name: GTK2 aarch64 Clang+LTO
+            gtk: gtk2
+            arch: aarch64
+            compiler: clang_lto
 
     steps:
       - name: Free Disk Space
