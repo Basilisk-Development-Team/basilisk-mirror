@@ -1212,6 +1212,11 @@ pref("browser.uiCustomization.state", "");
 pref("ui.key.menuAccessKeyFocuses", true);
 #endif
 
+// On MacOS 10.6 and earlier, enable the window resize grip
+#ifdef XP_MACOSX
+pref("ui.mouse.resize_grip", true);
+#endif
+
 #ifdef MOZ_GMP
 // Decode using Gecko Media Plugins in <video>, if a system decoder is not
 // availble and the preferred GMP is available.
