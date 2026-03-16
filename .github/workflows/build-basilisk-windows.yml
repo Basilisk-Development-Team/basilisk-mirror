@@ -2,10 +2,10 @@ name: Build Basilisk Windows
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-      - release
+  # push:
+  #   branches:
+  #     - master
+  #     - release
 
 jobs:
   build-basilisk-windows:
@@ -15,13 +15,13 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - name: Windows-Win64
-          win: win64
-          arch: x86_64
+          - name: Windows-Win64
+            win: win64
+            arch: x86_64
 
-        - name: Windows-Win32
-          win: win32
-          arch: i686
+          - name: Windows-Win32
+            win: win32
+            arch: i686
 
     steps:
       - name: List available VC Redist folders (for debugging)
@@ -37,7 +37,7 @@ jobs:
       - uses: ChristopheLav/windows-sdk-install@v1
         with:
           version-sdk: ${{ matrix.config.arch == 'x86_64' && '26100' || '22621' }}
-          features: 'OptionId.DesktopCPPx64,OptionId.DesktopCPPx86'
+          features: "OptionId.DesktopCPPx64,OptionId.DesktopCPPx86"
 
       - uses: actions/checkout@v4
         with:
@@ -51,8 +51,8 @@ jobs:
         if: github.ref == 'refs/heads/release'
         shell: pwsh
         run: |
-            (Get-Content .\.mozconfig) -replace 'disable-updater', 'enable-updater' | Set-Content .\.mozconfig
-            (Get-Content .\.mozconfig) -replace 'disable-official-branding', 'enable-official-branding' | Set-Content .\.mozconfig
+          (Get-Content .\.mozconfig) -replace 'disable-updater', 'enable-updater' | Set-Content .\.mozconfig
+          (Get-Content .\.mozconfig) -replace 'disable-official-branding', 'enable-official-branding' | Set-Content .\.mozconfig
 
       - name: debug dirs
         run: |

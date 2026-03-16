@@ -2,10 +2,10 @@ name: Build Basilisk Linux i686
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-      - release
+  # push:
+  #   branches:
+  #     - master
+  #     - release
 
 jobs:
   build-basilisk:

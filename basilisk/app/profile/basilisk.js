@@ -378,7 +378,7 @@ pref("browser.link.open_newwindow.override.external", -1);
 // 0: no restrictions - divert everything
 // 1: don't divert window.open at all
 // 2: don't divert window.open with features
-pref("browser.link.open_newwindow.restriction", 2);
+pref("browser.link.open_newwindow.restriction", 0);
 
 // If true, this pref causes windows opened by window.open to be forced into new
 // tabs (rather than potentially opening separate windows, depending on
@@ -1210,6 +1210,11 @@ pref("browser.uiCustomization.state", "");
 // On GTK, we now default to showing the menubar only when alt is pressed:
 #ifdef MOZ_WIDGET_GTK
 pref("ui.key.menuAccessKeyFocuses", true);
+#endif
+
+// On MacOS 10.6 and earlier, enable the window resize grip
+#ifdef XP_MACOSX
+pref("ui.mouse.resize_grip", true);
 #endif
 
 #ifdef MOZ_GMP
