@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $URL: http://pypng.googlecode.com/svn/trunk/code/pipcomposite $
 # $Rev: 208 $
 # pipcomposite
@@ -33,8 +33,7 @@ def composite(out, inp, background):
     # Convert to tuple and normalise to same range as source.
     background = rgbhex(background)
     maxval = float(2**info['bitdepth'] - 1)
-    background = map(lambda x: int(0.5 + x*maxval/65535.0),
-                     background)
+    background = [int(0.5 + x*maxval/65535.0) for x in background]
     # Repeat background so that it's a whole row of sample values.
     background *= w
 
@@ -43,15 +42,15 @@ def composite(out, inp, background):
             # Remove alpha from row, then create a list with one alpha
             # entry _per channel value_.
             # Squirrel the alpha channel away (and normalise it).
-            t = map(lambda x: x/maxval, row[3::4])
+            t = [x/maxval for x in row[3::4]]
             row = list(row)
             del row[3::4]
             alpha = row[:]
             for i in range(3):
                 alpha[i::3] = t
             assert len(alpha) == len(row) == len(background)
-            yield map(lambda a,v,b: int(0.5 + a*v + (1.0-a)*b),
-                      alpha, row, background)
+            yield list(map(lambda a,v,b: int(0.5 + a*v + (1.0-a)*b),
+                      alpha, row, background))
 
     w = png.Writer(**outinfo)
     w.write(out, iterrow())
@@ -81,7 +80,7 @@ def rgbhex(s):
     if len(s) == 12:
         l[:] = s
     s = ''.join(l)
-    return map(lambda x: int(x, 16), (s[:4], s[4:8], s[8:]))
+    return [int(x, 16) for x in (s[:4], s[4:8], s[8:])]
 
 class Usage(Exception):
     pass
@@ -99,22 +98,22 @@ def main(argv=None):
         try:
             opt,arg = getopt.getopt(argv, '',
                                     ['background='])
-        except getopt.error, msg:
+        except getopt.error as msg:
             raise Usage(msg)
         background = '#000'
         for o,v in opt:
             if o in ['--background']:
                 background = v
-    except Usage, err:
-        print >>sys.stderr, __doc__
-        print >>sys.stderr, str(err)
+    except Usage as err:
+        print(__doc__, file=sys.stderr)
+        print(str(err), file=sys.stderr)
         return 2
 
     if len(arg) > 0:
         f = open(arg[0], 'rb')
     else:
-        f = sys.stdin
-    return composite(sys.stdout, f, background)
+        f = getattr(sys.stdin, 'buffer', sys.stdin)
+    return composite(getattr(sys.stdout, 'buffer', sys.stdout), f, background)
 
 
 if __name__ == '__main__':

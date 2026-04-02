@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $URL: http://pypng.googlecode.com/svn/trunk/code/pnghist $
 # $Rev: 153 $
 # PNG Histogram
@@ -59,7 +59,7 @@ def hist(out, inp, verbose=None):
     w = png.Writer(len(level), h, gamma=1.0,
       greyscale=True, alpha=False, bitdepth=outbitdepth)
     w.write(out, genrow())
-    if verbose: print >>verbose, level
+    if verbose: print(level, file=verbose)
 
 def main(argv=None):
     import sys
@@ -70,10 +70,10 @@ def main(argv=None):
     opt,arg = getopt.getopt(argv, '')
 
     if len(arg) < 1:
-        f = sys.stdin
+        f = getattr(sys.stdin, 'buffer', sys.stdin)
     else:
-        f = open(arg[0])
-    hist(sys.stdout, f)
+        f = open(arg[0], 'rb')
+    hist(getattr(sys.stdout, 'buffer', sys.stdout), f)
 
 if __name__ == '__main__':
     main()

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $URL: http://pypng.googlecode.com/svn/trunk/code/pdsimgtopng $
 # $Rev: 154 $
 # PDS Image to PNG
@@ -66,7 +66,7 @@ def img(inp):
     if sample_type == 'MSB_UNSIGNED_INTEGER':
         fmt = '>H'
     else:
-        raise 'Unknown sample type: %s.' % sample_type
+        raise FormatError('Unknown sample type: %s.' % sample_type)
     sample_bytes = (1,2)[bitdepth > 8]
     row_bytes = sample_bytes * width
     fmt = fmt[:1] + str(width) + fmt[1:]
@@ -88,10 +88,10 @@ def main(argv=None):
     if len(arg) >= 1:
         f = open(arg[0], 'rb')
     else:
-        f = sys.stdin
+        f = getattr(sys.stdin, 'buffer', sys.stdin)
     pixels,info = img(f)
     w = png.Writer(**info)
-    w.write(sys.stdout, pixels)
+    w.write(getattr(sys.stdout, 'buffer', sys.stdout), pixels)
 
 if __name__ == '__main__':
     main()

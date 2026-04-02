@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $URL: http://pypng.googlecode.com/svn/trunk/code/pipasgrey $
 # $Rev: 187 $
 
@@ -66,8 +66,8 @@ def main(argv=None):
     if len(argv) > 0:
         f = open(argv[0], 'rb')
     else:
-        f = sys.stdin
-    return asgrey(sys.stdout, f, quiet)
+        f = getattr(sys.stdin, 'buffer', sys.stdin)
+    return asgrey(getattr(sys.stdout, 'buffer', sys.stdout), f, quiet)
 
 if __name__ == '__main__':
     main()

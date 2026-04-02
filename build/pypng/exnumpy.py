@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $URL: http://pypng.googlecode.com/svn/trunk/code/exnumpy.py $
 # $Rev: 126 $
 
@@ -57,7 +57,7 @@ assert plane_count == 3
 # to hold any pixel value for any PNG image but uses 4 bytes per value when
 # 1 or 2 would be enough.
 # --- extract 001 start
-image_2d = numpy.vstack(itertools.imap(numpy.uint16, pngdata))
+image_2d = numpy.vstack(map(numpy.uint16, pngdata))
 # --- extract 001 end
 # Do not be tempted to use ``numpy.asarray``; when passed an iterator
 # (`pngdata` is often an iterator) it will attempt to create a size 1

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $URL: http://pypng.googlecode.com/svn/trunk/code/iccp.py $
 # $Rev: 182 $
 
@@ -28,11 +28,26 @@
 # [ICC 2004] ICC Specification ICC.1:2004-10 (Profile version 4.2.0.0)
 
 import struct
+import warnings
+import zlib
 
 import png
 
 class FormatError(Exception):
     pass
+
+
+def _asciistr(value):
+    if isinstance(value, bytes):
+        return value.decode('latin1')
+    return value
+
+
+def _asciibytes(value):
+    if isinstance(value, bytes):
+        return value
+    return value.encode('latin1')
+
 
 class Profile:
     """An International Color Consortium Profile (ICC Profile)."""
@@ -49,7 +64,7 @@ class Profile:
         if len(profile) < 128:
             raise FormatError("ICC Profile is too short.")
         size, = struct.unpack('>L', profile[:4])
-        profile += inp.read(d['size'] - len(profile))
+        profile += inp.read(size - len(profile))
         return self.fromString(profile, name)
 
     def fromString(self, profile, name='<unknown>'):
@@ -58,9 +73,9 @@ class Profile:
         if len(profile) < 128:
             raise FormatError("ICC Profile is too short.")
         d.update(
-          zip(['size', 'preferredCMM', 'version',
+          list(zip(['size', 'preferredCMM', 'version',
                'profileclass', 'colourspace', 'pcs'],
-              struct.unpack('>L4sL4s4s4s', profile[:24])))
+              struct.unpack('>L4sL4s4s4s', profile[:24]))))
         if len(profile) < d['size']:
             warnings.warn(
               'Profile size declared to be %d, but only got %d bytes' %
@@ -68,14 +83,17 @@ class Profile:
         d['version'] = '%08x' % d['version']
         d['created'] = readICCdatetime(profile[24:36])
         d.update(
-          zip(['acsp', 'platform', 'flag', 'manufacturer', 'model'],
-              struct.unpack('>4s4s3L', profile[36:56])))
+          list(zip(['acsp', 'platform', 'flag', 'manufacturer', 'model'],
+              struct.unpack('>4s4s3L', profile[36:56]))))
+        for key in ('preferredCMM', 'profileclass', 'colourspace', 'pcs',
+                    'acsp', 'platform', 'manufacturer'):
+            d[key] = _asciistr(d[key])
         if d['acsp'] != 'acsp':
             warnings.warn('acsp field not present (not an ICC Profile?).')
-        d['deviceattributes'] = profile[56:64]
+        d['deviceattributes'], = struct.unpack('>Q', profile[56:64])
         d['intent'], = struct.unpack('>L', profile[64:68])
         d['pcsilluminant'] = readICCXYZNumber(profile[68:80])
-        d['creator'] = profile[80:84]
+        d['creator'] = _asciistr(profile[80:84])
         d['id'] = profile[84:100]
         ntags, = struct.unpack('>L', profile[128:132])
         d['ntags'] = ntags
@@ -89,7 +107,7 @@ class Profile:
         # the ICC spec.
         
         # Convert (sig,offset,size) triples into (sig,value) pairs.
-        rawtag = map(lambda x: (x[0], profile[x[1]:x[1]+x[2]]), tt)
+        rawtag = [(_asciistr(x[0]), profile[x[1]:x[1]+x[2]]) for x in tt]
         self.rawtagtable = rawtag
         self.rawtagdict = dict(rawtag)
         tag = dict()
@@ -130,7 +148,7 @@ class Profile:
     def _addTags(self, **k):
         """Helper for :meth:`addTags`."""
 
-        for tag, thing in k.items():
+        for tag, thing in list(k.items()):
             if not isinstance(thing, (tuple, list)):
                 thing = (thing,)
             typetag = defaulttagtype[tag]
@@ -141,7 +159,7 @@ class Profile:
         """Write ICC Profile to the file."""
 
         if not self.rawtagtable:
-            self.rawtagtable = self.rawtagdict.items()
+            self.rawtagtable = list(self.rawtagdict.items())
         tags = tagblock(self.rawtagtable)
         self.writeHeader(out, 128 + len(tags))
         out.write(tags)
@@ -164,7 +182,7 @@ class Profile:
                 return
             d[key] = value
 
-        z = '\x00' * 4
+        z = b'\x00' * 4
         defaults = dict(preferredCMM=z,
                         version='02000000',
                         profileclass=z,
@@ -181,19 +199,21 @@ class Profile:
                         pcsilluminant=encodefuns()['XYZ'](*D50()),
                         creator=z,
                         )
-        for k,v in defaults.items():
+        for k,v in list(defaults.items()):
             defaultkey(self.d, k, v)
 
-        hl = map(self.d.__getitem__,
+        hl = list(map(self.d.__getitem__,
                  ['preferredCMM', 'version', 'profileclass', 'colourspace',
                   'pcs', 'created', 'acsp', 'platform', 'flag',
                   'manufacturer', 'model', 'deviceattributes', 'intent',
-                  'pcsilluminant', 'creator'])
+                  'pcsilluminant', 'creator']))
         # Convert to struct.pack input
         hl[1] = int(hl[1], 16)
+        for idx in (0, 2, 3, 4, 6, 7, 9, 14):
+            hl[idx] = _asciibytes(hl[idx])
 
         out.write(struct.pack('>L4sL4s4s4s12s4s4sL4sLQL12s4s', size, *hl))
-        out.write('\x00' * 44)
+        out.write(b'\x00' * 44)
         return self
 
 def encodefuns():
@@ -208,16 +228,16 @@ def encodefuns():
         filled in with the string `ascii`, the Unicode and ScriptCode parts
         are empty."""
 
-        ascii += '\x00'
+        ascii = _asciibytes(ascii) + b'\x00'
         l = len(ascii)
 
         return struct.pack('>L%ds2LHB67s' % l,
-                           l, ascii, 0, 0, 0, 0, '')
+                           l, ascii, 0, 0, 0, 0, b'')
 
     def text(ascii):
         """Return textType [ICC 2001] 6.5.18."""
 
-        return ascii + '\x00'
+        return _asciibytes(ascii) + b'\x00'
 
     def curv(f=None, n=256):
         """Return a curveType, [ICC 2001] 6.5.3.  If no arguments are
@@ -245,7 +265,7 @@ def encodefuns():
         return struct.pack('>L%dH' % n, n, *table)
 
     def XYZ(*l):
-        return struct.pack('>3l', *map(fs15f16, l))
+        return struct.pack('>3l', *list(map(fs15f16, l)))
 
     return locals()
 
@@ -311,11 +331,11 @@ def encode(tsig, *l):
 
     fun = encodefuns()
     if tsig not in fun:
-        raise "No encoder for type %r." % tsig
+        raise ValueError("No encoder for type %r." % tsig)
     v = fun[tsig](*l)
     # Padd tsig out with spaces.
-    tsig = (tsig + '   ')[:4]
-    return tsig + '\x00'*4 + v
+    tsig = _asciibytes((tsig + '   ')[:4])
+    return tsig + b'\x00'*4 + v
 
 def tagblock(tag):
     """`tag` should be a list of (*signature*, *element*) pairs, where
@@ -336,30 +356,30 @@ def tagblock(tag):
     # string so far).
     offset = 128 + tablelen + 4
     # The table.  As a string.
-    table = ''
+    table = b''
     # The element data
-    element = ''
+    element = b''
     for k,v in tag:
-        table += struct.pack('>4s2L', k, offset + len(element), len(v))
+        table += struct.pack('>4s2L', _asciibytes(k), offset + len(element), len(v))
         element += v
     return struct.pack('>L', n) + table + element
 
 def iccp(out, inp):
     profile = Profile().fromString(*profileFromPNG(inp))
-    print >>out, profile.d
-    print >>out, map(lambda x: x[0], profile.rawtagtable)
-    print >>out, profile.tag
+    print(profile.d, file=out)
+    print([x[0] for x in profile.rawtagtable], file=out)
+    print(profile.tag, file=out)
 
 def profileFromPNG(inp):
     """Extract profile from PNG file.  Return (*profile*, *name*)
     pair."""
     r = png.Reader(file=inp)
     _,chunk = r.chunk('iCCP')
-    i = chunk.index('\x00')
-    name = chunk[:i]
+    i = chunk.index(b'\x00')
+    name = chunk[:i].decode('latin1')
     compression = chunk[i+1]
-    assert compression == chr(0)
-    profile = chunk[i+2:].decode('zlib')
+    assert compression == 0
+    profile = zlib.decompress(chunk[i+2:])
     return profile, name
 
 def iccpout(out, inp):
@@ -409,7 +429,7 @@ def s15f16l(s):
     # values are preserved.
     n = len(s)//4
     t = struct.unpack('>%dl' % n, s)
-    return map((2**-16).__mul__, t)
+    return list(map((2**-16).__mul__, t))
 
 # Several types and their byte encodings are defined by [ICC 2004]
 # section 10.  When encoded, a value begins with a 4 byte type
@@ -438,13 +458,13 @@ def RDXYZ(s):
     """Convert ICC XYZType to rank 1 array of trimulus values."""
 
     # See [ICC 2001] 6.5.26
-    assert s[0:4] == 'XYZ '
+    assert s[0:4] == b'XYZ '
     return readICCXYZNumber(s[8:])
 
 def RDsf32(s):
     """Convert ICC s15Fixed16ArrayType to list of float."""
     # See [ICC 2004] 10.18
-    assert s[0:4] == 'sf32'
+    assert s[0:4] == b'sf32'
     return s15f16l(s[8:])
 
 def RDmluc(s):
@@ -456,7 +476,7 @@ def RDmluc(s):
     language/country code will appear more than once with different
     strings, but the ICC standard does not prohibit it."""
     # See [ICC 2004] 10.13
-    assert s[0:4] == 'mluc'
+    assert s[0:4] == b'mluc'
     n,sz = struct.unpack('>2L', s[8:16])
     assert sz == 12
     record = []
@@ -471,13 +491,13 @@ def RDtext(s):
     # Note: type not specified or used in [ICC 2004], only in older
     # [ICC 2001].
     # See [ICC 2001] 6.5.18
-    assert s[0:4] == 'text'
+    assert s[0:4] == b'text'
     return s[8:-1]
 
 def RDcurv(s):
     """Convert ICC curveType."""
     # See [ICC 2001] 6.5.3
-    assert s[0:4] == 'curv'
+    assert s[0:4] == b'curv'
     count, = struct.unpack('>L', s[8:12])
     if count == 0:
         return dict(gamma=1)
@@ -490,7 +510,7 @@ def RDvcgt(s):
     """Convert Apple CMVideoCardGammaType."""
     # See
     # http://developer.apple.com/documentation/GraphicsImaging/Reference/ColorSync_Manager/Reference/reference.html#//apple_ref/c/tdef/CMVideoCardGammaType
-    assert s[0:4] == 'vcgt'
+    assert s[0:4] == b'vcgt'
     tagtype, = struct.unpack('>L', s[8:12])
     if tagtype != 0:
         return s[8:]
@@ -513,7 +533,7 @@ def RDvcgt(s):
 def group(s, n):
     # See
     # http://www.python.org/doc/2.6/library/functions.html#zip
-    return zip(*[iter(s)]*n)
+    return list(zip(*[iter(s)]*n))
 
 
 def main(argv=None):
@@ -526,7 +546,7 @@ def main(argv=None):
     if len(arg) > 0:
         inp = open(arg[0], 'rb')
     else:
-        inp = sys.stdin
+        inp = getattr(sys.stdin, 'buffer', sys.stdin)
     for o,v in opt:
         if o == '-o':
             f = open(v, 'wb')

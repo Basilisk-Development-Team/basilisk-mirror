@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $URL: http://pypng.googlecode.com/svn/trunk/code/pngchunk $
 # $Rev: 156 $
 # pngchunk
@@ -6,6 +6,7 @@
 
 import struct
 import warnings
+import zlib
 
 # Local module.
 import png
@@ -57,6 +58,8 @@ def chunk(out, inp, l):
 
         t,v = p
         if len(t) == 4:
+            if isinstance(v, str):
+                v = v.encode('latin1')
             return t,v
         if t == 'gamma':
             t = 'gAMA'
@@ -72,12 +75,12 @@ def chunk(out, inp, l):
         elif t == 'iccprofile':
             t = 'iCCP'
             # http://www.w3.org/TR/PNG/#11iCCP
-            v = 'a color profile\x00\x00' + v.encode('zip')
+            v = b'a color profile\x00\x00' + zlib.compress(v)
         else:
             warnings.warn('Unknown chunk type %r' % t)
         return t[:4],v
 
-    l = map(canonical, l)
+    l = list(map(canonical, l))
     # Some chunks automagically replace ones that are present in the
     # source PNG.  There can only be one of each of these chunk types.
     # Create a 'replace' dictionary to record these chunks.
@@ -108,7 +111,7 @@ def chunk(out, inp, l):
                 # replace list.  We haven't output them yet, because we
                 # didn't see an original chunk of the same type to
                 # replace.  Thus the "replace" is actually an "insert".
-                for u,w in replace.items():
+                for u,w in list(replace.items()):
                     yield u,w
                     del replace[u]
             if t == 'IDAT' and add:
@@ -135,7 +138,7 @@ def main(argv=None):
         try:
             opt,arg = getopt.getopt(argv, 'c:',
                                     ['gamma=', 'iccprofile=', 'sigbit='])
-        except getopt.error, msg:
+        except getopt.error as msg:
             raise Usage(msg)
         k = []
         for o,v in opt:
@@ -152,20 +155,20 @@ def main(argv=None):
                 if v[4] == '!':
                     k.append((type, None))
                 if v[4] == ':':
-                    k.append((type, v[5:]))
+                    k.append((type, v[5:].encode('latin1')))
                 if v[4] == '<':
                     k.append((type, open(v[5:], 'rb').read()))
-    except Usage, err:
-        print >>sys.stderr, (
-          "usage: pngchunk [--gamma d.dd] [--sigbit b] [-c cHNK! | -c cHNK:text-string]")
-        print >>sys.stderr, err.message
+    except Usage as err:
+        print((
+          "usage: pngchunk [--gamma d.dd] [--sigbit b] [-c cHNK! | -c cHNK:text-string]"), file=sys.stderr)
+        print(str(err), file=sys.stderr)
         return 2
 
     if len(arg) > 0:
         f = open(arg[0], 'rb')
     else:
-        f = sys.stdin
-    return chunk(sys.stdout, f, k)
+        f = getattr(sys.stdin, 'buffer', sys.stdin)
+    return chunk(getattr(sys.stdout, 'buffer', sys.stdout), f, k)
 
 
 if __name__ == '__main__':
