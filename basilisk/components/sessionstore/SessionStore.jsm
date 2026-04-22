@@ -148,6 +148,8 @@ XPCOMUtils.defineLazyModuleGetter(this, "console",
   "resource://gre/modules/Console.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "RecentWindow",
   "resource:///modules/RecentWindow.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "HomePage",
+  "resource:///modules/HomePage.jsm");
 
 XPCOMUtils.defineLazyModuleGetter(this, "GlobalState",
   "resource:///modules/sessionstore/GlobalState.jsm");
@@ -2782,7 +2784,7 @@ var SessionStoreInternal = {
     let normalTabsLen = tabbrowser.tabs.length - tabbrowser._numPinnedTabs;
     let startupPref = this._prefBranch.getIntPref("startup.page");
     if (startupPref == 1)
-      homePages = homePages.concat(aWindow.gHomeButton.getHomePage().split("|"));
+      homePages = homePages.concat(HomePage.getURLs(aWindow.gHomeButton.getHomePage()));
 
     for (let i = tabbrowser._numPinnedTabs; i < tabbrowser.tabs.length; i++) {
       let tab = tabbrowser.tabs[i];

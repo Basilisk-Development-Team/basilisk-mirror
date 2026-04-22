@@ -7,6 +7,7 @@ Components.utils.import("resource://gre/modules/FileUtils.jsm");
 Components.utils.import("resource://gre/modules/Task.jsm");
 Components.utils.import("resource:///modules/ShellService.jsm");
 Components.utils.import("resource:///modules/TransientPrefs.jsm");
+Components.utils.import("resource:///modules/HomePage.jsm");
 
 XPCOMUtils.defineLazyModuleGetter(this, "OS",
                                   "resource://gre/modules/osfile.jsm");
@@ -91,7 +92,8 @@ var gMainPane = {
    *
    * browser.startup.homepage
    * - the user's home page, as a string; if the home page is a set of tabs,
-   *   this will be those URLs separated by the pipe character "|"
+   *   those URLs are separated by the pipe character "|" and literal pipes
+   *   inside URLs are serialized as "%7C"
    * browser.startup.page
    * - what page(s) to show when the user starts the application, as an integer:
    *
@@ -127,8 +129,8 @@ var gMainPane = {
     if (homePref.value == "")
       return "about:blank";
 
-    // Otherwise, show the actual pref value.
-    return undefined;
+    // Otherwise, show the actual pref value in a form suitable for editing.
+    return HomePage.getDisplayValue(homePref.value);
   },
 
   syncToHomePref: function (value)
@@ -137,8 +139,8 @@ var gMainPane = {
     if (value == "")
       return "about:home";
 
-    // Otherwise, use the actual textbox value.
-    return undefined;
+    // Otherwise, serialize the textbox value into the homepage pref format.
+    return HomePage.getPrefValueFromInput(value);
   },
 
   /**
@@ -154,9 +156,8 @@ var gMainPane = {
       return t.linkedBrowser.currentURI.spec;
     }
 
-    // FIXME Bug 244192: using dangerous "|" joiner!
     if (tabs.length)
-      homePage.value = tabs.map(getTabURI).join("|");
+      homePage.value = HomePage.getPrefValueFromURLs(tabs.map(getTabURI));
   },
 
   /**
@@ -178,8 +179,7 @@ var gMainPane = {
     if (rv.urls && rv.names) {
       var homePage = document.getElementById("browser.startup.homepage");
 
-      // XXX still using dangerous "|" joiner!
-      homePage.value = rv.urls.join("|");
+      homePage.value = HomePage.getPrefValueFromURLs(rv.urls);
     }
   },
 

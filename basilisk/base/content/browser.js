@@ -23,6 +23,7 @@ Cu.import("resource://gre/modules/NotificationDB.jsm");
   ["E10SUtils", "resource:///modules/E10SUtils.jsm"],
   ["FormValidationHandler", "resource:///modules/FormValidationHandler.jsm"],
   ["GMPInstallManager", "resource://gre/modules/GMPInstallManager.jsm"],
+  ["HomePage", "resource:///modules/HomePage.jsm"],
   ["LightweightThemeManager", "resource://gre/modules/LightweightThemeManager.jsm"],
   ["Log", "resource://gre/modules/Log.jsm"],
   ["LoginManagerParent", "resource://gre/modules/LoginManagerParent.jsm"],
@@ -1736,7 +1737,7 @@ function BrowserGoHome(aEvent) {
     break;
   case "tabshifted":
   case "tab":
-    urls = homePage.split("|");
+    urls = HomePage.getURLs(homePage);
     var loadInBackground = Services.prefs.getBoolPref("browser.tabs.loadBookmarksInBackground", false);
     gBrowser.loadTabs(urls, loadInBackground);
     break;
@@ -1758,7 +1759,7 @@ function loadOneOrMoreURIs(aURIString)
   // This function throws for certain malformed URIs, so use exception handling
   // so that we don't disrupt startup
   try {
-    gBrowser.loadTabs(aURIString.split("|"), false, true);
+    gBrowser.loadTabs(HomePage.getURLs(aURIString), false, true);
   }
   catch (e) {
   }
@@ -2889,9 +2890,7 @@ function getDefaultHomePage() {
   try {
     url = prefs.getComplexValue("browser.startup.homepage",
                                 Ci.nsIPrefLocalizedString).data;
-    // If url is a pipe-delimited set of pages, just take the first one.
-    if (url.includes("|"))
-      url = url.split("|")[0];
+    url = HomePage.getFirstURL(url);
   } catch (e) {
     Components.utils.reportError("Couldn't get homepage pref: " + e);
   }
@@ -3094,7 +3093,7 @@ var homeButtonObserver = {
       // disallow setting home pages that inherit the principal
       let links = browserDragAndDrop.dropLinks(aEvent, true);
       if (links.length) {
-        setTimeout(openHomeDialog, 0, links.map(link => link.url).join("|"));
+        setTimeout(openHomeDialog, 0, HomePage.getPrefValueFromURLs(links.map(link => link.url)));
       }
     },
 
@@ -3115,7 +3114,7 @@ function openHomeDialog(aURL)
 {
   var promptTitle = gNavigatorBundle.getString("droponhometitle");
   var promptMsg;
-  if (aURL.includes("|")) {
+  if (HomePage.getURLs(aURL).length > 1) {
     promptMsg = gNavigatorBundle.getString("droponhomemsgMultiple");
   } else {
     promptMsg = gNavigatorBundle.getString("droponhomemsg");
@@ -4769,8 +4768,8 @@ var gHomeButton = {
     if (!homeButton)
       homeButton = document.getElementById("home-button");
     if (homeButton) {
-      var homePage = this.getHomePage();
-      homePage = homePage.replace(/\|/g, ', ');
+      var homePage = HomePage.getDisplayValue(this.getHomePage());
+      homePage = homePage.replace(/ \| /g, ', ');
       if (["about:home", "about:newtab"].includes(homePage.toLowerCase()))
         homeButton.setAttribute("tooltiptext", homeButton.getAttribute("aboutHomeOverrideTooltip"));
       else
