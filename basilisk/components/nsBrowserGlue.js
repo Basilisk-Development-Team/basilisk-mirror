@@ -60,7 +60,6 @@ XPCOMUtils.defineLazyServiceGetter(this, "AlertsService", "@mozilla.org/alerts-s
   ["Task", "resource://gre/modules/Task.jsm"],
   ["URLBarZoom", "resource:///modules/URLBarZoom.jsm"],
   ["UserAgentOverrides", "resource://gre/modules/UserAgentOverrides.jsm"],
-  ["WebChannel", "resource://gre/modules/WebChannel.jsm"],
   ["WindowsRegistry", "resource://gre/modules/WindowsRegistry.jsm"],
   ["webrtcUI", "resource:///modules/webrtcUI.jsm"],
 ].forEach(([name, resource]) => XPCOMUtils.defineLazyModuleGetter(this, name, resource));
@@ -863,22 +862,6 @@ BrowserGlue.prototype = {
 #endif
 
     ProcessHangMonitor.init();
-
-    // A channel for "remote troubleshooting" code...
-    let channel = new WebChannel("remote-troubleshooting", "remote-troubleshooting");
-    channel.listen((id, data, target) => {
-      if (data.command == "request") {
-        let {Troubleshoot} = Cu.import("resource://gre/modules/Troubleshoot.jsm", {});
-        Troubleshoot.snapshot(data => {
-          // for privacy we remove crash IDs and all preferences (but bug 1091944
-          // exists to expose prefs once we are confident of privacy implications)
-          delete data.crashes;
-          delete data.modifiedPreferences;
-          channel.send(data, target);
-        });
-      }
-    });
-
     this._trackSlowStartup();
 
     // Initialize ghost window idle observer.
