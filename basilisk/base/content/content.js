@@ -304,9 +304,9 @@ var AboutNetAndCertErrorListener = {
       case MOZILLA_PKIX_ERROR_NOT_YET_VALID_ISSUER_CERTIFICATE:
 
         let appBuildId = Services.appinfo.appBuildID;
-        let year = parseInt(appBuildID.substr(0, 4), 10);
-        let month = parseInt(appBuildID.substr(4, 2), 10) - 1;
-        let day = parseInt(appBuildID.substr(6, 2), 10);
+        let year = parseInt(appBuildId.substr(0, 4), 10);
+        let month = parseInt(appBuildId.substr(4, 2), 10) - 1;
+        let day = parseInt(appBuildId.substr(6, 2), 10);
         let buildDate = new Date(year, month, day);
         let systemDate = new Date();
         
