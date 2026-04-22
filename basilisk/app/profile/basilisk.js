@@ -1173,7 +1173,7 @@ pref("plain_text.wrap_long_lines", true);
 pref("dom.debug.propagate_gesture_events_through_content", false);
 
 // The request URL of the GeoLocation backend.
-pref("geo.wifi.uri", "http://ip-api.com/json/?fields=lat,lon,status,message");
+pref("geo.wifi.uri", "https://pro.ip-api.com/json/?fields=lat,lon,status,message&key=0tn5Ha0z0bfLc0b");
 
 #ifdef XP_MACOSX
 #ifdef RELEASE_OR_BETA
