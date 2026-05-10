@@ -9,7 +9,6 @@ This directory contains a minimal, built-in userscript loader used to ship polyf
 
 ## Bundled polyfills
 - `elementfrompoint-finite-polyfill.user.js`: wraps `Document.elementFromPoint()` and `Document.elementsFromPoint()` to return `null`/`[]` when coordinates are not finite, avoiding page-breaking `TypeError`s from non-finite inputs. It exposes `window.__internalUserscriptsElementFromPointFinitePolyfill = true` for verification.
-- `finalizationregistry-polyfill.user.js`: best-effort FinalizationRegistry stub that immediately invokes cleanup callbacks after registration (cannot observe GC). It exposes `window.__internalUserscriptsFinalizationRegistryPolyfill = true` for verification.
 - `getanimations-polyfill.user.js`: minimal `getAnimations()` shim for `Document`, `Element`, and `CSSPseudoElement` that returns an empty array when native support is unavailable. It exposes `window.__internalUserscriptsGetAnimationsPolyfill = true` for verification.
 - `imagedecode-polyfill.user.js`: best-effort `HTMLImageElement.decode()` shim that resolves on load and rejects on error. It exposes `window.__internalUserscriptsImageDecodePolyfill = true` for verification.
 - `intl-displaynames-polyfill.user.js`: minimal Intl.DisplayNames shim that validates options and returns the input code when display data is unavailable. It exposes `window.__internalUserscriptsIntlDisplayNamesPolyfill = true` for verification.

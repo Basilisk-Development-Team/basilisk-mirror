@@ -115,18 +115,6 @@ InternalUserscriptsService.prototype = {
 
     try {
       Services.scriptloader.loadSubScript(
-        "chrome://internaluserscripts/content/bundled-scripts/finalizationregistry-polyfill.user.js",
-        contentWin,
-      );
-      if (contentWin.__internalUserscriptsFinalizationRegistryPolyfill) {
-        logPolyfill("FinalizationRegistry", "bundled");
-      }
-    } catch (e) {
-      // ignore; fallback below
-    }
-
-    try {
-      Services.scriptloader.loadSubScript(
         "chrome://internaluserscripts/content/bundled-scripts/intl-displaynames-polyfill.user.js",
         contentWin,
       );
@@ -204,77 +192,6 @@ InternalUserscriptsService.prototype = {
       );
       if (contentWin.__internalUserscriptsImageDecodePolyfill) {
         logPolyfill("HTMLImageElement.decode", "bundled");
-      }
-    } catch (e) {
-      // ignore
-    }
-
-    try {
-      const source = `
-        (function(){
-          var global = this;
-          if (typeof global.FinalizationRegistry === "function" &&
-              global.FinalizationRegistry.prototype &&
-              typeof global.FinalizationRegistry.prototype.register === "function") {
-            try { global.__internalUserscriptsFinalizationRegistryPolyfill = true; } catch (e) {}
-            return;
-          }
-          function PolyfillFinalizationRegistry(cleanupCallback) {
-            if (typeof cleanupCallback !== "function") {
-              throw new TypeError("cleanup callback must be a function");
-            }
-            this._cleanupCallback = cleanupCallback;
-            this._entries = [];
-            this._pending = false;
-          }
-          PolyfillFinalizationRegistry.prototype.register = function (target, heldValue, unregisterToken) {
-            if (target == null || (typeof target !== "object" && typeof target !== "function")) {
-              throw new TypeError("register target must be an object");
-            }
-            var key = unregisterToken || target;
-            this._entries.push({ key: key, held: heldValue });
-            if (!this._pending) {
-              this._pending = true;
-              var self = this;
-              global.setTimeout(function () {
-                self._pending = false;
-                self._runCleanup(self._cleanupCallback);
-              }, 0);
-            }
-          };
-          PolyfillFinalizationRegistry.prototype.unregister = function (unregisterToken) {
-            if (unregisterToken == null) {
-              return false;
-            }
-            var before = this._entries.length;
-            this._entries = this._entries.filter(function (e) { return e.key !== unregisterToken; });
-            return this._entries.length !== before;
-          };
-          PolyfillFinalizationRegistry.prototype._runCleanup = function (cb) {
-            cb = cb || function () {};
-            var entries = this._entries.slice(0);
-            this._entries.length = 0;
-            for (var i = 0; i < entries.length; i++) {
-              try { cb(entries[i].held); } catch (e) {}
-            }
-          };
-          PolyfillFinalizationRegistry.prototype.cleanupSome = function (callback) {
-            this._runCleanup(callback || this._cleanupCallback);
-          };
-          global.FinalizationRegistry = PolyfillFinalizationRegistry;
-          try { global.__internalUserscriptsFinalizationRegistryPolyfill = true; } catch (e) {}
-        })();
-      `;
-      if (typeof contentWin.eval === "function") {
-        var hadFinalizationRegistryPolyfill =
-          !!contentWin.__internalUserscriptsFinalizationRegistryPolyfill;
-        contentWin.eval(source);
-        if (
-          !hadFinalizationRegistryPolyfill &&
-          contentWin.__internalUserscriptsFinalizationRegistryPolyfill
-        ) {
-          logPolyfill("FinalizationRegistry", "inline fallback");
-        }
       }
     } catch (e) {
       // ignore
