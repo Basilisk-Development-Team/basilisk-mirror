@@ -9,8 +9,6 @@ Components.utils.import("resource://gre/modules/Services.jsm");
 
 XPCOMUtils.defineLazyModuleGetter(this, "LaterRun",
                                   "resource:///modules/LaterRun.jsm");
-XPCOMUtils.defineLazyModuleGetter(this, "HomePage",
-                                  "resource:///modules/HomePage.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PrivateBrowsingUtils",
                                   "resource://gre/modules/PrivateBrowsingUtils.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "RecentWindow",
@@ -520,35 +518,34 @@ nsBrowserContentHandler.prototype = {
       additionalPage = LaterRun.getURL() || "";
     }
 
-    let overridePages = [];
-    if (overridePage)
-      overridePages.push(overridePage);
+    if (additionalPage && additionalPage != "about:blank") {
+      if (overridePage) {
+        overridePage += "|" + additionalPage;
+      } else {
+        overridePage = additionalPage;
+      }
+    }
 
-    if (additionalPage && additionalPage != "about:blank")
-      overridePages.push(additionalPage);
-
-    let startPages = [];
+    var startPage = "";
     try {
-      let choice = prefb.getIntPref("browser.startup.page");
+      var choice = prefb.getIntPref("browser.startup.page");
       if (choice == 1 || choice == 3)
-        startPages = HomePage.getURLs(this.startPage);
+        startPage = this.startPage;
     } catch (e) {
       Components.utils.reportError(e);
     }
 
-    if (startPages.length == 1 && ["", "about:blank"].includes(startPages[0]))
-      startPages = [];
+    if (startPage == "about:blank")
+      startPage = "";
 
     let skipStartPage = override == OVERRIDE_NEW_PROFILE &&
       prefb.getBoolPref("browser.startup.firstrunSkipsHomepage");
     // Only show the startPage if we're not restoring an update session and are
     // not set to skip the start page on this profile
-    if (overridePages.length && startPages.length && !willRestoreSession && !skipStartPage)
-      return HomePage.getPrefValueFromURLs(overridePages.concat(startPages));
+    if (overridePage && startPage && !willRestoreSession && !skipStartPage)
+      return overridePage + "|" + startPage;
 
-    return HomePage.getPrefValueFromURLs(overridePages) ||
-           HomePage.getPrefValueFromURLs(startPages) ||
-           "about:blank" || "about:logopage";
+    return overridePage || startPage || "about:blank" || "about:logopage";
   },
 
   get startPage() {
