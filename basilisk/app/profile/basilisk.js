@@ -1293,7 +1293,7 @@ pref("reader.errors.includeURLs", true);
 
 pref("view_source.tab", true);
 
-pref("dom.serviceWorkers.enabled", false);
+pref("dom.serviceWorkers.enabled", true);
 pref("dom.serviceWorkers.openWindow.enabled", false);
 
 // Enable Push API.
@@ -1340,9 +1340,6 @@ pref("webchannel.allowObject.urlWhitelist", "");
 // The counter resets when the page is reloaded from the UI
 // (content-reloads do NOT clear this to mitigate reloading tricks).
 pref("prompts.authentication_dialog_abuse_limit", 3);
-
-// Enable full GC WeakRef Support
-pref("javascript.options.weakrefs", true);
 
 // Stop Slow Scripts to help with slow site issues (Example: GitHub Actions "Show all jobs" functionality)
 pref("dom.always_stop_slow_scripts", true);
