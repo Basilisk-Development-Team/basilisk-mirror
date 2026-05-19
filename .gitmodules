@@ -1,6 +1,6 @@
 [submodule "platform"]
 	path = platform
-	url = https://github.com/Eclipse-Community/eUXP
+	url = https://repo.palemoon.org/MoonchildProductions/UXP
 	branch = master
 [submodule "thirdparty/libcxx-static"]
 	path = thirdparty/libcxx-static
