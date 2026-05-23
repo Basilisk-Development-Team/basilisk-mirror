@@ -196,6 +196,14 @@ tabbrowser {
   }
 }
 
+.tab-label-stack[crop="clip"] > .tab-label-container[textoverflow]:not([pinned]) {
+  mask-image: linear-gradient(to left, transparent, black 2em);
+}
+
+.tab-label-stack[crop="clip"] > .tab-label-container[textoverflow]:not([pinned]):-moz-locale-dir(rtl) {
+  mask-image: linear-gradient(to right, transparent, black 2em);
+}
+
 .new-tab-popup,
 #alltabs-popup {
   -moz-binding: url("chrome://browser/content/tabbrowser.xml#tabbrowser-alltabs-popup");

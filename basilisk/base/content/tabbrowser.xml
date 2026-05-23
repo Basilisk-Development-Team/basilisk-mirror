@@ -6439,10 +6439,23 @@
                      anonid="overlay-icon"
                      class="tab-icon-overlay"
                      role="presentation"/>
-          <xul:label flex="1"
-                     xbl:inherits="value=label,crop,accesskey,fadein,pinned,selected=visuallyselected,attention"
-                     class="tab-text tab-label"
-                     role="presentation"/>
+          <xul:stack class="tab-label-stack" flex="1"
+                     xbl:inherits="crop,pinned,fadein,selected=visuallyselected,attention">
+            <xul:hbox class="tab-label-container"
+                      xbl:inherits="fadein,pinned,selected=visuallyselected,attention"
+                      onoverflow="this.setAttribute('textoverflow', 'true');"
+                      onunderflow="this.removeAttribute('textoverflow');"
+                      flex="1">
+              <xul:label crop="none"
+                         xbl:inherits="xbl:text=label,accesskey,fadein,pinned,selected=visuallyselected,attention"
+                         class="tab-text tab-label tab-label-fade"
+                         role="presentation"/>
+            </xul:hbox>
+            <xul:label flex="1"
+                       xbl:inherits="value=label,crop,accesskey,fadein,pinned,selected=visuallyselected,attention"
+                       class="tab-text tab-label tab-label-crop"
+                       role="presentation"/>
+          </xul:stack>
           <xul:image xbl:inherits="soundplaying,soundplaying-scheduledremoval,pinned,muted,blocked,selected=visuallyselected"
                      anonid="soundplaying-icon"
                      class="tab-icon-sound"
