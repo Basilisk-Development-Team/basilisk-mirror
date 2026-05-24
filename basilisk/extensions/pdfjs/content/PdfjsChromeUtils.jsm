@@ -91,6 +91,8 @@ var PdfjsChromeUtils = {
       this._mmg.addMessageListener("PDFJS:Parent:addEventListener", this);
       this._mmg.addMessageListener("PDFJS:Parent:removeEventListener", this);
       this._mmg.addMessageListener("PDFJS:Parent:updateControlState", this);
+      this._mmg.addMessageListener("PDFJS:Parent:updateMatchesCount", this);
+      this._mmg.addMessageListener("PDFJS:Parent:openFindBar", this);
 
       // The signature of `Services.obs.addObserver` changed in Firefox 55,
       // see https://bugzilla.mozilla.org/show_bug.cgi?id=1355216.
@@ -122,6 +124,8 @@ var PdfjsChromeUtils = {
       this._mmg.removeMessageListener("PDFJS:Parent:addEventListener", this);
       this._mmg.removeMessageListener("PDFJS:Parent:removeEventListener", this);
       this._mmg.removeMessageListener("PDFJS:Parent:updateControlState", this);
+      this._mmg.removeMessageListener("PDFJS:Parent:updateMatchesCount", this);
+      this._mmg.removeMessageListener("PDFJS:Parent:openFindBar", this);
 
       Services.obs.removeObserver(this, "quit-application");
 
@@ -184,6 +188,10 @@ var PdfjsChromeUtils = {
 
       case "PDFJS:Parent:updateControlState":
         return this._updateControlState(aMsg);
+      case "PDFJS:Parent:updateMatchesCount":
+        return this._updateMatchesCount(aMsg);
+      case "PDFJS:Parent:openFindBar":
+        return this._openFindBar(aMsg);
       case "PDFJS:Parent:addEventListener":
         return this._addEventListener(aMsg);
       case "PDFJS:Parent:removeEventListener":
@@ -205,8 +213,33 @@ var PdfjsChromeUtils = {
 
   _updateControlState(aMsg) {
     let data = aMsg.data;
-    this._findbarFromMessage(aMsg)
-        .updateControlState(data.result, data.findPrevious);
+    let findBar = this._findbarFromMessage(aMsg);
+    findBar.updateControlState(data.result, data.findPrevious);
+    if (data.matchesCount) {
+      this._updateMatchesCountForFindBar(findBar, data.matchesCount);
+    }
+  },
+
+  _updateMatchesCount(aMsg) {
+    this._updateMatchesCountForFindBar(this._findbarFromMessage(aMsg),
+                                       aMsg.data);
+  },
+
+  _updateMatchesCountForFindBar(findBar, data) {
+    if (!data || typeof data.current !== "number" ||
+        typeof data.total !== "number" || data.current < 0 || data.total < 0) {
+      return;
+    }
+    let limit = 1000;
+    findBar.onMatchesCountResult({
+      current: data.current,
+      total: data.total > limit ? -1 : data.total,
+      limit,
+    });
+  },
+
+  _openFindBar(aMsg) {
+    this._findbarFromMessage(aMsg).onFindCommand();
   },
 
   handleEvent(aEvent) {
@@ -216,6 +249,7 @@ var PdfjsChromeUtils = {
     let detail = {
       query: aEvent.detail.query,
       caseSensitive: aEvent.detail.caseSensitive,
+      entireWord: aEvent.detail.entireWord,
       highlightAll: aEvent.detail.highlightAll,
       findPrevious: aEvent.detail.findPrevious,
     };
@@ -369,4 +403,3 @@ var PdfjsChromeUtils = {
     });
   },
 };
-
