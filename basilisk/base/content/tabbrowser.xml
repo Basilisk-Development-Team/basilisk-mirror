@@ -5156,6 +5156,9 @@
 
     <handlers>
       <handler event="underflow" phase="capturing"><![CDATA[
+        if (event.target != this)
+          return;
+
         if (event.detail == 0)
           return; // Ignore vertical events
 
@@ -5171,6 +5174,9 @@
         tabs._positionPinnedTabs();
       ]]></handler>
       <handler event="overflow"><![CDATA[
+        if (event.target != this)
+          return;
+
         if (event.detail == 0)
           return; // Ignore vertical events
 
