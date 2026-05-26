@@ -196,6 +196,66 @@ InternalUserscriptsService.prototype = {
     } catch (e) {
       // ignore
     }
+
+    try {
+      Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/transformstream-polyfill.user.js",
+        contentWin,
+      );
+      if (contentWin.__internalUserscriptsTransformStreamPolyfill) {
+        logPolyfill("TransformStream", "bundled");
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/textencoderstream-polyfill.user.js",
+        contentWin,
+      );
+      if (contentWin.__internalUserscriptsTextEncoderStreamPolyfill) {
+        logPolyfill("TextEncoderStream", "bundled");
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/textdecoderstream-polyfill.user.js",
+        contentWin,
+      );
+      if (contentWin.__internalUserscriptsTextDecoderStreamPolyfill) {
+        logPolyfill("TextDecoderStream", "bundled");
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/readablestream-pipeto-polyfill.user.js",
+        contentWin,
+      );
+      if (contentWin.__internalUserscriptsReadableStreamPipeToPolyfill) {
+        logPolyfill("ReadableStream.pipeTo", "bundled");
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      Services.scriptloader.loadSubScript(
+        "chrome://internaluserscripts/content/bundled-scripts/readablestream-pipethrough-polyfill.user.js",
+        contentWin,
+      );
+      if (contentWin.__internalUserscriptsReadableStreamPipeThroughPolyfill) {
+        logPolyfill("ReadableStream.pipeThrough", "bundled");
+      }
+    } catch (e) {
+      // ignore
+    }
   },
 };
 
