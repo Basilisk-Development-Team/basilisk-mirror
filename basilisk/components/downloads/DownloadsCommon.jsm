@@ -785,7 +785,11 @@ DownloadsDataCtor.prototype = {
                           JSON.stringify(downloadMetaData), 0,
                           PlacesUtils.annotations.EXPIRE_WITH_HISTORY);
           } catch (ex) {
-            Cu.reportError(ex);
+            // The source page may not exist in Places when history is disabled.
+            if (!(ex instanceof Components.Exception) ||
+                ex.result != Cr.NS_ERROR_ILLEGAL_VALUE) {
+              Cu.reportError(ex);
+            }
           }
         }
       }
