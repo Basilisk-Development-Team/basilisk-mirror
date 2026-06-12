@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $URL: http://pypng.googlecode.com/svn/trunk/code/texttopng $
 # $Rev: 132 $
 # Script to renders text as a PNG image.
@@ -113,7 +113,7 @@ def char(i):
     i = ord(i)
     if i not in font:
         return [(0,)]*8
-    return map(lambda row: (ord(row),), font[i].decode('hex'))
+    return [(row,) for row in bytes.fromhex(font[i])]
 
 def texttoraster(m):
     """Convert string *m* to a raster image (by rendering it using the
@@ -124,8 +124,8 @@ def texttoraster(m):
     # Assumes monospaced font.
     x = 8*len(m)
     y = 8
-    return x,y,itertools.imap(lambda row: itertools.chain(*row),
-                              zip(*map(char, m)))
+    return x,y,map(lambda row: itertools.chain(*row),
+                              list(zip(*list(map(char, m)))))
 
 
 def render(message, out):
@@ -145,7 +145,7 @@ def main(argv=None):
         message = argv[1]
     else:
         message = sys.stdin.read()
-    render(message, sys.stdout)
+    render(message, getattr(sys.stdout, 'buffer', sys.stdout))
 
 if __name__ == '__main__':
     main()

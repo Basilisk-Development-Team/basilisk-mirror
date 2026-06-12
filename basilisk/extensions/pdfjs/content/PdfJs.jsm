@@ -77,6 +77,22 @@ function isDefaultHandler() {
   return PdfjsChromeUtils.isDefaultHandlerApp();
 }
 
+function isCurrentExecutable(aFile) {
+  if (!aFile) {
+    return false;
+  }
+
+  try {
+    let executable = Services.dirsvc.get("XREExeF", Ci.nsIFile);
+    executable.normalize();
+    let handlerFile = aFile.clone();
+    handlerFile.normalize();
+    return executable.equals(handlerFile);
+  } catch (ex) {
+    return false;
+  }
+}
+
 function initializeDefaultPreferences() {
   /* eslint-disable semi */
   var DEFAULT_PREFERENCES =
@@ -272,6 +288,26 @@ var PdfJs = {
                                         false);
   },
 
+  _isRecursiveHandler: function _isRecursiveHandler() {
+    let handlerInfo = Svc.mime.getFromTypeAndExtension(PDF_CONTENT_TYPE, "pdf");
+    if (handlerInfo.alwaysAskBeforeHandling ||
+        handlerInfo.preferredAction !== Ci.nsIHandlerInfo.useHelperApp) {
+      return false;
+    }
+
+    let handlerApp = handlerInfo.preferredApplicationHandler;
+    if (!handlerApp) {
+      return false;
+    }
+
+    try {
+      let localHandler = handlerApp.QueryInterface(Ci.nsILocalHandlerApp);
+      return isCurrentExecutable(localHandler.executable);
+    } catch (ex) {
+      return false;
+    }
+  },
+
   _isEnabled: function _isEnabled() {
     var disabled = getBoolPref(PREF_DISABLED, true);
     if (disabled) {
@@ -280,7 +316,11 @@ var PdfJs = {
 
     // Check if the 'application/pdf' preview handler is configured properly.
     if (!isDefaultHandler()) {
-      return false;
+      if (!this._isRecursiveHandler()) {
+        return false;
+      }
+      // Opening PDFs with this executable just feeds the same PDF back here.
+      this._becomeHandler();
     }
 
     // Check if we have disabled plugin handling of 'application/pdf' in prefs

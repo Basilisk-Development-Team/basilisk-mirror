@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $URL: http://pypng.googlecode.com/svn/trunk/code/pipstack $
 # $Rev: 190 $
 
@@ -62,17 +62,17 @@ def stack(out, inp):
     if len(inp) < 1:
         raise Error("Required input is missing.")
 
-    l = map(png.Reader, inp)
+    l = list(map(png.Reader, inp))
     # Let data be a list of (pixel,info) pairs.
-    data = map(lambda p: p.asDirect()[2:], l)
-    totalchannels = sum(map(lambda x: x[1]['planes'], data))
+    data = [p.asDirect()[2:] for p in l]
+    totalchannels = sum([x[1]['planes'] for x in data])
 
     if not (0 < totalchannels <= 4):
         raise Error("Too many channels in input.")
     alpha = totalchannels in (2,4)
     greyscale = totalchannels in (1,2)
     bitdepth = []
-    for b in map(lambda x: x[1]['bitdepth'], data):
+    for b in [x[1]['bitdepth'] for x in data]:
         try:
             if b == int(b):
                 bitdepth.append(b)
@@ -86,7 +86,7 @@ def stack(out, inp):
         raise NotImplemented("Cannot cope when bitdepths differ - sorry!")
     bitdepth = bitdepth[0]
     arraytype = 'BH'[bitdepth > 8]
-    size = map(lambda x: x[1]['size'], data)
+    size = [x[1]['size'] for x in data]
     # Currently, fail unless all images same size.
     if len(set(size)) > 1:
         raise NotImplemented("Cannot cope when sizes differ - sorry!")
@@ -96,7 +96,7 @@ def stack(out, inp):
     def iterstack():
         # the izip call creates an iterator that yields the next row
         # from all the input images combined into a tuple.
-        for irow in itertools.izip(*map(lambda x: x[0], data)):
+        for irow in zip(*[x[0] for x in data]):
             row = array(arraytype, [0]*vpr)
             # output channel
             och = 0
@@ -120,7 +120,7 @@ def main(argv=None):
         argv = sys.argv
     argv = argv[1:]
     arg = argv[:]
-    return stack(sys.stdout, arg)
+    return stack(getattr(sys.stdout, 'buffer', sys.stdout), arg)
 
 
 if __name__ == '__main__':

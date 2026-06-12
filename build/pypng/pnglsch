@@ -1,8 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $URL: http://pypng.googlecode.com/svn/trunk/code/pnglsch $
 # $Rev: 107 $
 # pnglsch
 # PNG List Chunks
+
+from binascii import hexlify
 
 import png
 
@@ -11,8 +13,10 @@ def list(out, inp):
     for t,v in r.chunks():
         add = ''
         if len(v) <= 28:
-            add = ' ' + v.encode('hex')
-        print >>out, "%s %10d%s" % (t, len(v), add)
+            add = ' ' + hexlify(v).decode('ascii')
+        if isinstance(t, bytes):
+            t = t.decode('latin1')
+        print("%s %10d%s" % (t, len(v), add), file=out)
 
 def main(argv=None):
     import sys
@@ -24,7 +28,7 @@ def main(argv=None):
     if len(arg) > 0:
         f = open(arg[0], 'rb')
     else:
-        f = sys.stdin
+        f = getattr(sys.stdin, 'buffer', sys.stdin)
     return list(sys.stdout, f)
 
 if __name__ == '__main__':

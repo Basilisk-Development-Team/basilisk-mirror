@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $Rev: 184 $
 # $URL: http://pypng.googlecode.com/svn/trunk/code/plan9topng.py $
 
@@ -20,15 +20,17 @@ import sys
 
 def block(s, n):
     # See http://www.python.org/doc/2.6.2/library/functions.html#zip
-    return zip(*[iter(s)]*n)
+    return list(zip(*[iter(s)]*n))
 
-def convert(f, output=sys.stdout) :
+def convert(f, output=None) :
   """Convert Plan 9 file to PNG format.  Works with either uncompressed
   or compressed files.
   """
 
+  if output is None:
+    output = getattr(sys.stdout, 'buffer', sys.stdout)
   r = f.read(11)
-  if r == 'compressed\n' :
+  if r == b'compressed\n' :
     png(output, *decompress(f))
   else :
     png(output, *glue(f, r))
@@ -52,10 +54,12 @@ def meta(r) :
   at an index that is a multiple of 12, but this routine does not care
   about that."""
 
+  if isinstance(r, bytes):
+    r = r.decode('ascii')
   r = r.split()
   # :todo: raise FormatError
   assert len(r) == 5
-  r = [r[0]] + map(int, r[1:])
+  r = [r[0]] + list(map(int, r[1:]))
   return r
 
 def bitdepthof(pixel) :
@@ -96,7 +100,7 @@ def pixmeta(metadata, f) :
     meta=dict(size=(width,rows), bitdepth=bitdepthof(chan),
       greyscale=greyscale, alpha=alpha, planes=nchans)
 
-    return itertools.imap(lambda x: itertools.chain(*x),
+    return map(lambda x: itertools.chain(*x),
       block(unpack(f, rows, width, chan, maxval), width)), meta
 
 def png(out, metadata, f):
@@ -155,7 +159,7 @@ def unpack(f, rows, width, pixel, maxval) :
         x = 0
         s = 1 # scale
         for j in p :
-          x += s * ord(j)
+          x += s * j
           s <<= 8
         yield x
 
@@ -168,7 +172,7 @@ def unpack(f, rows, width, pixel, maxval) :
       col = 0
       for i in block :
         x = ord(i)
-        for j in range(8/depth) :
+        for j in range(8 // depth) :
           yield x >> (8 - depth)
           col += 1
           if col == width :
@@ -180,7 +184,7 @@ def unpack(f, rows, width, pixel, maxval) :
           x <<= depth
 
   # number of bits in each channel
-  chan = map(int, re.findall(r'\d+', pixel))
+  chan = list(map(int, re.findall(r'\d+', pixel)))
   # type of each channel
   type = re.findall('[a-z]', pixel)
 
@@ -242,7 +246,7 @@ def deblock(f) :
   row = int(f.read(12))
   size = int(f.read(12))
   if not (0 <= size <= 6000) :
-    raise 'block has invalid size; not a Plan 9 image file?'
+    raise ValueError('block has invalid size; not a Plan 9 image file?')
 
   # Since each block is at most 6000 bytes we may as well read it all in
   # one go.
@@ -251,7 +255,7 @@ def deblock(f) :
   o = []
 
   while i < size :
-    x = ord(d[i])
+    x = d[i]
     i += 1
     if x & 0x80 :
       x = (x & 0x7f) + 1
@@ -269,23 +273,23 @@ def deblock(f) :
     # that x's 2 bit are most significant.
     # 
     offset = (x & 3) << 8
-    offset |= ord(d[i])
+    offset |= d[i]
     i += 1
     # Note: complement operator neatly maps (0 to 1023) to (-1 to
     # -1024).  Adding len(o) gives a (non-negative) offset into o from
     # which to start indexing.
     offset = ~offset + len(o)
     if offset < 0 :
-      raise 'byte offset indexes off the begininning of the output buffer; not a Plan 9 image file?'
+      raise ValueError('byte offset indexes off the begininning of the output buffer; not a Plan 9 image file?')
     for j in range(l) :
       o.append(o[offset+j])
-  return row,''.join(o)
+  return row, bytes(o)
 
 def main(argv=None) :
   if argv is None :
     argv = sys.argv
-  if len(sys.argv) <= 1 :
-    return convert(sys.stdin)
+  if len(argv) <= 1 :
+    return convert(getattr(sys.stdin, 'buffer', sys.stdin))
   else :
     return convert(open(argv[1], 'rb'))
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $URL: http://pypng.googlecode.com/svn/trunk/code/pipwindow $
 # $Rev: 173 $
 
@@ -57,11 +57,11 @@ def main(argv=None):
         tl = br
         br = tuple(map(int, argv[2:4]))
     if len(argv) in (2, 4):
-        f = sys.stdin
+        f = getattr(sys.stdin, 'buffer', sys.stdin)
     else:
         f = open(argv[-1], 'rb')
 
-    return window(tl, br, f, sys.stdout)
+    return window(tl, br, f, getattr(sys.stdout, 'buffer', sys.stdout))
 
 if __name__ == '__main__':
     main()

@@ -243,6 +243,48 @@
     }
   }
 
+  function wireIntegratedFind() {
+    var app = window.PDFViewerApplication;
+    if (!app || !app.supportsIntegratedFind || !app.eventBus ||
+        app._basiliskIntegratedFindWired) {
+      return;
+    }
+    app._basiliskIntegratedFindWired = true;
+
+    var findEventTypes = {
+      find: "",
+      findagain: "again",
+      findhighlightallchange: "highlightallchange",
+      findcasesensitivitychange: "casesensitivitychange"
+    };
+
+    Object.keys(findEventTypes).forEach(function (eventName) {
+      window.addEventListener(eventName, function (event) {
+        var detail = event.detail || {};
+        app.eventBus.dispatch("find", {
+          source: window,
+          type: findEventTypes[eventName],
+          query: detail.query || "",
+          caseSensitive: !!detail.caseSensitive,
+          entireWord: !!detail.entireWord,
+          highlightAll: !!detail.highlightAll,
+          findPrevious: !!detail.findPrevious,
+          matchDiacritics: false
+        });
+        event.preventDefault();
+      });
+    });
+
+    window.addEventListener("keydown", function (event) {
+      if (event.defaultPrevented || event.altKey || event.shiftKey ||
+          !(event.ctrlKey || event.metaKey) || event.keyCode !== 70) {
+        return;
+      }
+      FirefoxCom.request("openFindBar", null);
+      event.preventDefault();
+    }, true);
+  }
+
   var originalOpen = window.PDFViewerApplication.open;
   window.PDFViewerApplication.open = function (args) {
     var nextArgs = null;
@@ -269,6 +311,7 @@
     window.PDFViewerApplicationOptions.set("enableXfa", false);
     await originalRun.call(this, config);
     wireSidebarButtons();
+    wireIntegratedFind();
     if (!/(?:^|[?&])file=/.test(document.location.search)) {
       this.initPassiveLoading();
     }

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $URL: http://pypng.googlecode.com/svn/trunk/code/mkiccp.py $
 # $Rev: 182 $
 # Make ICC Profile
@@ -39,7 +39,7 @@ def agreyprofile(out):
 
 def main():
     import sys
-    agreyprofile(sys.stdout)
+    agreyprofile(getattr(sys.stdout, 'buffer', sys.stdout))
 
 if __name__ == '__main__':
     main()

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $URL: http://pypng.googlecode.com/svn/trunk/code/pipcolours $
 # $Rev: 96 $
 
@@ -14,7 +14,7 @@ def colours(out, inp):
     col = set()
     for row in pixels:
         # Ewgh, side effects on col
-        map(col.add, png.group(row, planes))
+        list(map(col.add, png.group(row, planes)))
     col,planes = channel_reduce(col, planes)
     col = list(col)
     col.sort()
@@ -33,9 +33,9 @@ def channel_reduce(col, planes):
     if planes >= 3:
         def isgrey(c):
             return c[0] == c[1] == c[2]
-        if min(map(isgrey, col)) == True:
+        if min(list(map(isgrey, col))) == True:
             # Every colour is grey.
-            col = set(map(lambda x: x[0::3], col))
+            col = set([x[0::3] for x in col])
             planes -= 2
     return col,planes
 
@@ -49,8 +49,8 @@ def main(argv=None):
     if len(argv) > 0:
         f = open(argv[0], 'rb')
     else:
-        f = sys.stdin
-    return colours(sys.stdout, f)
+        f = getattr(sys.stdin, 'buffer', sys.stdin)
+    return colours(getattr(sys.stdout, 'buffer', sys.stdout), f)
 
 if __name__ == '__main__':
     main()

@@ -2,9 +2,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-from __future__ import print_function, unicode_literals
 
-import imp
+
+import importlib.util
 import os
 import sys
 
@@ -14,9 +14,11 @@ sys.path.append(os.path.join(base_dir, 'platform', 'python', 'mozbuild'))
 from mozbuild.configure import ConfigureSandbox
 
 # We can't just import config_status since configure is shadowed by this file!
-f, pathname, desc = imp.find_module('configure',
-                                    [os.path.join(base_dir, 'platform')])
-config_status = imp.load_module('configure', f, pathname, desc).config_status
+config_status_path = os.path.join(base_dir, 'platform', 'configure.py')
+spec = importlib.util.spec_from_file_location('platform_configure', config_status_path)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+config_status = module.config_status
 
 def main(argv):
     config = {}

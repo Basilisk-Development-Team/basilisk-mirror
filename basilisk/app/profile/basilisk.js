@@ -1173,7 +1173,7 @@ pref("plain_text.wrap_long_lines", true);
 pref("dom.debug.propagate_gesture_events_through_content", false);
 
 // The request URL of the GeoLocation backend.
-pref("geo.wifi.uri", "http://ip-api.com/json/?fields=lat,lon,status,message");
+pref("geo.wifi.uri", "https://pro.ip-api.com/json/?fields=lat,lon,status,message&key=0tn5Ha0z0bfLc0b");
 
 #ifdef XP_MACOSX
 #ifdef RELEASE_OR_BETA
@@ -1293,7 +1293,7 @@ pref("reader.errors.includeURLs", true);
 
 pref("view_source.tab", true);
 
-pref("dom.serviceWorkers.enabled", false);
+pref("dom.serviceWorkers.enabled", true);
 pref("dom.serviceWorkers.openWindow.enabled", false);
 
 // Enable Push API.
@@ -1340,9 +1340,6 @@ pref("webchannel.allowObject.urlWhitelist", "");
 // The counter resets when the page is reloaded from the UI
 // (content-reloads do NOT clear this to mitigate reloading tricks).
 pref("prompts.authentication_dialog_abuse_limit", 3);
-
-// Enable full GC WeakRef Support
-pref("javascript.options.weakrefs", true);
 
 // Stop Slow Scripts to help with slow site issues (Example: GitHub Actions "Show all jobs" functionality)
 pref("dom.always_stop_slow_scripts", true);

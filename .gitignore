@@ -62,6 +62,9 @@ python/psutil/*.so
 python/psutil/*.pyd
 python/psutil/build/
 
+# Python __pycache__ directories
+__pycache__/
+
 # Ignore chrome.manifest files from the devtools loader
 browser/devtools/chrome.manifest
 toolkit/devtools/chrome.manifest
@@ -78,3 +81,4 @@ iceweasel/
 calendar/
 epyrus/
 projects/*
+.codex

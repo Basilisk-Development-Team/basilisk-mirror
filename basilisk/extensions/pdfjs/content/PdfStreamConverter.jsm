@@ -425,6 +425,36 @@ class ChromeActions {
     winmm.sendAsyncMessage("PDFJS:Parent:updateControlState", data);
   }
 
+  updateFindMatchesCount(data) {
+    if (!this.supportsIntegratedFind()) {
+      return;
+    }
+    if (!data || typeof data.current !== "number" ||
+        typeof data.total !== "number" || data.current < 0 || data.total < 0) {
+      return;
+    }
+
+    var winmm = this.domWindow.QueryInterface(Ci.nsIInterfaceRequestor)
+                              .getInterface(Ci.nsIDocShell)
+                              .QueryInterface(Ci.nsIInterfaceRequestor)
+                              .getInterface(Ci.nsIContentFrameMessageManager);
+
+    winmm.sendAsyncMessage("PDFJS:Parent:updateMatchesCount", data);
+  }
+
+  openFindBar() {
+    if (!this.supportsIntegratedFind()) {
+      return;
+    }
+
+    var winmm = this.domWindow.QueryInterface(Ci.nsIInterfaceRequestor)
+                              .getInterface(Ci.nsIDocShell)
+                              .QueryInterface(Ci.nsIInterfaceRequestor)
+                              .getInterface(Ci.nsIContentFrameMessageManager);
+
+    winmm.sendAsyncMessage("PDFJS:Parent:openFindBar");
+  }
+
   setPreferences(prefs, sendResponse) {
     var defaultBranch = Services.prefs.getDefaultBranch(PREF_PREFIX + ".");
     var numberOfPrefs = 0;

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # $URL: http://pypng.googlecode.com/svn/trunk/code/pipscalez $
 # $Rev: 131 $
 
@@ -47,7 +47,8 @@ def main(argv=None):
         yf = int(argv[2])
     else:
         yf = xf
-    return rescale(sys.stdin, sys.stdout, xf, yf)
+    return rescale(getattr(sys.stdin, 'buffer', sys.stdin),
+                   getattr(sys.stdout, 'buffer', sys.stdout), xf, yf)
 
 if __name__ == '__main__':
     main()

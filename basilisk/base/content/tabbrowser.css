@@ -39,6 +39,21 @@
   display: -moz-box;
 }
 
+.tab-label-stack[crop="clip"] > .tab-label-crop,
+.tab-label-stack:not([crop="clip"]) > .tab-label-container {
+  display: none;
+}
+
+.tab-label-container {
+  overflow: hidden;
+}
+
+.tab-label-container > .tab-label {
+  white-space: nowrap;
+}
+
+.tab-label-stack[pinned],
+.tab-label-container[pinned],
 .tab-label[pinned] {
   width: 0;
   margin-left: 0 !important;
