@@ -39,3 +39,7 @@ Nothing in this Contributor License modifies, restricts, or supersedes the
 rights granted under the applicable software licenses governing Basilisk.
 Subject to those licenses, anyone remains free to use, study, modify,
 redistribute, and fork Basilisk.
+
+This Contributor License is effective as of July 8, 2026, and applies only to
+original contributions intentionally submitted to the official Basilisk source
+code repository on or after that date.
