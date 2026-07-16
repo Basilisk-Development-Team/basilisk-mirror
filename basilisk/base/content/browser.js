@@ -36,9 +36,7 @@ Cu.import("resource://gre/modules/NotificationDB.jsm");
   ["ReaderMode", "resource://gre/modules/ReaderMode.jsm"],
   ["ReaderParent", "resource:///modules/ReaderParent.jsm"],
   ["RecentWindow", "resource:///modules/RecentWindow.jsm"],
-#ifdef XP_WIN
   ["Services", "resource://gre/modules/Services.jsm"],
-#endif
   ["SessionStore", "resource:///modules/sessionstore/SessionStore.jsm"],
   ["ShortcutUtils", "resource://gre/modules/ShortcutUtils.jsm"],
   ["SitePermissions", "resource:///modules/SitePermissions.jsm"],
@@ -141,7 +139,7 @@ var gLastBrowserCharset = null;
 var gLastValidURLStr = "";
 var gInPrintPreviewMode = false;
 var gContextMenu = null; // nsContextMenu instance
-var gMultiProcessBrowser = false;
+var gMultiProcessBrowser = E10SUtils.isMultiProcessEnabled();
 var gAppInfo = Cc["@mozilla.org/xre/app-info;1"]
                   .getService(Ci.nsIXULAppInfo)
                   .QueryInterface(Ci.nsIXULRuntime);
@@ -888,7 +886,7 @@ addEventListener("DOMContentLoaded", function onDCL() {
   let initBrowser =
     document.getAnonymousElementByAttribute(gBrowser, "anonid", "initialBrowser");
 
-  gBrowser.updateBrowserRemoteness(initBrowser, false);
+  gBrowser.updateBrowserRemoteness(initBrowser, gMultiProcessBrowser);
 });
 
 var gBrowserInit = {
@@ -1296,7 +1294,11 @@ var gBrowserInit = {
           panel.hidePopup();
         }
       }
+      BrowserUpdateBackspaceCommands();
     });
+    window.addEventListener("focus", BrowserUpdateBackspaceCommands, true);
+    window.addEventListener("blur", BrowserUpdateBackspaceCommands, true);
+    BrowserUpdateBackspaceCommands();
 
     this.delayedStartupFinished = true;
 
@@ -1407,6 +1409,8 @@ var gBrowserInit = {
       Services.obs.removeObserver(gXPInstallObserver, "addon-install-complete");
       window.messageManager.removeMessageListener("Browser:URIFixup", gKeywordURIFixup);
       window.messageManager.removeMessageListener("Browser:LoadURI", RedirectLoad);
+      window.removeEventListener("focus", BrowserUpdateBackspaceCommands, true);
+      window.removeEventListener("blur", BrowserUpdateBackspaceCommands, true);
 
       try {
         gPrefService.removeObserver(gHomeButton.prefDomain, gHomeButton);
@@ -1649,8 +1653,42 @@ function BrowserBack(aEvent) {
   }
 }
 
+function BrowserShouldHandleBackspace()
+{
+  let browser = gBrowser && gBrowser.selectedBrowser;
+  if (!browser || !browser.isRemoteBrowser) {
+    return true;
+  }
+
+  // In remote tabs the parent cannot reliably know whether the child focus is
+  // in an editable field. When focus is in the remote browser, let content own
+  // Backspace so typing in forms cannot accidentally navigate history.
+  return document.activeElement != browser &&
+         document.commandDispatcher.focusedElement != browser;
+}
+
+function BrowserUpdateBackspaceCommands()
+{
+  let shouldHandle = BrowserShouldHandleBackspace();
+  for (let id of ["cmd_handleBackspace", "cmd_handleShiftBackspace"]) {
+    let command = document.getElementById(id);
+    if (!command) {
+      continue;
+    }
+    if (shouldHandle) {
+      command.removeAttribute("disabled");
+    } else {
+      command.setAttribute("disabled", "true");
+    }
+  }
+}
+
 function BrowserHandleBackspace()
 {
+  if (!BrowserShouldHandleBackspace()) {
+    return;
+  }
+
   switch (gPrefService.getIntPref("browser.backspace_action")) {
   case 0:
     BrowserBack();
@@ -1663,6 +1701,10 @@ function BrowserHandleBackspace()
 
 function BrowserHandleShiftBackspace()
 {
+  if (!BrowserShouldHandleBackspace()) {
+    return;
+  }
+
   switch (gPrefService.getIntPref("browser.backspace_action")) {
   case 0:
     BrowserForward();
@@ -3874,6 +3916,37 @@ var XULBrowserWindow = {
 
   // Check whether this URI should load in the current process
   shouldLoadURI: function(aDocShell, aURI, aReferrer) {
+    if (!gMultiProcessBrowser) {
+      return true;
+    }
+
+    if (!E10SUtils.shouldLoadURI(aDocShell, aURI, aReferrer)) {
+      let browser = null;
+      if (gBrowser && gBrowser.browsers) {
+        for (let candidate of gBrowser.browsers) {
+          try {
+            if (!candidate.isRemoteBrowser && candidate.docShell == aDocShell) {
+              browser = candidate;
+              break;
+            }
+          } catch (ex) {
+            // Remote browsers do not expose a parent-process docshell.
+          }
+        }
+      }
+
+      if (browser) {
+        LoadInOtherProcess(browser, {
+          uri: aURI.spec,
+          flags: Ci.nsIWebNavigation.LOAD_FLAGS_NONE,
+          referrer: aReferrer ? aReferrer.spec : null,
+        });
+      } else {
+        E10SUtils.redirectLoad(aDocShell, aURI, aReferrer);
+      }
+      return false;
+    }
+
     return true;
   },
 
@@ -7293,7 +7366,7 @@ var gRemoteTabsUI = {
 #endif
 
     let newNonRemoteWindow = document.getElementById("menu_newNonRemoteWindow");
-    let autostart = Services.appinfo.browserTabsRemoteAutostart;
+    let autostart = E10SUtils.isMultiProcessEnabled();
     newNonRemoteWindow.hidden = !autostart;
   }
 };

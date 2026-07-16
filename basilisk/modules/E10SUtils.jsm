@@ -25,10 +25,79 @@ function getAboutModule(aURL) {
 }
 
 this.E10SUtils = {
+  isMultiProcessEnabled: function() {
+    try {
+      return !!Services.appinfo.browserTabsRemoteAutostart;
+    } catch (ex) {
+      return false;
+    }
+  },
+
+  isFissionEnabled: function() {
+    try {
+      return this.isMultiProcessEnabled() && !!Services.appinfo.fissionAutostart;
+    } catch (ex) {
+      return false;
+    }
+  },
+
+  getRemoteTypeForURI: function(aURL, aMultiProcess) {
+    if (aMultiProcess === undefined) {
+      aMultiProcess = this.isMultiProcessEnabled();
+    }
+
+    if (!aMultiProcess) {
+      return "";
+    }
+
+    if (!this.isFissionEnabled()) {
+      return "web";
+    }
+
+    if (!aURL) {
+      aURL = "about:blank";
+    }
+
+    if (typeof aURL != "string") {
+      aURL = aURL.spec;
+    }
+
+    if (aURL.startsWith("view-source:")) {
+      return this.getRemoteTypeForURI(aURL.substr("view-source:".length),
+                                      aMultiProcess);
+    }
+
+    let uri;
+    try {
+      uri = Services.io.newURI(aURL, null, null);
+    } catch (ex) {
+      return "web";
+    }
+
+    if (uri.scheme == "http" || uri.scheme == "https") {
+      return "webIsolated=" + encodeURIComponent(uri.scheme + "://" + uri.host);
+    }
+
+    if (uri.scheme == "file") {
+      return "file";
+    }
+
+    if (uri.scheme == "about" || uri.scheme == "chrome" ||
+        uri.scheme == "resource" || uri.scheme == "moz-extension") {
+      return uri.scheme;
+    }
+
+    return "web";
+  },
+
   canLoadURIInProcess: function(aURL, aProcess) {
     // loadURI in browser.xml treats null as about:blank
     if (!aURL)
       aURL = "about:blank";
+
+    if (typeof aURL != "string") {
+      aURL = aURL.spec;
+    }
 
     // Javascript urls can load in any process, they apply to the current document
     if (aURL.startsWith("javascript:"))
@@ -88,6 +157,10 @@ this.E10SUtils = {
   },
 
   shouldLoadURI: function(aDocShell, aURI, aReferrer) {
+    if (!this.isMultiProcessEnabled()) {
+      return true;
+    }
+
     // Inner frames should always load in the current process
     if (aDocShell.QueryInterface(Ci.nsIDocShellTreeItem).sameTypeParent)
       return true;
@@ -97,6 +170,10 @@ this.E10SUtils = {
   },
 
   redirectLoad: function(aDocShell, aURI, aReferrer, aFreshProcess) {
+    if (!this.isMultiProcessEnabled()) {
+      return true;
+    }
+
     // Retarget the load to the correct process
     let messageManager = aDocShell.QueryInterface(Ci.nsIInterfaceRequestor)
                                   .getInterface(Ci.nsIContentFrameMessageManager);

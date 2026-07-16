@@ -1249,6 +1249,23 @@ pref("browser.tabs.remote.autostart.1", false);
 pref("browser.tabs.remote.autostart.2", true);
 #endif
 
+// Run browser tabs out of process by default. Users can disable this by setting
+// browser.tabs.remote.autostart to false.
+pref("browser.tabs.remote.autostart", true);
+
+// Enable Fission-style top-level site isolation. Cross-origin subframe remoting
+// remains disabled in this UXP branch until the platform grows BrowsingContext
+// and browser-bridge actor equivalents.
+pref("fission.autostart", true);
+
+// Keep browser tabs out of the parent process by default while using a bounded
+// content-process pool. dom.ipc.tabs.perTabProcess remains available for a more
+// aggressive one-tab-per-process model once the process lifecycle is stable.
+pref("dom.ipc.processCount", 4);
+pref("dom.ipc.tabs.perTabProcess", false);
+pref("dom.ipc.siteIsolation.enabled", true);
+pref("browser.tabs.remote.skipPermitUnload", true);
+
 // Enable e10s add-on interposition by default.
 pref("extensions.interposition.enabled", true);
 pref("extensions.interposition.prefetching", true);

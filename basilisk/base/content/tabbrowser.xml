@@ -1672,9 +1672,11 @@
         <parameter name="aShouldBeRemote"/>
         <parameter name="aOpener"/>
         <parameter name="aFreshProcess"/>
+        <parameter name="aRemoteType"/>
         <body>
           <![CDATA[
             let isRemote = aBrowser.getAttribute("remote") == "true";
+            let remoteType = aShouldBeRemote ? (aRemoteType || "web") : "";
 
             // If we are passed an opener, we must be making the browser non-remote, and
             // if the browser is _currently_ non-remote, we need the openers to match,
@@ -1727,6 +1729,11 @@
             let parent = aBrowser.parentNode;
             parent.removeChild(aBrowser);
             aBrowser.setAttribute("remote", aShouldBeRemote ? "true" : "false");
+            if (remoteType) {
+              aBrowser.setAttribute("remoteType", remoteType);
+            } else {
+              aBrowser.removeAttribute("remoteType");
+            }
 
             // NB: This works with the hack in the browser constructor that
             // turns this normal property into a field.
@@ -1814,7 +1821,11 @@
         <parameter name="aBrowser"/>
         <body>
           <![CDATA[
-            return this.updateBrowserRemoteness(aBrowser, false);
+            if (!gMultiProcessBrowser) {
+              return false;
+            }
+            return this.updateBrowserRemoteness(aBrowser, true, null, true,
+                                                aBrowser.getAttribute("remoteType") || "web");
           ]]>
         </body>
       </method>
@@ -1824,7 +1835,14 @@
         <parameter name="aURL"/>
         <body>
           <![CDATA[
-            return this.updateBrowserRemoteness(aBrowser, false);
+            let url = aURL && typeof aURL != "string" ? aURL.spec : aURL;
+            let shouldBeRemote =
+              gMultiProcessBrowser &&
+              E10SUtils.canLoadURIInProcess(url,
+                                            Ci.nsIXULRuntime.PROCESS_TYPE_CONTENT);
+            let remoteType = E10SUtils.getRemoteTypeForURI(url, shouldBeRemote);
+            return this.updateBrowserRemoteness(aBrowser, shouldBeRemote,
+                                                null, false, remoteType);
           ]]>
         </body>
       </method>
@@ -1864,7 +1882,8 @@
             // Preloading for the newtab page is enabled when the pref is true
             // and the URL is "about:newtab". We do not support preloading for
             // custom newtab URLs.
-            return Services.prefs.getBoolPref("browser.newtab.preload") &&
+            return !gMultiProcessBrowser &&
+                   Services.prefs.getBoolPref("browser.newtab.preload") &&
                    !aboutNewTabService.overridden;
           ]]>
         </body>
@@ -1910,6 +1929,10 @@
 
             if (aParams.remote) {
               b.setAttribute("remote", "true");
+            }
+
+            if (aParams.remoteType) {
+              b.setAttribute("remoteType", aParams.remoteType);
             }
 
             if (aParams.userContextId) {
@@ -2014,8 +2037,17 @@
 
             if (!browser) {
               // No preloaded browser found, create one.
+              let remote =
+                !aParams.forceNotRemote &&
+                !aParams.opener &&
+                gMultiProcessBrowser &&
+                E10SUtils.canLoadURIInProcess(aURI || "about:blank",
+                                              Ci.nsIXULRuntime.PROCESS_TYPE_CONTENT);
+              let remoteType =
+                E10SUtils.getRemoteTypeForURI(aURI || "about:blank", remote);
               browser = this._createBrowser({permanentKey: aTab.permanentKey,
-                                             remote: false,
+                                             remote,
+                                             remoteType,
                                              uriIsAboutBlank: uriIsAboutBlank,
                                              relatedBrowser: aParams.relatedBrowser,
                                              opener: aParams.opener,
@@ -2060,7 +2092,9 @@
             // from being created as soon as the linked <browser> is inserted
             // into the DOM. We thus have to register the new outerWindowID
             // for non-remote browsers after we have called browser.loadURI().
-            this._outerWindowIDBrowserMap.set(browser.outerWindowID, browser);
+            if (!browser.isRemoteBrowser) {
+              this._outerWindowIDBrowserMap.set(browser.outerWindowID, browser);
+            }
 
             var evt = new CustomEvent("TabBrowserInserted", { bubbles: true, detail: {} });
             aTab.dispatchEvent(evt);
@@ -2489,7 +2523,12 @@
 
             var browser = this.getBrowserForTab(aTab);
 
-            if (!aTab._pendingPermitUnload && !aAdoptedByTab && !aSkipPermitUnload) {
+            let skipRemotePermitUnload =
+              browser.isRemoteBrowser &&
+              Services.prefs.getBoolPref("browser.tabs.remote.skipPermitUnload", true);
+
+            if (!aTab._pendingPermitUnload && !aAdoptedByTab &&
+                !aSkipPermitUnload && !skipRemotePermitUnload) {
               // We need to block while calling permitUnload() because it
               // processes the event queue and may lead to another removeTab()
               // call before permitUnload() returns.
@@ -2555,7 +2594,7 @@
             var evt = new CustomEvent("TabClose", { bubbles: true, detail: { adoptedBy: aAdoptedByTab } });
             aTab.dispatchEvent(evt);
 
-            if (!aAdoptedByTab) {
+            if (!aAdoptedByTab && !browser.isRemoteBrowser) {
               // Prevent this tab from showing further dialogs, since we're closing it
               var windowUtils = browser.contentWindow.QueryInterface(Ci.nsIInterfaceRequestor).
                                 getInterface(Ci.nsIDOMWindowUtils);
