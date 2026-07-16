@@ -550,9 +550,10 @@ nsContextMenu.prototype = {
     let editFlags;
     this.isRemote = gContextMenuContentData && gContextMenuContentData.isRemote;
     if (this.isRemote) {
-      aNode = gContextMenuContentData.event.target;
-      aRangeParent = gContextMenuContentData.event.rangeParent;
-      aRangeOffset = gContextMenuContentData.event.rangeOffset;
+      let event = gContextMenuContentData.event;
+      aNode = event ? event.target : gContextMenuContentData.popupNode;
+      aRangeParent = event ? event.rangeParent : null;
+      aRangeOffset = event ? event.rangeOffset : 0;
       editFlags = gContextMenuContentData.editFlags;
     }
 

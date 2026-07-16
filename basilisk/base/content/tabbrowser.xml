@@ -4658,7 +4658,8 @@
                                           parentAllowsMixedContent: data.parentAllowsMixedContent,
                                         };
               let popup = browser.ownerDocument.getElementById("contentAreaContextMenu");
-              popup.openPopupAtScreen(data.screenX, data.screenY, true);
+              popup.openPopupAtScreen(data.screenX, data.screenY, true,
+                                      aMessage.objects.event);
               break;
             }
             case "DOMServiceWorkerFocusClient":
