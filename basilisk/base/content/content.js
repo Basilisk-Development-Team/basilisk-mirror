@@ -185,7 +185,8 @@ var handleContentContextMenu = function (event) {
                      principal, docLocation, charSet, baseURI, referrer,
                      referrerPolicy, contentType, contentDisposition,
                      frameOuterWindowID, selectionInfo, disableSetDesktopBg,
-                     loginFillInfo, parentAllowsMixedContent },
+                     loginFillInfo, parentAllowsMixedContent,
+                     screenX: event.screenX, screenY: event.screenY },
                    { event, popupNode: event.target });
   }
   else {

@@ -7,6 +7,10 @@ var Ci = Components.interfaces;
 var Cu = Components.utils;
 var Cc = Components.classes;
 
+// Legacy remote-tab chrome paths such as nsContextMenu still dereference
+// selected content nodes through CPOWs. Keep this scoped to browser chrome.
+Cu.permitCPOWsInScope(this);
+
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/NotificationDB.jsm");
 

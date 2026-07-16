@@ -43,3 +43,4 @@
 <!ENTITY getStarted.label                 "Start using Sync…">
 
 <!ENTITY e10sEnabled.label                "Enable multi-process &brandShortName;">
+<!ENTITY e10sEnabled.accesskey            "p">

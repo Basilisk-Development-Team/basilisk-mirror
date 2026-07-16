@@ -62,6 +62,9 @@
     browser.tabs.loadInBackground
     - true if display should switch to a new tab which has been opened from a
       link, false if display shouldn't switch
+    browser.tabs.remote.autostart
+    - true if browser tabs should run in separate content processes, false
+      if all tabs should run in the parent process
     browser.tabs.warnOnClose
     - true if when closing a window with multiple tabs the user is warned and
       allowed to cancel the action, false to just close the window
@@ -79,6 +82,9 @@
                 name="browser.tabs.loadInBackground"
                 type="bool"
                 inverted="true"/>
+    <preference id="browser.tabs.remote.autostart"
+                name="browser.tabs.remote.autostart"
+                type="bool"/>
     <preference id="browser.tabs.warnOnClose"
                 name="browser.tabs.warnOnClose"
                 type="bool"/>
@@ -264,6 +270,10 @@
     <checkbox id="switchToNewTabs" label="&switchToNewTabs.label;"
               accesskey="&switchToNewTabs.accesskey;"
               preference="browser.tabs.loadInBackground"/>
+
+    <checkbox id="e10sEnabled" label="&e10sEnabled.label;"
+              accesskey="&e10sEnabled.accesskey;"
+              preference="browser.tabs.remote.autostart"/>
 
 #ifdef XP_WIN
     <checkbox id="showTabsInTaskbar" label="&showTabsInTaskbar.label;"

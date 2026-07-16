@@ -4658,8 +4658,7 @@
                                           parentAllowsMixedContent: data.parentAllowsMixedContent,
                                         };
               let popup = browser.ownerDocument.getElementById("contentAreaContextMenu");
-              let event = gContextMenuContentData.event;
-              popup.openPopupAtScreen(event.screenX, event.screenY, true);
+              popup.openPopupAtScreen(data.screenX, data.screenY, true);
               break;
             }
             case "DOMServiceWorkerFocusClient":

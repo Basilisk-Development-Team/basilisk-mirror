@@ -77,6 +77,8 @@ var gMainPane = {
                      gMainPane.restoreDefaultHomePage);
     setEventListener("chooseFolder", "command",
                      gMainPane.chooseFolder);
+    setEventListener("e10sEnabled", "command",
+                     gMainPane.updateE10SRestart);
 
     // Notify observers that the UI is now ready
     Components.classes["@mozilla.org/observer-service;1"]
@@ -529,6 +531,35 @@ var gMainPane = {
     var linkTargeting = document.getElementById("linkTargeting");
     return linkTargeting.checked ? 3 : 2;
   },
+
+  /**
+   * Prompts for restart when enabling or disabling multi-process browsing.
+   */
+  updateE10SRestart: function()
+  {
+    let checkbox = document.getElementById("e10sEnabled");
+    let pref = document.getElementById("browser.tabs.remote.autostart");
+    let enabled = checkbox.checked;
+
+    let buttonIndex = confirmRestartPrompt(enabled, 2, true, true);
+    if (buttonIndex == CONFIRM_RESTART_PROMPT_RESTART_NOW) {
+      pref.value = enabled;
+      let appStartup = Cc["@mozilla.org/toolkit/app-startup;1"]
+                         .getService(Ci.nsIAppStartup);
+      appStartup.quit(Ci.nsIAppStartup.eAttemptQuit |
+                      Ci.nsIAppStartup.eRestart);
+      return;
+    }
+
+    if (buttonIndex == CONFIRM_RESTART_PROMPT_RESTART_LATER) {
+      pref.value = enabled;
+      return;
+    }
+
+    checkbox.checked = !enabled;
+    pref.value = !enabled;
+  },
+
   /*
    * Preferences:
    *
