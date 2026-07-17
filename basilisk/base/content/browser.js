@@ -930,6 +930,10 @@ var gBrowserInit = {
     Cc["@mozilla.org/eventlistenerservice;1"]
       .getService(Ci.nsIEventListenerService)
       .addSystemEventListener(gBrowser, "click", contentAreaClick, true);
+    Cc["@mozilla.org/eventlistenerservice;1"]
+      .getService(Ci.nsIEventListenerService)
+      .addSystemEventListener(gBrowser, "contextmenu",
+                              remoteBrowserContextMenuFallback, true);
 
     // hook up UI through progress listener
     gBrowser.addProgressListener(window.XULBrowserWindow);
@@ -4145,10 +4149,15 @@ var XULBrowserWindow = {
         // Don't need to re-enable/disable find commands for same-document location changes
         // (e.g. the replaceStates in about:addons)
         if (!(aFlags & Ci.nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT)) {
-          if (content.document.readyState == "interactive" || content.document.readyState == "complete")
-            disableFindCommands(shouldDisableFind(content.document));
-          else {
-            content.document.addEventListener("readystatechange", onContentRSChange);
+          let selectedBrowser = gBrowser.selectedBrowser;
+          if (selectedBrowser && selectedBrowser.isRemoteBrowser) {
+            disableFindCommands(false);
+          } else if (content && content.document) {
+            if (content.document.readyState == "interactive" || content.document.readyState == "complete")
+              disableFindCommands(shouldDisableFind(content.document));
+            else {
+              content.document.addEventListener("readystatechange", onContentRSChange);
+            }
           }
         }
       } else
@@ -4568,10 +4577,12 @@ nsBrowserAccess.prototype = {
                                             forceNotRemote,
                                             openerWindow, triggeringPrincipal);
         if (browser)
-          newWindow = browser.contentWindow;
+          newWindow = browser.isRemoteBrowser ? null : browser.contentWindow;
         break;
       default : // OPEN_CURRENTWINDOW or an illegal value
-        newWindow = content;
+        let selectedBrowser = gBrowser.selectedBrowser;
+        newWindow = selectedBrowser && selectedBrowser.isRemoteBrowser ?
+                    null : content;
         if (aURI) {
           let loadflags = isExternal ?
                             Ci.nsIWebNavigation.LOAD_FLAGS_FROM_EXTERNAL :
@@ -5103,6 +5114,63 @@ function contentAreaClick(event, isPanelClick)
     if (!PrivateBrowsingUtils.isWindowPrivate(window))
       PlacesUIUtils.markPageAsFollowedLink(href);
   } catch (ex) { /* Skip invalid URIs. */ }
+}
+
+function remoteBrowserContextMenuFallback(event)
+{
+  let browser = event.target;
+  while (browser && browser.localName != "browser") {
+    browser = browser.parentNode;
+  }
+
+  if (!browser || !browser.isRemoteBrowser) {
+    return;
+  }
+
+  let popup = document.getElementById("contentAreaContextMenu");
+  let screenX = event.screenX;
+  let screenY = event.screenY;
+
+  // The real remote context menu is sent by the content frame script. Give it a
+  // turn first and only fall back when no popup was opened.
+  setTimeout(() => {
+    if (popup.state == "showing" || popup.state == "open") {
+      return;
+    }
+
+    let currentURI = browser.currentURI;
+    gContextMenuContentData = {
+      isRemote: true,
+      event: null,
+      popupNode: null,
+      browser,
+      editFlags: 0,
+      spellInfo: null,
+      principal: browser.contentPrincipal,
+      customMenuItems: [],
+      addonInfo: {},
+      documentURIObject: currentURI,
+      docLocation: currentURI.spec,
+      charSet: browser.characterSet,
+      referrer: "",
+      referrerPolicy: Ci.nsIHttpChannel.REFERRER_POLICY_UNSET,
+      contentType: null,
+      contentDisposition: null,
+      frameOuterWindowID: null,
+      selectionInfo: { text: "", docSelectionIsCollapsed: true },
+      disableSetDesktopBackground: null,
+      loginFillInfo: null,
+      parentAllowsMixedContent: false,
+      targetContext: {
+        ownerDocIsFullscreen: false,
+        contentType: "",
+        inSyntheticDoc: false,
+        media: {},
+      },
+    };
+
+    popup.openPopupAtScreen(screenX, screenY, true);
+  }, 0);
 }
 
 /**

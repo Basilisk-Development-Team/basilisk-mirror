@@ -83,6 +83,194 @@ addEventListener("blur", function(event) {
   LoginManagerContent.onUsernameInput(event);
 });
 
+function getContextMenuTargetData(event, editFlags) {
+  let target = event.target;
+  let doc = target.ownerDocument;
+  let win = target.ownerGlobal || doc.defaultView;
+  let data = {
+    ownerDocIsFullscreen: !!doc.fullscreenElement,
+    contentType: doc.contentType,
+    inSyntheticDoc: !!doc.mozSyntheticDocument,
+    onImage: false,
+    onLoadedImage: false,
+    onCompletedImage: false,
+    imageDescURL: "",
+    onCanvas: false,
+    onVideo: false,
+    onAudio: false,
+    mediaURL: "",
+    media: {},
+    onTextInput: false,
+    onNumeric: false,
+    onEditableArea: false,
+    onPassword: false,
+    onKeywordField: false,
+    canSpellCheck: false,
+    onLink: false,
+    linkURL: "",
+    linkTextStr: "",
+    linkProtocol: "",
+    onMailtoLink: false,
+    onSaveableLink: false,
+    linkHasNoReferrer: false,
+    linkDownload: "",
+    onMathML: false,
+    inFrame: false,
+    inSrcdocFrame: false,
+    hasBGImage: false,
+    bgImageURL: "",
+    isDesignMode: false,
+    onCTPPlugin: false,
+  };
+
+  function isMediaURLReusable(aURL) {
+    if (!aURL) {
+      return false;
+    }
+    let URL = aURL instanceof Ci.nsIURI ? aURL.spec : aURL;
+    return URL.startsWith("http:") || URL.startsWith("https:") ||
+           URL.startsWith("file:");
+  }
+
+  function isLinkSaveable(aProtocol) {
+    return aProtocol && !(
+      aProtocol == "mailto" ||
+      aProtocol == "javascript" ||
+      aProtocol == "news" ||
+      aProtocol == "snews"
+    );
+  }
+
+  try {
+    if (target.nodeType == Ci.nsIDOMNode.ELEMENT_NODE &&
+        target instanceof Ci.nsIImageLoadingContent &&
+        target.currentURI) {
+      data.onImage = true;
+      data.mediaURL = target.currentURI.spec;
+
+      let request = target.getRequest(Ci.nsIImageLoadingContent.CURRENT_REQUEST);
+      if (request && (request.imageStatus & request.STATUS_SIZE_AVAILABLE)) {
+        data.onLoadedImage = true;
+      }
+      if (request &&
+          (request.imageStatus & request.STATUS_LOAD_COMPLETE) &&
+          !(request.imageStatus & request.STATUS_ERROR)) {
+        data.onCompletedImage = true;
+      }
+
+      let descURL = target.getAttribute("longdesc");
+      if (descURL) {
+        data.imageDescURL = BrowserUtils.makeURI(descURL, null, doc.baseURIObject).spec;
+      }
+    } else if (target instanceof win.HTMLCanvasElement) {
+      data.onCanvas = true;
+    } else if (target instanceof win.HTMLVideoElement) {
+      let mediaURL = target.currentSrc || target.src;
+      if (isMediaURLReusable(mediaURL)) {
+        data.mediaURL = mediaURL;
+      }
+      if (target.readyState >= target.HAVE_METADATA &&
+          (target.videoWidth == 0 || target.videoHeight == 0)) {
+        data.onAudio = true;
+      } else {
+        data.onVideo = true;
+      }
+      data.media = {
+        paused: target.paused,
+        ended: target.ended,
+        muted: target.muted,
+        controls: target.controls,
+        duration: target.duration,
+        playbackRate: target.playbackRate,
+        loop: target.loop,
+        hasError: target.error != null ||
+                  target.networkState == target.NETWORK_NO_SOURCE,
+        canSaveSnapshot: target.readyState >= target.HAVE_CURRENT_DATA,
+      };
+    } else if (target instanceof win.HTMLAudioElement) {
+      data.onAudio = true;
+      let mediaURL = target.currentSrc || target.src;
+      if (isMediaURLReusable(mediaURL)) {
+        data.mediaURL = mediaURL;
+      }
+      data.media = {
+        paused: target.paused,
+        ended: target.ended,
+        muted: target.muted,
+        controls: target.controls,
+        duration: target.duration,
+        playbackRate: target.playbackRate,
+        loop: target.loop,
+        hasError: target.error != null ||
+                  target.networkState == target.NETWORK_NO_SOURCE,
+      };
+    }
+  } catch (e) {
+    Cu.reportError(e);
+  }
+
+  data.onTextInput = (editFlags & SpellCheckHelper.TEXTINPUT) !== 0;
+  data.onNumeric = (editFlags & SpellCheckHelper.NUMERIC) !== 0;
+  data.onEditableArea = (editFlags & SpellCheckHelper.EDITABLE) !== 0;
+  data.onPassword = (editFlags & SpellCheckHelper.PASSWORD) !== 0;
+  data.onKeywordField = (editFlags & SpellCheckHelper.KEYWORD) !== 0;
+
+  let elem = target.nodeType == Ci.nsIDOMNode.ELEMENT_NODE ?
+             target : target.parentNode;
+  while (elem) {
+    if (elem.nodeType == Ci.nsIDOMNode.ELEMENT_NODE) {
+      try {
+        let elemWin = elem.ownerGlobal || elem.ownerDocument.defaultView;
+        if (!data.onLink &&
+            ((elem instanceof elemWin.HTMLAnchorElement && elem.href) ||
+             (elem instanceof elemWin.HTMLAreaElement && elem.href) ||
+             elem instanceof elemWin.HTMLLinkElement ||
+             elem.getAttributeNS("http://www.w3.org/1999/xlink", "type") == "simple")) {
+          data.onLink = true;
+          data.linkURL = elem.href || elem.getAttributeNS("http://www.w3.org/1999/xlink", "href");
+          data.linkTextStr = elem.textContent || data.linkURL;
+          try {
+            data.linkProtocol = new URL(data.linkURL).protocol.replace(/:$/, "");
+          } catch (e) {}
+          data.onMailtoLink = data.linkProtocol == "mailto";
+          data.onSaveableLink = isLinkSaveable(data.linkProtocol);
+          data.linkHasNoReferrer = BrowserUtils.linkHasNoReferrer(elem);
+          if (elem.download) {
+            data.linkDownload = elem.download;
+          }
+        }
+      } catch (e) {}
+    }
+    elem = elem.parentNode;
+  }
+
+  const NS_MathML = "http://www.w3.org/1998/Math/MathML";
+  data.onMathML = (target.nodeType == Ci.nsIDOMNode.TEXT_NODE &&
+                   target.parentNode &&
+                   target.parentNode.namespaceURI == NS_MathML) ||
+                  target.namespaceURI == NS_MathML;
+
+  let docDefaultView = doc.defaultView;
+  data.inFrame = docDefaultView != docDefaultView.top;
+  data.inSrcdocFrame = !!doc.isSrcdocDocument;
+
+  if (editFlags & SpellCheckHelper.CONTENTEDITABLE) {
+    data.onTextInput = true;
+    data.onKeywordField = false;
+    data.onImage = false;
+    data.onLoadedImage = false;
+    data.onCompletedImage = false;
+    data.onMathML = false;
+    data.inFrame = false;
+    data.inSrcdocFrame = false;
+    data.hasBGImage = false;
+    data.isDesignMode = true;
+    data.onEditableArea = true;
+  }
+
+  return data;
+}
+
 var handleContentContextMenu = function (event) {
   let defaultPrevented = event.defaultPrevented;
   if (!Services.prefs.getBoolPref("dom.event.contextmenu.enabled")) {
@@ -119,19 +307,34 @@ var handleContentContextMenu = function (event) {
   let frameOuterWindowID = doc.defaultView.QueryInterface(Ci.nsIInterfaceRequestor)
                                           .getInterface(Ci.nsIDOMWindowUtils)
                                           .outerWindowID;
-  let loginFillInfo = LoginManagerContent.getFieldContext(event.target);
+  let loginFillInfo = null;
+  try {
+    loginFillInfo = LoginManagerContent.getFieldContext(event.target);
+  } catch (e) {
+    Cu.reportError(e);
+  }
 
   // The same-origin check will be done in nsContextMenu.openLinkInTab.
-  let parentAllowsMixedContent = !!docShell.mixedContentChannel;
+  let parentAllowsMixedContent = false;
+  try {
+    parentAllowsMixedContent = !!docShell.mixedContentChannel;
+  } catch (e) {}
 
   // get referrer attribute from clicked link and parse it
   // if per element referrer is enabled, the element referrer overrules
   // the document wide referrer
   if (Services.prefs.getBoolPref("network.http.enablePerElementReferrer")) {
-    let referrerAttrValue = Services.netUtils.parseAttributePolicyString(event.target.
-                            getAttribute("referrerpolicy"));
-    if (referrerAttrValue !== Ci.nsIHttpChannel.REFERRER_POLICY_UNSET) {
-      referrerPolicy = referrerAttrValue;
+    try {
+      if (event.target.getAttribute) {
+        let referrerAttrValue =
+          Services.netUtils.parseAttributePolicyString(
+            event.target.getAttribute("referrerpolicy"));
+        if (referrerAttrValue !== Ci.nsIHttpChannel.REFERRER_POLICY_UNSET) {
+          referrerPolicy = referrerAttrValue;
+        }
+      }
+    } catch (e) {
+      Cu.reportError(e);
     }
   }
 
@@ -160,34 +363,63 @@ var handleContentContextMenu = function (event) {
     } catch (e) {}
   }
 
-  let selectionInfo = BrowserUtils.getSelectionDetails(content);
+  let selectionInfo = { text: "", docSelectionIsCollapsed: true };
+  try {
+    selectionInfo = BrowserUtils.getSelectionDetails(content);
+  } catch (e) {
+    Cu.reportError(e);
+  }
 
   if (Services.appinfo.processType == Services.appinfo.PROCESS_TYPE_CONTENT) {
-    let editFlags = SpellCheckHelper.isEditable(event.target, content);
+    let editFlags = 0;
+    try {
+      editFlags = SpellCheckHelper.isEditable(event.target, content);
+    } catch (e) {
+      Cu.reportError(e);
+    }
+    let targetContext = getContextMenuTargetData(event, editFlags);
     let spellInfo;
-    if (editFlags &
-        (SpellCheckHelper.EDITABLE | SpellCheckHelper.CONTENTEDITABLE)) {
-      spellInfo =
-        InlineSpellCheckerContent.initContextMenu(event, editFlags, this);
+    try {
+      if (editFlags &
+          (SpellCheckHelper.EDITABLE | SpellCheckHelper.CONTENTEDITABLE)) {
+        spellInfo =
+          InlineSpellCheckerContent.initContextMenu(event, editFlags, this);
+      }
+    } catch (e) {
+      Cu.reportError(e);
     }
 
     // Set the event target first as the copy image command needs it to
     // determine what was context-clicked on. Then, update the state of the
     // commands on the context menu.
-    docShell.contentViewer.QueryInterface(Ci.nsIContentViewerEdit)
-            .setCommandNode(event.target);
-    event.target.ownerGlobal.updateCommands("contentcontextmenu");
+    try {
+      docShell.contentViewer.QueryInterface(Ci.nsIContentViewerEdit)
+              .setCommandNode(event.target);
+      event.target.ownerGlobal.updateCommands("contentcontextmenu");
+    } catch (e) {
+      Cu.reportError(e);
+    }
 
-    let customMenuItems = PageMenuChild.build(event.target);
+    let customMenuItems = [];
+    try {
+      customMenuItems = PageMenuChild.build(event.target);
+    } catch (e) {
+      Cu.reportError(e);
+    }
     let principal = doc.nodePrincipal;
-    sendRpcMessage("contextmenu",
-                   { editFlags, spellInfo, customMenuItems, addonInfo,
-                     principal, docLocation, charSet, baseURI, referrer,
-                     referrerPolicy, contentType, contentDisposition,
-                     frameOuterWindowID, selectionInfo, disableSetDesktopBg,
-                     loginFillInfo, parentAllowsMixedContent,
-                     screenX: event.screenX, screenY: event.screenY },
-                   { event, popupNode: event.target });
+    let data = { editFlags, spellInfo, customMenuItems, addonInfo,
+                 principal, docLocation, charSet, baseURI, referrer,
+                 referrerPolicy, contentType, contentDisposition,
+                 frameOuterWindowID, selectionInfo, disableSetDesktopBg,
+                 loginFillInfo, parentAllowsMixedContent, targetContext,
+                 screenX: event.screenX, screenY: event.screenY };
+    event._basiliskContextMenuHandled = true;
+    try {
+      sendRpcMessage("contextmenu", data, { event, popupNode: event.target });
+    } catch (e) {
+      Cu.reportError(e);
+      sendAsyncMessage("contextmenu", data);
+    }
   }
   else {
     // Break out to the parent window and pass the add-on info along

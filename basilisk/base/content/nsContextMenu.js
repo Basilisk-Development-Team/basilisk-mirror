@@ -27,8 +27,17 @@ function nsContextMenu(aXulMenu, aIsShift) {
 nsContextMenu.prototype = {
   initMenu: function(aXulMenu, aIsShift) {
     // Get contextual info.
-    this.setTarget(document.popupNode, document.popupRangeParent,
-                   document.popupRangeOffset);
+    try {
+      this.setTarget(document.popupNode, document.popupRangeParent,
+                     document.popupRangeOffset);
+    } catch (ex) {
+      Cu.reportError(ex);
+      if (gContextMenuContentData && gContextMenuContentData.isRemote) {
+        this._setRemoteTargetFromData();
+      } else {
+        this.shouldDisplay = false;
+      }
+    }
     if (!this.shouldDisplay)
       return;
 
@@ -84,7 +93,22 @@ nsContextMenu.prototype = {
       BookmarkingUI.onCurrentPageContextPopupShowing();
 
     // Initialize (disable/remove) menu items.
-    this.initItems();
+    try {
+      this.initItems();
+    } catch (ex) {
+      Cu.reportError(ex);
+      if (this.isRemote && this.target) {
+        this._setRemoteTargetFromData();
+        try {
+          this.initItems();
+        } catch (ex2) {
+          Cu.reportError(ex2);
+          this.shouldDisplay = false;
+        }
+      } else {
+        this.shouldDisplay = false;
+      }
+    }
   },
 
   hiding: function() {
@@ -177,7 +201,9 @@ nsContextMenu.prototype = {
 
   initLeaveDOMFullScreenItems: function() {
     // only show the option if the user is in DOM fullscreen
-    var shouldShow = (this.target.ownerDocument.fullscreenElement != null);
+    var shouldShow = this.target ?
+                     (this.target.ownerDocument.fullscreenElement != null) :
+                     this.ownerDocIsFullscreen;
     this.showItem("context-leave-dom-fullscreen", shouldShow);
 
     // Explicitly show if in DOM fullscreen, but do not hide it has already been shown
@@ -221,7 +247,8 @@ nsContextMenu.prototype = {
                        this.onImage || this.onCanvas ||
                        this.onVideo || this.onAudio ||
                        this.onLink || this.onTextInput);
-    var showInspect = gPrefService.getBoolPref("devtools.inspector.enabled");
+    var showInspect = gPrefService.getBoolPref("devtools.inspector.enabled") &&
+                      !!this.target;
     this.showItem("context-viewsource", shouldShow);
     this.showItem("context-viewinfo", shouldShow);
     this.showItem("inspect-separator", showInspect);
@@ -308,7 +335,9 @@ nsContextMenu.prototype = {
 
     // Hide menu entries for images, show otherwise
     if (this.inFrame) {
-      if (BrowserUtils.mimeTypeIsTextBased(this.target.ownerDocument.contentType))
+      let contentType = this.target ? this.target.ownerDocument.contentType :
+                                      this.targetContentType;
+      if (BrowserUtils.mimeTypeIsTextBased(contentType))
         this.isFrameImage.removeAttribute('hidden');
       else
         this.isFrameImage.setAttribute('hidden', 'true');
@@ -420,27 +449,38 @@ nsContextMenu.prototype = {
 
   initMediaPlayerItems: function() {
     var onMedia = (this.onVideo || this.onAudio);
+    let mediaInfo = this.targetMediaInfo || {};
+    let paused = this.target ? this.target.paused : mediaInfo.paused;
+    let ended = this.target ? this.target.ended : mediaInfo.ended;
+    let muted = this.target ? this.target.muted : mediaInfo.muted;
+    let controls = this.target ? this.target.controls : mediaInfo.controls;
+    let duration = this.target ? this.target.duration : mediaInfo.duration;
+    let playbackRate = this.target ? this.target.playbackRate :
+                                     mediaInfo.playbackRate;
+    let loop = this.target ? this.target.loop : mediaInfo.loop;
+    let hasError = this.target ?
+                   (this.target.error != null ||
+                    this.target.networkState == this.target.NETWORK_NO_SOURCE) :
+                   !!mediaInfo.hasError;
     // Several mutually exclusive items... play/pause, mute/unmute, show/hide
-    this.showItem("context-media-play",  onMedia && (this.target.paused || this.target.ended));
-    this.showItem("context-media-pause", onMedia && !this.target.paused && !this.target.ended);
-    this.showItem("context-media-mute",   onMedia && !this.target.muted);
-    this.showItem("context-media-unmute", onMedia && this.target.muted);
-    this.showItem("context-media-playbackrate", onMedia && this.target.duration != Number.POSITIVE_INFINITY);
+    this.showItem("context-media-play",  onMedia && (paused || ended));
+    this.showItem("context-media-pause", onMedia && !paused && !ended);
+    this.showItem("context-media-mute",   onMedia && !muted);
+    this.showItem("context-media-unmute", onMedia && muted);
+    this.showItem("context-media-playbackrate", onMedia && duration != Number.POSITIVE_INFINITY);
     this.showItem("context-media-loop", onMedia);
-    this.showItem("context-media-showcontrols", onMedia && !this.target.controls);
-    this.showItem("context-media-hidecontrols", this.target.controls && (this.onVideo || (this.onAudio && !this.inSyntheticDoc)));
-    this.showItem("context-video-fullscreen", this.onVideo && this.target.ownerDocument.fullscreenElement == null);
+    this.showItem("context-media-showcontrols", onMedia && !controls);
+    this.showItem("context-media-hidecontrols", controls && (this.onVideo || (this.onAudio && !this.inSyntheticDoc)));
+    this.showItem("context-video-fullscreen", this.onVideo && !this.ownerDocIsFullscreen);
 
     // Disable them when there isn't a valid media source loaded.
     if (onMedia) {
-      this.setItemAttr("context-media-playbackrate-050x", "checked", this.target.playbackRate == 0.5);
-      this.setItemAttr("context-media-playbackrate-100x", "checked", this.target.playbackRate == 1.0);
-      this.setItemAttr("context-media-playbackrate-125x", "checked", this.target.playbackRate == 1.25);
-      this.setItemAttr("context-media-playbackrate-150x", "checked", this.target.playbackRate == 1.5);
-      this.setItemAttr("context-media-playbackrate-200x", "checked", this.target.playbackRate == 2.0);
-      this.setItemAttr("context-media-loop", "checked", this.target.loop);
-      var hasError = this.target.error != null ||
-                     this.target.networkState == this.target.NETWORK_NO_SOURCE;
+      this.setItemAttr("context-media-playbackrate-050x", "checked", playbackRate == 0.5);
+      this.setItemAttr("context-media-playbackrate-100x", "checked", playbackRate == 1.0);
+      this.setItemAttr("context-media-playbackrate-125x", "checked", playbackRate == 1.25);
+      this.setItemAttr("context-media-playbackrate-150x", "checked", playbackRate == 1.5);
+      this.setItemAttr("context-media-playbackrate-200x", "checked", playbackRate == 2.0);
+      this.setItemAttr("context-media-loop", "checked", loop);
       this.setItemAttr("context-media-play",  "disabled", hasError);
       this.setItemAttr("context-media-pause", "disabled", hasError);
       this.setItemAttr("context-media-mute",   "disabled", hasError);
@@ -454,7 +494,9 @@ nsContextMenu.prototype = {
       this.setItemAttr("context-media-showcontrols", "disabled", hasError);
       this.setItemAttr("context-media-hidecontrols", "disabled", hasError);
       if (this.onVideo) {
-        let canSaveSnapshot = this.target.readyState >= this.target.HAVE_CURRENT_DATA;
+        let canSaveSnapshot = this.target ?
+                              this.target.readyState >= this.target.HAVE_CURRENT_DATA :
+                              !!mediaInfo.canSaveSnapshot;
         this.setItemAttr("context-video-saveimage",  "disabled", !canSaveSnapshot);
         this.setItemAttr("context-video-fullscreen", "disabled", hasError);
       }
@@ -497,7 +539,7 @@ nsContextMenu.prototype = {
       fillMenu.setAttribute("accesskey", fillMenu.getAttribute("accesskey-login"));
     }
 
-    if (!showFill || disableFill) {
+    if (!showFill || disableFill || !this.target) {
       return;
     }
     let documentURI = gContextMenuContentData.documentURIObject;
@@ -542,6 +584,68 @@ nsContextMenu.prototype = {
     });
   },
 
+  _setRemoteTargetFromData: function() {
+    let data = gContextMenuContentData || {};
+    let targetData = data.targetContext || {};
+
+    this.onImage           = !!targetData.onImage;
+    this.onLoadedImage     = !!targetData.onLoadedImage;
+    this.onCompletedImage  = !!targetData.onCompletedImage;
+    this.imageDescURL      = targetData.imageDescURL || "";
+    this.onCanvas          = !!targetData.onCanvas;
+    this.onVideo           = !!targetData.onVideo;
+    this.onAudio           = !!targetData.onAudio;
+    this.onTextInput       = !!targetData.onTextInput;
+    this.onNumeric         = !!targetData.onNumeric;
+    this.onKeywordField    = !!targetData.onKeywordField;
+    this.mediaURL          = targetData.mediaURL || "";
+    this.onLink            = !!targetData.onLink;
+    this.onMailtoLink      = !!targetData.onMailtoLink;
+    this.onSaveableLink    = !!targetData.onSaveableLink;
+    this.link              = null;
+    this.linkURL           = targetData.linkURL || "";
+    this.linkURI           = null;
+    this.linkTextStr       = targetData.linkTextStr || "";
+    this.linkProtocol      = targetData.linkProtocol || "";
+    this.linkDownload      = targetData.linkDownload || "";
+    this.linkHasNoReferrer = !!targetData.linkHasNoReferrer;
+    this.onMathML          = !!targetData.onMathML;
+    this.inFrame           = !!targetData.inFrame;
+    this.inSrcdocFrame     = !!targetData.inSrcdocFrame;
+    this.inSyntheticDoc    = !!targetData.inSyntheticDoc;
+    this.hasBGImage        = !!targetData.hasBGImage;
+    this.bgImageURL        = targetData.bgImageURL || "";
+    this.onEditableArea    = !!targetData.onEditableArea;
+    this.isDesignMode      = !!targetData.isDesignMode;
+    this.onCTPPlugin       = !!targetData.onCTPPlugin;
+    this.canSpellCheck     = !!targetData.canSpellCheck;
+    this.onPassword        = !!targetData.onPassword;
+    this.ownerDocIsFullscreen = !!targetData.ownerDocIsFullscreen;
+    this.targetContentType = targetData.contentType || "";
+    this.targetMediaInfo = targetData.media || {};
+    this._hasMultipleBGImages = false;
+
+    this.selectionInfo = data.selectionInfo ||
+                         { text: "", docSelectionIsCollapsed: true };
+    this.textSelected = this.selectionInfo.text || "";
+    this.isTextSelected = this.textSelected.length != 0;
+    this.target = null;
+    this.ownerDoc = null;
+    this.browser = data.browser;
+    this.principal = data.principal;
+    this.frameOuterWindowID = data.frameOuterWindowID;
+
+    if (this.linkURL) {
+      try {
+        this.linkURI = makeURI(this.linkURL);
+      } catch (ex) {}
+    }
+
+    if (this.onEditableArea && data.spellInfo) {
+      InlineSpellCheckerUI.initFromRemote(data.spellInfo);
+    }
+  },
+
   // Set various context menu attributes based on the state of the world.
   setTarget: function (aNode, aRangeParent, aRangeOffset) {
     // gContextMenuContentData.isRemote tells us if the event came from a remote
@@ -550,11 +654,27 @@ nsContextMenu.prototype = {
     let editFlags;
     this.isRemote = gContextMenuContentData && gContextMenuContentData.isRemote;
     if (this.isRemote) {
-      let event = gContextMenuContentData.event;
-      aNode = event ? event.target : gContextMenuContentData.popupNode;
-      aRangeParent = event ? event.rangeParent : null;
-      aRangeOffset = event ? event.rangeOffset : 0;
+      if (gContextMenuContentData.targetContext) {
+        this._setRemoteTargetFromData();
+        return;
+      }
+
+      try {
+        let event = gContextMenuContentData.event;
+        aNode = event ? event.target : gContextMenuContentData.popupNode;
+        aRangeParent = event ? event.rangeParent : null;
+        aRangeOffset = event ? event.rangeOffset : 0;
+      } catch (ex) {
+        Cu.reportError(ex);
+        this._setRemoteTargetFromData();
+        return;
+      }
       editFlags = gContextMenuContentData.editFlags;
+    }
+
+    if (!aNode && this.isRemote) {
+      this._setRemoteTargetFromData();
+      return;
     }
 
     const xulNS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";

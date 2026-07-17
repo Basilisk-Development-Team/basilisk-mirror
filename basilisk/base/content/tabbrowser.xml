@@ -4629,15 +4629,17 @@
               break;
             }
             case "contextmenu": {
+              let objects = aMessage.objects || {};
               let spellInfo = data.spellInfo;
               if (spellInfo)
                 spellInfo.target = aMessage.target.messageManager;
               let documentURIObject = makeURI(data.docLocation,
                                               data.charSet,
                                               makeURI(data.baseURI));
+              let useSerializedTarget = !!data.targetContext;
               gContextMenuContentData = { isRemote: true,
-                                          event: aMessage.objects.event,
-                                          popupNode: aMessage.objects.popupNode,
+                                          event: useSerializedTarget ? null : objects.event || null,
+                                          popupNode: useSerializedTarget ? null : objects.popupNode || null,
                                           browser: browser,
                                           editFlags: data.editFlags,
                                           spellInfo: spellInfo,
@@ -4656,10 +4658,15 @@
                                           disableSetDesktopBackground: data.disableSetDesktopBg,
                                           loginFillInfo: data.loginFillInfo,
                                           parentAllowsMixedContent: data.parentAllowsMixedContent,
+                                          targetContext: data.targetContext,
                                         };
               let popup = browser.ownerDocument.getElementById("contentAreaContextMenu");
-              popup.openPopupAtScreen(data.screenX, data.screenY, true,
-                                      aMessage.objects.event);
+              if (gContextMenuContentData.event) {
+                popup.openPopupAtScreen(data.screenX, data.screenY, true,
+                                        gContextMenuContentData.event);
+              } else {
+                popup.openPopupAtScreen(data.screenX, data.screenY, true);
+              }
               break;
             }
             case "DOMServiceWorkerFocusClient":
