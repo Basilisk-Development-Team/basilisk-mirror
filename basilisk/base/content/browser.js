@@ -30,6 +30,7 @@ Cu.import("resource://gre/modules/NotificationDB.jsm");
   ["LightweightThemeManager", "resource://gre/modules/LightweightThemeManager.jsm"],
   ["Log", "resource://gre/modules/Log.jsm"],
   ["LoginManagerParent", "resource://gre/modules/LoginManagerParent.jsm"],
+  ["NetUtil", "resource://gre/modules/NetUtil.jsm"],
   ["NewTabUtils", "resource://gre/modules/NewTabUtils.jsm"],
   ["PageThumbs", "resource://gre/modules/PageThumbs.jsm"],
   ["PluralForm", "resource://gre/modules/PluralForm.jsm"],
@@ -44,6 +45,7 @@ Cu.import("resource://gre/modules/NotificationDB.jsm");
   ["SessionStore", "resource:///modules/sessionstore/SessionStore.jsm"],
   ["ShortcutUtils", "resource://gre/modules/ShortcutUtils.jsm"],
   ["SitePermissions", "resource:///modules/SitePermissions.jsm"],
+  ["SessionStoreUtils", "resource://gre/modules/sessionstore/Utils.jsm", "Utils"],
   ["TabCrashHandler", "resource:///modules/ContentCrashHandlers.jsm"],
   ["Task", "resource://gre/modules/Task.jsm"],
   ["UpdateUtils", "resource://gre/modules/UpdateUtils.jsm"],
@@ -53,7 +55,8 @@ Cu.import("resource://gre/modules/NotificationDB.jsm");
   ["gDevTools", "resource://devtools/client/framework/gDevTools.jsm"],
 #endif
   ["webrtcUI", "resource:///modules/webrtcUI.jsm", ]
-].forEach(([name, resource]) => XPCOMUtils.defineLazyModuleGetter(this, name, resource));
+].forEach(([name, resource, symbol]) =>
+  XPCOMUtils.defineLazyModuleGetter(this, name, resource, symbol));
 
 // lazy service getters
 [
@@ -829,6 +832,22 @@ function _loadURIWithFlags(browser, uri, params) {
       gInitialPages.includes(browser.currentURI.spec)) {
     gBrowser.updateBrowserRemotenessByURL(browser, uri);
     wasRemote = browser.isRemoteBrowser;
+  } else if (wasRemote != shouldBeRemote) {
+    let postDataString = null;
+    if (postData) {
+      postDataString = NetUtil.readInputStreamToString(postData,
+                                                       postData.available());
+    }
+    LoadInOtherProcess(browser, {
+      uri,
+      flags,
+      referrer: referrer ? referrer.spec : null,
+      referrerPolicy,
+      postData: postDataString,
+      triggeringPrincipal: SessionStoreUtils.serializePrincipal(
+        triggeringPrincipal || Services.scriptSecurityManager.getSystemPrincipal()),
+    });
+    return;
   }
 
   if (!wasRemote) {
@@ -862,16 +881,76 @@ function LoadInOtherProcess(browser, loadOptions, historyIndex = -1) {
 // Called when a docshell has attempted to load a page in an incorrect process.
 // This function is responsible for loading the page in the correct process.
 function RedirectLoad({ target: browser, data }) {
+  let tab = browser && gBrowser.getTabForBrowser(browser);
+  if (!browser || !browser.isRemoteBrowser ||
+      !tab ||
+      !data || !data.loadOptions ||
+      typeof data.loadOptions.uri != "string") {
+    Cu.reportError("Rejected malformed Browser:LoadURI message");
+    return;
+  }
+
+  let uri;
+  try {
+    uri = Services.io.newURI(data.loadOptions.uri, null, null);
+  } catch (ex) {
+    Cu.reportError("Rejected invalid Browser:LoadURI: " + ex);
+    return;
+  }
+
+  let reloadInFreshProcess = !!data.loadOptions.reloadInFreshProcess;
+  if (!reloadInFreshProcess &&
+      E10SUtils.canLoadURIInProcess(uri.spec,
+                                    Ci.nsIXULRuntime.PROCESS_TYPE_CONTENT)) {
+    Cu.reportError("Rejected unnecessary Browser:LoadURI process switch");
+    return;
+  }
+
+  // Message-manager children are not an authority for principals or load
+  // flags. Authorize the URI against the principal last reported for this
+  // browser, then construct the load arguments in the parent.
+  let historyIndex = Number.isInteger(data.historyIndex) ? data.historyIndex : -1;
+  let principal = browser.contentPrincipal;
+  if (historyIndex >= 0) {
+    let history = SessionStore.getSessionHistory(tab);
+    let entry = history && history.entries[historyIndex];
+    if (!entry || entry.url != uri.spec) {
+      Cu.reportError("Rejected Browser:LoadURI with an invalid history index");
+      return;
+    }
+    principal = SessionStoreUtils.deserializePrincipal(
+      entry.triggeringPrincipal_base64 || entry.triggeringPrincipal_b64);
+  }
+  if (!principal) {
+    Cu.reportError("Rejected Browser:LoadURI without a content principal");
+    return;
+  }
+  try {
+    Services.scriptSecurityManager.checkLoadURIWithPrincipal(
+      principal, uri, Ci.nsIScriptSecurityManager.DISALLOW_INHERIT_PRINCIPAL);
+  } catch (ex) {
+    Cu.reportError("Rejected unauthorized Browser:LoadURI for " + uri.spec);
+    return;
+  }
+
+  let loadOptions = {
+    uri: uri.spec,
+    flags: Ci.nsIWebNavigation.LOAD_FLAGS_NONE,
+    referrer: browser.currentURI ? browser.currentURI.spec : null,
+    referrerPolicy: Ci.nsIHttpChannel.REFERRER_POLICY_DEFAULT,
+    triggeringPrincipal: SessionStoreUtils.serializePrincipal(principal),
+    reloadInFreshProcess,
+  };
   // We should only start the redirection if the browser window has finished
   // starting up. Otherwise, we should wait until the startup is done.
   if (gBrowserInit.delayedStartupFinished) {
-    LoadInOtherProcess(browser, data.loadOptions, data.historyIndex);
+    LoadInOtherProcess(browser, loadOptions, historyIndex);
   } else {
     let delayedStartupFinished = (subject, topic) => {
       if (topic == "browser-delayed-startup-finished" &&
           subject == window) {
         Services.obs.removeObserver(delayedStartupFinished, topic);
-        LoadInOtherProcess(browser, data.loadOptions, data.historyIndex);
+        LoadInOtherProcess(browser, loadOptions, historyIndex);
       }
     };
     Services.obs.addObserver(delayedStartupFinished,
