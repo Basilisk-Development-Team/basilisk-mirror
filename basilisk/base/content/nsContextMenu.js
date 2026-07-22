@@ -1122,6 +1122,9 @@ nsContextMenu.prototype = {
 
   // Open frame in a new tab.
   openFrameInTab: function() {
+    urlSecurityCheck(gContextMenuContentData.docLocation,
+                     this.browser.contentPrincipal,
+                     Ci.nsIScriptSecurityManager.DISALLOW_SCRIPT);
     let referrer = gContextMenuContentData.referrer;
     openLinkIn(gContextMenuContentData.docLocation, "tab",
                { charset: gContextMenuContentData.charSet,
@@ -1136,6 +1139,9 @@ nsContextMenu.prototype = {
 
   // Open clicked-in frame in its own window.
   openFrame: function() {
+    urlSecurityCheck(gContextMenuContentData.docLocation,
+                     this.browser.contentPrincipal,
+                     Ci.nsIScriptSecurityManager.DISALLOW_SCRIPT);
     let referrer = gContextMenuContentData.referrer;
     openLinkIn(gContextMenuContentData.docLocation, "window",
                { charset: gContextMenuContentData.charSet,

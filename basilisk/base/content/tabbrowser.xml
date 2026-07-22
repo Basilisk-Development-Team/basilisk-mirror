@@ -4643,7 +4643,9 @@
                                           browser: browser,
                                           editFlags: data.editFlags,
                                           spellInfo: spellInfo,
-                                          principal: data.principal,
+                                          // The child reports contextual data, but it is
+                                          // not an authority for the security principal.
+                                          principal: browser.contentPrincipal,
                                           customMenuItems: data.customMenuItems,
                                           addonInfo: data.addonInfo,
                                           documentURIObject: documentURIObject,
