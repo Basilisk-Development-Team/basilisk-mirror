@@ -1263,6 +1263,12 @@ pref("fission.autostart", false);
 // content-process pool. dom.ipc.tabs.perTabProcess remains available for a more
 // aggressive one-tab-per-process model once the process lifecycle is stable.
 pref("dom.ipc.processCount", 4);
+
+#if defined(XP_MACOSX) && defined(MOZ_CONTENT_SANDBOX)
+// Level 1 blocks content-process writes outside its private temporary
+// directory while retaining global read access required by legacy XUL add-ons.
+pref("security.sandbox.content.level", 1);
+#endif
 pref("dom.ipc.tabs.perTabProcess", false);
 pref("dom.ipc.siteIsolation.enabled", false);
 pref("browser.tabs.remote.skipPermitUnload", true);
