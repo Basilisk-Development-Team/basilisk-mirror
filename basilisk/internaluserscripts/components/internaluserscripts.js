@@ -20,6 +20,7 @@ const PREF_ENABLED = "browser.internal-userscripts.enabled";
 
 function InternalUserscriptsService() {
   this.wrappedJSObject = this;
+  this._injectedDocuments = new WeakSet();
 }
 
 InternalUserscriptsService.prototype = {
@@ -51,6 +52,10 @@ InternalUserscriptsService.prototype = {
   _startup: function () {
     Services.obs.addObserver(this, "quit-application", false);
     Services.prefs.addObserver(PREF_ENABLED, this, false);
+    Services.mm.loadFrameScript(
+      "chrome://internaluserscripts/content/frame-script.js",
+      true,
+    );
     this._updateObserverState();
   },
 
@@ -93,10 +98,14 @@ InternalUserscriptsService.prototype = {
     }
     try {
       let doc = win.document;
+      if (!doc || this._injectedDocuments.has(doc)) {
+        return;
+      }
       let uri = doc && doc.documentURIObject;
       if (uri && (uri.schemeIs("chrome") || uri.schemeIs("resource"))) {
         return;
       }
+      this._injectedDocuments.add(doc);
     } catch (e) {}
     let contentWin = win.wrappedJSObject || win;
     let logPolyfill = function (name, source) {

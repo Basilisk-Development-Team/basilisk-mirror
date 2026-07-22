@@ -6,4 +6,5 @@ internaluserscripts.jar:
 %  content internaluserscripts %content/
 %  resource internaluserscripts %content/
 
+  content/frame-script.js      (frame-script.js)
   content/bundled-scripts/      (bundled-scripts/*)
