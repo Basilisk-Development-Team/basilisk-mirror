@@ -808,6 +808,7 @@ function _loadURIWithFlags(browser, uri, params) {
   if (!uri) {
     uri = "about:blank";
   }
+  params = params || {};
   let triggeringPrincipal = params.triggeringPrincipal || null;
   let flags = params.flags || 0;
   let referrer = params.referrerURI;
@@ -816,9 +817,20 @@ function _loadURIWithFlags(browser, uri, params) {
   let postData = params.postData;
 
   let wasRemote = browser.isRemoteBrowser;
+  let shouldBeRemote = gMultiProcessBrowser &&
+    E10SUtils.canLoadURIInProcess(uri, Ci.nsIXULRuntime.PROCESS_TYPE_CONTENT);
 
-  let process = browser.isRemoteBrowser ? Ci.nsIXULRuntime.PROCESS_TYPE_CONTENT
-                                        : Ci.nsIXULRuntime.PROCESS_TYPE_DEFAULT;
+  // Initial pages do not have useful history or form state to preserve. Switch
+  // them synchronously instead of asking SessionStore to flush and restore the
+  // old docshell. In particular, a new parent-process about:newtab could get
+  // stuck waiting for that asynchronous handoff and silently drop URL-bar
+  // navigations.
+  if (wasRemote != shouldBeRemote &&
+      gInitialPages.includes(browser.currentURI.spec)) {
+    gBrowser.updateBrowserRemotenessByURL(browser, uri);
+    wasRemote = browser.isRemoteBrowser;
+  }
+
   if (!wasRemote) {
     browser.inLoadURI = true;
   }
