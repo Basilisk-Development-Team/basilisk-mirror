@@ -629,8 +629,8 @@ nsContextMenu.prototype = {
                          { text: "", docSelectionIsCollapsed: true };
     this.textSelected = this.selectionInfo.text || "";
     this.isTextSelected = this.textSelected.length != 0;
-    this.target = null;
-    this.ownerDoc = null;
+    this.target = data.popupNode || null;
+    this.ownerDoc = this.target ? this.target.ownerDocument : null;
     this.browser = data.browser;
     this.principal = data.principal;
     this.frameOuterWindowID = data.frameOuterWindowID;

@@ -4639,7 +4639,7 @@
               let useSerializedTarget = !!data.targetContext;
               gContextMenuContentData = { isRemote: true,
                                           event: useSerializedTarget ? null : objects.event || null,
-                                          popupNode: useSerializedTarget ? null : objects.popupNode || null,
+                                          popupNode: objects.popupNode || null,
                                           browser: browser,
                                           editFlags: data.editFlags,
                                           spellInfo: spellInfo,
