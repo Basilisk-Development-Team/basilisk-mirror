@@ -209,6 +209,10 @@ var PdfJs = {
   },
 
   updateRegistration: function updateRegistration() {
+    if (!getBoolPref(PREF_DISABLED, true) && !isDefaultHandler()) {
+      this._becomeHandler();
+    }
+
     if (this.checkEnabled()) {
       this.ensureRegistered();
     } else {
