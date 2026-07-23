@@ -720,7 +720,7 @@
                 if (location.scheme == "keyword")
                   this.mBrowser.userTypedValue = null;
 
-                if (this.mTab.label == this.mTabBrowser.mStringBundle.getString("tabs.connecting"))
+                if (this.mTab.label == this.mTabBrowser._getTabLoadingTitle(this.mTab))
                   this.mTabBrowser.setTabTitle(this.mTab);
 
                 if (this.mTab.selected)
@@ -1385,14 +1385,23 @@
         <parameter name="aTab"/>
         <body>
           <![CDATA[
-            let title = this.mStringBundle.getString("tabs.connecting");
-            aTab.label = this._formatContainerTabTitle(aTab, title);
+            aTab.label = this._getTabLoadingTitle(aTab);
             if (Services.prefs.getBoolPref("browser.tabs.fadeLabels")) {
               aTab.crop = "clip";
             } else {
               aTab.crop = "end";
             }
             this._tabAttrModified(aTab, ["label", "crop"]);
+          ]]>
+        </body>
+      </method>
+
+      <method name="_getTabLoadingTitle">
+        <parameter name="aTab"/>
+        <body>
+          <![CDATA[
+            let title = this.mStringBundle.getString("tabs.connecting");
+            return this._formatContainerTabTitle(aTab, title);
           ]]>
         </body>
       </method>

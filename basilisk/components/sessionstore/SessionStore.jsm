@@ -4334,7 +4334,10 @@ var SessionStoreInternal = {
    * @returns aString that has been updated with the new title
    */
   _replaceLoadingTitle : function(aString, aTabbrowser, aTab) {
-    if (aString == aTabbrowser.mStringBundle.getString("tabs.connecting")) {
+    let loadingTitle = aTabbrowser._getTabLoadingTitle ?
+                       aTabbrowser._getTabLoadingTitle(aTab) :
+                       aTabbrowser.mStringBundle.getString("tabs.connecting");
+    if (aString == loadingTitle) {
       aTabbrowser.setTabTitle(aTab);
       [aString, aTab.label] = [aTab.label, aString];
     }
