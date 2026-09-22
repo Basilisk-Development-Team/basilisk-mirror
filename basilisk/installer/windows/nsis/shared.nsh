@@ -188,6 +188,7 @@
     ${EndIf}
   ${EndIf}
 
+  ; clean up obsolete quicklaunch shortcuts if present
   ${If} ${FileExists} "$QUICKLAUNCH\${BrandFullName}.lnk"
     ShellLink::GetShortCutArgs "$QUICKLAUNCH\${BrandFullName}.lnk"
     Pop $0
@@ -370,11 +371,7 @@
   ; If the IconsVisible name value pair doesn't exist add it otherwise the
   ; application won't be displayed in Set Program Access and Defaults.
   ${If} ${Errors}
-    ${If} ${FileExists} "$QUICKLAUNCH\${BrandFullName}.lnk"
-      WriteRegDWORD ${RegKey} "$0\InstallInfo" "IconsVisible" 1
-    ${Else}
       WriteRegDWORD ${RegKey} "$0\InstallInfo" "IconsVisible" 0
-    ${EndIf}
   ${EndIf}
 
   WriteRegStr ${RegKey} "$0\shell\open\command" "" "$\"$8$\""
@@ -1042,7 +1039,6 @@
   ${GetShortcutsLogPath} $0
   ${Unless} ${FileExists} "$0"
     ${LogStartMenuShortcut} "${BrandFullName}.lnk"
-    ${LogQuickLaunchShortcut} "${BrandFullName}.lnk"
     ${LogDesktopShortcut} "${BrandFullName}.lnk"
   ${EndUnless}
 !macroend
