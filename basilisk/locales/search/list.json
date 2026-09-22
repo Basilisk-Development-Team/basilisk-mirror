@@ -1,7 +1,7 @@
 {
   "default": {
     "visibleDefaultEngines": [
-      "duckduckgo-palemoon", "mojeek", "bing", "ecosia", "ekoru", "twitter", "wikipedia", "yahoo"
+      "duckduckgo-palemoon", "mojeek", "bing", "ecosia", "ekoru", "wikipedia", "yahoo"
     ]
   },
   "regionOverrides": {
@@ -10,7 +10,7 @@
     "en-US": {
       "default": {
         "visibleDefaultEngines": [
-          "duckduckgo-palemoon", "mojeek", "bing", "ecosia", "ekoru", "twitter", "wikipedia", "yahoo"
+          "duckduckgo-palemoon", "mojeek", "bing", "ecosia", "ekoru", "wikipedia", "yahoo"
         ]
       }
     }
