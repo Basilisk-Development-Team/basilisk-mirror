@@ -21,13 +21,9 @@ CRCCheck on
 
 RequestExecutionLevel user
 
-; The commands inside this ifdef require NSIS 3.0a2 or greater so the ifdef can
-; be removed after we require NSIS 3.0a2 or greater.
-!ifdef NSIS_PACKEDVERSION
-  Unicode true
-  ManifestSupportedOS all
-  ManifestDPIAware true
-!endif
+Unicode true
+ManifestSupportedOS all
+ManifestDPIAware true
 
 !addplugindir ./
 
@@ -35,7 +31,6 @@ Var TmpVal
 Var InstallType
 Var AddStartMenuSC
 Var AddTaskbarSC
-Var AddQuickLaunchSC
 Var AddDesktopSC
 Var InstallMaintenanceService
 Var PageName
@@ -94,7 +89,6 @@ VIAddVersionKey "OriginalFilename" "setup.exe"
 !insertmacro IsPinnedToTaskBar
 !insertmacro IsUserAdmin
 !insertmacro LogDesktopShortcut
-!insertmacro LogQuickLaunchShortcut
 !insertmacro LogStartMenuShortcut
 !insertmacro ManualCloseAppPrompt
 !insertmacro PinnedToStartMenuLnkCount
@@ -312,11 +306,6 @@ Section "-Application" APP_IDX
     StrCpy $AddStartMenuSC "1"
   ${EndIf}
 
-  ; Default for creating Quick Launch shortcut (1 = create, 0 = don't create)
-  ${If} $AddQuickLaunchSC == ""
-    StrCpy $AddQuickLaunchSC "0"
-  ${EndIf}
-
   ; Default for creating Desktop shortcut (1 = create, 0 = don't create)
   ${If} $AddDesktopSC == ""
     StrCpy $AddDesktopSC "1"
@@ -446,7 +435,6 @@ Section "-Application" APP_IDX
   ; DeleteShortcuts macro will do the right thing on uninstall if the
   ; shortcuts don't exist.
   ${LogStartMenuShortcut} "${BrandFullName}.lnk"
-  ${LogQuickLaunchShortcut} "${BrandFullName}.lnk"
   ${LogDesktopShortcut} "${BrandFullName}.lnk"
 
   ; Best effort to update the Win7 taskbar and start menu shortcut app model
@@ -686,14 +674,6 @@ FunctionEnd
 
 ################################################################################
 # Helper Functions
-
-Function AddQuickLaunchShortcut
-  CreateShortCut "$QUICKLAUNCH\${BrandFullName}.lnk" "$INSTDIR\${FileMainEXE}"
-  ${If} ${FileExists} "$QUICKLAUNCH\${BrandFullName}.lnk"
-    ShellLink::SetShortCutWorkingDirectory "$QUICKLAUNCH\${BrandFullName}.lnk" \
-                                           "$INSTDIR"
-  ${EndIf}
-FunctionEnd
 
 Function CheckExistingInstall
   ; If there is a pending file copy from a previous upgrade don't allow
@@ -1006,6 +986,7 @@ Function .onInit
   System::Call "kernel32::IsProcessorFeaturePresent(i 10)i .R7"
 
   ; Windows NT 6.0 and lower are not supported on any architecture.
+  ; Warn users if they try to install
   ${Unless} ${AtLeastWin7}
     ${If} "$R7" == "0"
       strCpy $R7 "$(WARN_MIN_SUPPORTED_OSVER_CPU_MSG)"
@@ -1034,12 +1015,6 @@ Function .onInit
 !endif
 
   ${InstallOnInitCommon} "$(WARN_MIN_SUPPORTED_OSVER_CPU_MSG)"
-
-; The commands inside this ifndef are needed prior to NSIS 3.0a2 and can be
-; removed after we require NSIS 3.0a2 or greater.
-!ifndef NSIS_PACKEDVERSION
-  System::Call 'user32::SetProcessDPIAware()'
-!endif
 
   !insertmacro InitInstallOptionsFile "options.ini"
   !insertmacro InitInstallOptionsFile "shortcuts.ini"
