@@ -453,11 +453,6 @@ pref("javascript.options.showInConsole",          true);
 pref("general.warnOnAboutConfig",                 false);
 #endif
 
-// Enable unlinking of ghost windows so they can be garbage collected.
-pref("browser.ghostbuster.enabled",               true);
-// Disable GC on memory pressure, avoid incessant recycling when websites
-// misbehave. Should also avoid spurious GCs during ghostbusting.
-pref("javascript.options.gc_on_memory_pressure",  false);
 // Increase UXP's default gc settings to potentially help with crashes and slowdowns
 pref("javascript.options.mem.gc_allocation_threshold_mb",  60);
 pref("javascript.options.mem.gc_max_empty_chunk_count",  60);
