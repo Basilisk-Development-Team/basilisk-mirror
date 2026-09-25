@@ -14,6 +14,9 @@ interface nsIObserver;
 [scriptable, uuid(bf78b1c3-787d-48bb-810c-9d5d98eac5ce)]
 interface nsIWebContentView : nsISupports
 {
+  /** listener topics: content-view-state (read state getters) and
+   * content-view-process-terminated. Subject is this view.
+   */
   void attach(in mozIDOMWindowProxy window, in nsIObserver listener);
   void setBounds(in long x, in long y, in long width, in long height);
   void setVisible(in boolean visible);

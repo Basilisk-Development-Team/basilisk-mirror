@@ -7,6 +7,8 @@
 #include "nsGlobalWindow.h"
 #include "nsIWidget.h"
 #include "nsThreadUtils.h"
+#include "nsNetUtil.h"
+#include "nsIURI.h"
 #include "mozcontainer.h"
 #include "WPEHost.h"
 
@@ -31,6 +33,23 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
   NS_ENSURE_TRUE(mHost, NS_ERROR_FAILURE);
   mContainer = MOZ_CONTAINER(container);
   mListener = listener;
+  g_signal_connect(mHost->webView, "notify::uri", G_CALLBACK(+[](GObject*, GParamSpec*, gpointer data) {
+    static_cast<WebKitContentView*>(data)->Notify("content-view-state");
+  }), this);
+  g_signal_connect(mHost->webView, "notify::title", G_CALLBACK(+[](GObject*, GParamSpec*, gpointer data) {
+    static_cast<WebKitContentView*>(data)->Notify("content-view-state");
+  }), this);
+  g_signal_connect(mHost->webView, "load-changed", G_CALLBACK(+[](WebKitWebView*, WebKitLoadEvent, gpointer data) {
+    static_cast<WebKitContentView*>(data)->Notify("content-view-state");
+  }), this);
+  g_signal_connect(webkit_web_view_get_back_forward_list(mHost->webView), "changed",
+    G_CALLBACK(+[](WebKitBackForwardList*, WebKitBackForwardListItem*, GList*, gpointer data) {
+      static_cast<WebKitContentView*>(data)->Notify("content-view-state");
+    }), this);
+  g_signal_connect(mHost->webView, "web-process-terminated",
+    G_CALLBACK(+[](WebKitWebView*, WebKitWebProcessTerminationReason, gpointer data) {
+      static_cast<WebKitContentView*>(data)->Notify("content-view-process-terminated");
+    }), this);
   gtk_widget_set_parent_window(mHost->area, native);
   moz_container_put(mContainer, mHost->area, 0, 0);
   // Native parent destruction can precede the XUL unload handler.
@@ -70,24 +89,78 @@ NS_IMETHODIMP WebKitContentView::Destroy()
     mContainer = nullptr;
     g_signal_handlers_disconnect_by_data(host->area, this);
     g_signal_handlers_disconnect_by_data(host->webView, this);
+    g_signal_handlers_disconnect_by_data(webkit_web_view_get_back_forward_list(host->webView), this);
     wpe_host_free(host);
   }
   return NS_OK;
 }
-NS_IMETHODIMP WebKitContentView::LoadURI(const nsACString&)
-{ return NS_ERROR_NOT_INITIALIZED; }
-NS_IMETHODIMP WebKitContentView::Reload() { return NS_ERROR_NOT_INITIALIZED; }
-NS_IMETHODIMP WebKitContentView::Stop() { return NS_ERROR_NOT_INITIALIZED; }
-NS_IMETHODIMP WebKitContentView::GoBack() { return NS_ERROR_NOT_INITIALIZED; }
-NS_IMETHODIMP WebKitContentView::GoForward() { return NS_ERROR_NOT_INITIALIZED; }
+void WebKitContentView::Notify(const char* topic, const char16_t* data)
+{
+  // Listener code can synchronously close the host. Keep the component and
+  // emitter alive until the callback returns, and never access mHost afterward.
+  RefPtr<WebKitContentView> self(this);
+  nsCOMPtr<nsIObserver> listener = mListener;
+  auto* view = mHost ? mHost->webView : nullptr;
+  if (view) g_object_ref(view);
+  if (listener) listener->Observe(this, topic, data);
+  if (view) g_object_unref(view);
+}
+
+NS_IMETHODIMP WebKitContentView::LoadURI(const nsACString& value)
+{
+  NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
+  nsCOMPtr<nsIURI> uri;
+  nsresult rv = NS_NewURI(getter_AddRefs(uri), value);
+  NS_ENSURE_SUCCESS(rv, rv);
+  bool http = false, https = false;
+  uri->SchemeIs("http", &http);
+  uri->SchemeIs("https", &https);
+  NS_ENSURE_TRUE(http || https || value.EqualsLiteral("about:blank"), NS_ERROR_DOM_BAD_URI);
+  nsAutoCString spec;
+  uri->GetSpec(spec);
+  webkit_web_view_load_uri(mHost->webView, spec.get());
+  return NS_OK;
+}
+NS_IMETHODIMP WebKitContentView::Reload()
+{
+  NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
+  webkit_web_view_reload(mHost->webView);
+  return NS_OK;
+}
+NS_IMETHODIMP WebKitContentView::Stop()
+{
+  NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
+  webkit_web_view_stop_loading(mHost->webView);
+  return NS_OK;
+}
+NS_IMETHODIMP WebKitContentView::GoBack()
+{
+  NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
+  webkit_web_view_go_back(mHost->webView);
+  return NS_OK;
+}
+NS_IMETHODIMP WebKitContentView::GoForward()
+{
+  NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
+  webkit_web_view_go_forward(mHost->webView);
+  return NS_OK;
+}
 NS_IMETHODIMP WebKitContentView::GetCanGoBack(bool* value)
-{ *value = false; return NS_OK; }
+{ *value = mHost && webkit_web_view_can_go_back(mHost->webView); return NS_OK; }
 NS_IMETHODIMP WebKitContentView::GetCanGoForward(bool* value)
-{ *value = false; return NS_OK; }
+{ *value = mHost && webkit_web_view_can_go_forward(mHost->webView); return NS_OK; }
 NS_IMETHODIMP WebKitContentView::GetCurrentURI(nsACString& value)
-{ value.Truncate(); return NS_OK; }
+{
+  const char* uri = mHost ? webkit_web_view_get_uri(mHost->webView) : nullptr;
+  value.Assign(uri ? uri : "");
+  return NS_OK;
+}
 NS_IMETHODIMP WebKitContentView::GetTitle(nsACString& value)
-{ value.Truncate(); return NS_OK; }
+{
+  const char* title = mHost ? webkit_web_view_get_title(mHost->webView) : nullptr;
+  value.Assign(title ? title : "");
+  return NS_OK;
+}
 
 #define WEBKIT_CONTENT_VIEW_CID \
   {0x6eed5bf2, 0xe641, 0x43fb, {0x86, 0xb3, 0x79, 0x87, 0xc8, 0xea, 0x58, 0xe2}}
