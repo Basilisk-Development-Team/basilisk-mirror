@@ -8,6 +8,7 @@ Usage: python3 tools/wpe/check-disabled.py /path/to/obj-webkit-disabled
 Run only on your own trusted build: ldd inspects the runtime dependency closure.
 """
 import pathlib
+import os
 import re
 import subprocess
 import sys
@@ -25,6 +26,11 @@ backend = (obj / 'backend.RecursiveMakeBackend.in').read_text()
 require('components/webkit/moz.build' not in backend,
         'WPE directory participated in the build')
 root = obj / 'dist/bin'
+# Auxiliary executables/components rely on the application's library directory
+# being in the loader search path (normally supplied by the launcher). Resolve
+# their transitive dependencies in that same environment, not as isolated files.
+loader_env = dict(os.environ)
+loader_env['LD_LIBRARY_PATH'] = str(root) + os.pathsep + loader_env.get('LD_LIBRARY_PATH', '')
 require((root / 'basilisk').is_file(), 'build has no Basilisk executable')
 require((root / 'libxul.so').is_file(), 'build has no libxul.so')
 count = 0
@@ -44,7 +50,8 @@ for path in root.rglob('*'):
                 'WPE direct dependency: ' + str(path))
         if '(NEEDED)' in dynamic:
             closure = subprocess.run(['ldd', str(path)], text=True,
-                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                     env=loader_env)
             require(closure.returncode == 0, 'ldd failed: ' + str(path))
             require('not found' not in closure.stdout, 'unresolved dependency: ' + str(path))
             # Match library names, not checkout paths that can contain "webkit".
