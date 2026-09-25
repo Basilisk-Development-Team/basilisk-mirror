@@ -46,6 +46,8 @@ static gboolean RenderBuffer(WPEView* view, WPEBuffer* buffer,
                         "Unable to allocate WPE presentation surface");
     return FALSE;
   }
+  double scale = wpe_view_get_scale(view);
+  cairo_surface_set_device_scale(self->surface, scale, scale);
   cairo_surface_flush(self->surface);
   auto* dest = cairo_image_surface_get_data(self->surface);
   int destStride = cairo_image_surface_get_stride(self->surface);

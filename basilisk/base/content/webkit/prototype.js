@@ -30,8 +30,9 @@ function updateBounds() {
     contentView.setVisible(false);
     return;
   }
-  contentView.setBounds(Math.round(rect.left), Math.round(rect.top),
-                        Math.round(rect.width), Math.round(rect.height));
+  let scale = window.devicePixelRatio;
+  contentView.setBounds(Math.round(rect.left * scale), Math.round(rect.top * scale),
+                        Math.round(rect.width * scale), Math.round(rect.height * scale));
   contentView.setVisible(true);
 }
 const listener = {
@@ -50,8 +51,8 @@ const listener = {
       element("context-link").hidden = !info.getPropertyAsBool("isLink");
       let rect = element("content-host").getBoundingClientRect();
       element("content-menu").openPopupAtScreen(
-        window.mozInnerScreenX + rect.left + info.getPropertyAsInt32("x"),
-        window.mozInnerScreenY + rect.top + info.getPropertyAsInt32("y"), true);
+        window.mozInnerScreenX + rect.left + info.getPropertyAsInt32("x") / window.devicePixelRatio,
+        window.mozInnerScreenY + rect.top + info.getPropertyAsInt32("y") / window.devicePixelRatio, true);
       return;
     }
     if (topic != "content-view-state") return;

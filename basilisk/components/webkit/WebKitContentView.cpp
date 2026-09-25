@@ -71,8 +71,10 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
       info->SetPropertyAsBool(NS_LITERAL_STRING("hasSelection"), webkit_hit_test_result_context_is_selection(hit));
       int x = 0, y = 0;
       webkit_context_menu_get_position(menu, &x, &y);
-      info->SetPropertyAsInt32(NS_LITERAL_STRING("x"), x);
-      info->SetPropertyAsInt32(NS_LITERAL_STRING("y"), y);
+      auto* self = static_cast<WebKitContentView*>(data);
+      int scale = self->mHost ? gtk_widget_get_scale_factor(self->mHost->area) : 1;
+      info->SetPropertyAsInt32(NS_LITERAL_STRING("x"), x * scale);
+      info->SetPropertyAsInt32(NS_LITERAL_STRING("y"), y * scale);
       static_cast<WebKitContentView*>(data)->Notify("content-view-context-menu",
         static_cast<nsIWritablePropertyBag2*>(info));
       return TRUE; // XUL owns the menu; suppress backend UI.
@@ -90,8 +92,12 @@ NS_IMETHODIMP WebKitContentView::SetBounds(int32_t x, int32_t y, int32_t width, 
   NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
   NS_ENSURE_TRUE(width > 0 && height > 0 && width <= 16384 && height <= 16384,
                  NS_ERROR_INVALID_ARG);
-  moz_container_move(mContainer, mHost->area, x, y, width, height);
-  wpe_host_resize(mHost, width, height);
+  int scale = gtk_widget_get_scale_factor(mHost->area);
+  int nativeWidth = (width + scale - 1) / scale;
+  int nativeHeight = (height + scale - 1) / scale;
+  moz_container_move(mContainer, mHost->area, x / scale, y / scale, nativeWidth, nativeHeight);
+  wpe_toplevel_scale_changed(mHost->toplevel, scale);
+  wpe_host_resize(mHost, nativeWidth, nativeHeight);
   return NS_OK;
 }
 NS_IMETHODIMP WebKitContentView::SetVisible(bool visible)

@@ -7,7 +7,7 @@ interface nsIObserver;
 
 /** Experimental chrome-only content view. No Gecko DOM/docshell contract.
  * All calls and callbacks occur on the main thread. The owner must destroy()
- * on window unload. Coordinates are native GTK logical pixels, relative to
+ * on window unload. Coordinates are device pixels, relative to
  * the chrome window's client area. Only an unobscured rectangular host in a
  * dedicated chrome window is supported initially.
  */
@@ -18,7 +18,7 @@ interface nsIWebContentView : nsISupports
    * content-view-process-terminated. Subject is this view.
    * content-view-context-menu carries an nsIPropertyBag2 subject with UTF-8
    * pageURL/linkURL/imageURL/mediaURL; boolean isLink/isImage/isMedia/
-   * isEditable/hasSelection; and int32 x/y in host logical pixels.
+   * isEditable/hasSelection; and int32 x/y in host device pixels.
    * Selected text is not available in the prototype.
    */
   void attach(in mozIDOMWindowProxy window, in nsIObserver listener);
