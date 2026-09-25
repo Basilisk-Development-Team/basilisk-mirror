@@ -7,3 +7,22 @@
 # Example: imply_option('MOZ_AV1', True)
 
 include('../platform/toolkit/moz.configure')
+
+# Experimental alternative content renderer. Never probe WPE in normal builds.
+option('--enable-webkit', default=False,
+       help='Enable the experimental WPE WebKit content view (Linux GTK3 only)')
+
+@depends('--enable-webkit', toolkit, target)
+@checking('whether WPE WebKit content support is enabled')
+def webkit(value, toolkit, target):
+    if value:
+        if target.os != 'GNU' or target.kernel != 'Linux' or toolkit != 'gtk3':
+            die('--enable-webkit currently requires Linux and cairo-gtk3')
+        return True
+    return False
+
+set_config('MOZ_WEBKIT', webkit)
+set_define('MOZ_WEBKIT', webkit)
+
+pkg_check_modules('WPE_WEBKIT', 'wpe-webkit-2.0 >= 2.54.0', when=webkit)
+pkg_check_modules('WPE_PLATFORM', 'wpe-platform-2.0 >= 2.54.0', when=webkit)

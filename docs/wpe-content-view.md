@@ -92,3 +92,9 @@ WPE queries; disabled full build and ELF dependency inspection; enabled missing-
 dependency failure; enabled full build; interactive HTTPS/render/input/focus,
 history/title/URI, XUL popup and repeated close/reopen checks. Compilation alone
 is not milestone completion. Record any blocked gates explicitly.
+
+Build gate validation: disabled configure completed successfully with a
+pkg-config wrapper that rejects all WPE/WebKit queries (none occurred). Enabled
+configure fails explicitly on missing `wpe-webkit-2.0 >= 2.54.0`, as intended.
+The disabled full build is running. Upstream WPE configuration needed locally
+built gperf and unifdef tools; those stay under ignored `build-wpe-deps/`.
