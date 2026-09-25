@@ -69,7 +69,8 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
       info->SetPropertyAsBool(NS_LITERAL_STRING("isMedia"), webkit_hit_test_result_context_is_media(hit));
       info->SetPropertyAsBool(NS_LITERAL_STRING("isEditable"), webkit_hit_test_result_context_is_editable(hit));
       info->SetPropertyAsBool(NS_LITERAL_STRING("hasSelection"), webkit_hit_test_result_context_is_selection(hit));
-      int x = 0, y = 0;
+      int x = 0;
+      int y = 0;
       webkit_context_menu_get_position(menu, &x, &y);
       auto* self = static_cast<WebKitContentView*>(data);
       int scale = self->mHost ? gtk_widget_get_scale_factor(self->mHost->area) : 1;
@@ -200,11 +201,13 @@ NS_IMETHODIMP WebKitContentView::GetTitle(nsACString& value)
 NS_GENERIC_FACTORY_CONSTRUCTOR(WebKitContentView)
 NS_DEFINE_NAMED_CID(WEBKIT_CONTENT_VIEW_CID);
 static const mozilla::Module::CIDEntry kCIDs[] = {
-  { &kWEBKIT_CONTENT_VIEW_CID, false, nullptr, WebKitContentViewConstructor },
+  { &kWEBKIT_CONTENT_VIEW_CID, false, nullptr, WebKitContentViewConstructor,
+    mozilla::Module::MAIN_PROCESS_ONLY },
   { nullptr }
 };
 static const mozilla::Module::ContractIDEntry kContracts[] = {
-  { "@basilisk-browser.org/web-content-view/wpe;1", &kWEBKIT_CONTENT_VIEW_CID },
+  { "@basilisk-browser.org/web-content-view/wpe;1", &kWEBKIT_CONTENT_VIEW_CID,
+    mozilla::Module::MAIN_PROCESS_ONLY },
   { nullptr }
 };
 static const mozilla::Module kModule = {
