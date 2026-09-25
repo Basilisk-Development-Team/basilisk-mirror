@@ -159,3 +159,26 @@ build-wpe-deps/host-smoke
 It requires real frame delivery and checks load/title plus ten create/destroy
 cycles. It is not proof of XUL integration, keyboard/mouse operation, HTTPS,
 history, or absence of leaks. Those remain separate runtime gates.
+
+### Completed disabled-build checks (2026-09-25, Linux/LoongArch64)
+
+* Default and explicit-disabled configure both completed with a pkg-config
+  guard rejecting any WPE/WebKit query; no forbidden queries occurred.
+* The corrected disabled full build completed. A subsequent normal make
+  invocation returned status 0.
+* `check-disabled.py` passed across 30 ELF files, checking direct/transitive
+  dependencies as well as defines, backend traversal, registration, interfaces
+  and resources. Auxiliary ELF inspection uses the application library path,
+  as the launcher does.
+* The final disabled browser rendered Example Domain and Wikipedia over HTTPS
+  in ordinary Gecko tabs on an isolated Xvfb display and test profile. Tab
+  switching, creation, closing and history navigation were smoke-tested.
+* Enabled configure rejects absent WPE packages. Against the fetched upstream
+  build metadata it completes and traverses only the enabled component.
+  Enabled full-build/runtime validation remains pending the WPE dependency
+  build; the initial attempt correctly failed on its not-yet-generated header.
+
+An early implementation returned False from the configure dependency, which
+this tree serialized into an empty C define. The disabled artifact audit
+caught it. The final configuration returns None and completely omits the
+feature define. The audit retains that check.
