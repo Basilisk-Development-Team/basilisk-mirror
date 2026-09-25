@@ -82,6 +82,13 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
     }), this);
   gtk_widget_set_parent_window(mHost->area, native);
   moz_container_put(mContainer, mHost->area, 0, 0);
+  // Give the foreign surface its own native child window. A client-side GDK
+  // window alone is not a clipping boundary for Gecko's compositor output.
+  gtk_widget_realize(mHost->area);
+  if (!gdk_window_ensure_native(gtk_widget_get_window(mHost->area))) {
+    Destroy();
+    return NS_ERROR_NOT_AVAILABLE;
+  }
   // Native parent destruction can precede the XUL unload handler.
   g_signal_connect(mHost->area, "destroy", G_CALLBACK(+[](GtkWidget*, gpointer data) {
     static_cast<WebKitContentView*>(data)->Destroy();
