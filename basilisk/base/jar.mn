@@ -146,3 +146,8 @@ browser.jar:
 % override chrome://global/content/license.html chrome://browser/content/license.html
 
 % override chrome://global/content/netError.xhtml chrome://browser/content/aboutNetError.xhtml
+
+#ifdef MOZ_WEBKIT
+        content/browser/webkit/prototype.xul          (content/webkit/prototype.xul)
+        content/browser/webkit/prototype.js           (content/webkit/prototype.js)
+#endif

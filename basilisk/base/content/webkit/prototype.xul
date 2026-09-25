@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
+<window xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+        id="wpe-prototype" title="WPE content view experiment"
+        width="1000" height="760" windowtype="basilisk:wpe-prototype">
+  <script type="application/javascript" src="chrome://browser/content/webkit/prototype.js"/>
+  <hbox align="center">
+    <button id="back" label="Back" disabled="true"/>
+    <button id="forward" label="Forward" disabled="true"/>
+    <button id="reload" label="Reload"/>
+    <button id="stop" label="Stop"/>
+    <textbox id="location" flex="1" value="https://example.com/"/>
+    <button id="go" label="Go"/>
+  </hbox>
+  <description id="status" value="Experimental WPE view — separate, temporary storage"/>
+  <vbox id="content-host" flex="1"/>
+</window>

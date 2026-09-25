@@ -98,3 +98,22 @@ pkg-config wrapper that rejects all WPE/WebKit queries (none occurred). Enabled
 configure fails explicitly on missing `wpe-webkit-2.0 >= 2.54.0`, as intended.
 The disabled full build is running. Upstream WPE configuration needed locally
 built gperf and unifdef tools; those stay under ignored `build-wpe-deps/`.
+
+## Opening the dedicated test view
+
+In an enabled build, use a separate test profile and launch:
+
+```
+basilisk -no-remote -profile /path/to/test-profile \
+  -chrome chrome://browser/content/webkit/prototype.xul
+```
+
+Alternatively privileged chrome can call `window.openDialog` on that URI.
+This is a dedicated XUL window, not an ordinary tabbrowser tab. Its content host
+has no `contentDocument` or `contentWindow`; it exposes only the content-view
+interface. HTTP(S) and `about:blank` are accepted by the initial load operation.
+The WPE network session is ephemeral and separate from Gecko. Permission
+requests are denied pending a real browser policy UI. IME, accessibility,
+printing, downloads, select popups, dialogs, and browser shortcut parity are
+not yet implemented or validated. Never use this experiment for normal browsing
+until the runtime validation gates above pass.
