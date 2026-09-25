@@ -120,6 +120,8 @@ static WPEModifiers Modifiers(guint state)
   if (state & GDK_BUTTON1_MASK) result |= WPE_MODIFIER_POINTER_BUTTON1;
   if (state & GDK_BUTTON2_MASK) result |= WPE_MODIFIER_POINTER_BUTTON2;
   if (state & GDK_BUTTON3_MASK) result |= WPE_MODIFIER_POINTER_BUTTON3;
+  if (state & GDK_BUTTON4_MASK) result |= WPE_MODIFIER_POINTER_BUTTON4;
+  if (state & GDK_BUTTON5_MASK) result |= WPE_MODIFIER_POINTER_BUTTON5;
   return static_cast<WPEModifiers>(result);
 }
 
@@ -134,9 +136,17 @@ static gboolean Input(GtkWidget* area, GdkEvent* event, gpointer data)
       if (e.type == GDK_BUTTON_PRESS) gtk_widget_grab_focus(area);
       guint count = e.type == GDK_BUTTON_PRESS ?
         wpe_view_compute_press_count(host->view, e.x, e.y, e.button, e.time) : 0;
+      // GDK supplies the state before the transition; WPE expects the current
+      // pressed-button set (which becomes the DOM MouseEvent.buttons value).
+      guint state = e.state;
+      if (e.button >= 1 && e.button <= 5) {
+        guint mask = GDK_BUTTON1_MASK << (e.button - 1);
+        if (e.type == GDK_BUTTON_PRESS) state |= mask;
+        else state &= ~mask;
+      }
       input = wpe_event_pointer_button_new(e.type == GDK_BUTTON_PRESS ?
         WPE_EVENT_POINTER_DOWN : WPE_EVENT_POINTER_UP, host->view,
-        WPE_INPUT_SOURCE_MOUSE, e.time, Modifiers(e.state), e.button, e.x, e.y, count);
+        WPE_INPUT_SOURCE_MOUSE, e.time, Modifiers(state), e.button, e.x, e.y, count);
       break;
     }
     // WPE computes click counts; do not dispatch GTK's synthetic double click again.
