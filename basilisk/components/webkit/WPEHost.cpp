@@ -212,6 +212,9 @@ WPEHost* wpe_host_new()
     wpe_host_free(host);
     return nullptr;
   }
+  wpe_display_set_available_input_devices(host->display,
+    static_cast<WPEAvailableInputDevices>(WPE_AVAILABLE_INPUT_DEVICE_MOUSE |
+                                         WPE_AVAILABLE_INPUT_DEVICE_KEYBOARD));
   // Keep the experiment's cookies/storage separate and ephemeral.
   auto* session = webkit_network_session_new_ephemeral();
   host->webView = WEBKIT_WEB_VIEW(g_object_new(WEBKIT_TYPE_WEB_VIEW,
