@@ -17,7 +17,7 @@ public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIWEBCONTENTVIEW
   WebKitContentView() = default;
-  void Notify(const char* topic, const char16_t* data = nullptr);
+  void Notify(const char* topic, nsISupports* subject = nullptr);
 private:
   ~WebKitContentView();
   WPEHost* mHost = nullptr;

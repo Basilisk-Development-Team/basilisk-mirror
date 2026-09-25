@@ -9,6 +9,7 @@
 #include "nsThreadUtils.h"
 #include "nsNetUtil.h"
 #include "nsIURI.h"
+#include "nsHashPropertyBag.h"
 #include "mozcontainer.h"
 #include "WPEHost.h"
 
@@ -49,6 +50,32 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
   g_signal_connect(mHost->webView, "web-process-terminated",
     G_CALLBACK(+[](WebKitWebView*, WebKitWebProcessTerminationReason, gpointer data) {
       static_cast<WebKitContentView*>(data)->Notify("content-view-process-terminated");
+    }), this);
+  g_signal_connect(mHost->webView, "context-menu",
+    G_CALLBACK(+[](WebKitWebView* view, WebKitContextMenu* menu,
+                   WebKitHitTestResult* hit, gpointer data) -> gboolean {
+      RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
+      auto text = [&](const char16_t* key, const char* value) {
+        info->SetPropertyAsAUTF8String(nsDependentString(key), nsDependentCString(value ? value : ""));
+      };
+      text(u"pageURL", webkit_web_view_get_uri(view));
+      text(u"linkURL", webkit_hit_test_result_get_link_uri(hit));
+      text(u"imageURL", webkit_hit_test_result_get_image_uri(hit));
+      text(u"mediaURL", webkit_hit_test_result_get_media_uri(hit));
+      // Hit testing reports selection state, not the selected text. Do not
+      // pretend to supply text until an asynchronous content bridge exists.
+      info->SetPropertyAsBool(NS_LITERAL_STRING("isLink"), webkit_hit_test_result_context_is_link(hit));
+      info->SetPropertyAsBool(NS_LITERAL_STRING("isImage"), webkit_hit_test_result_context_is_image(hit));
+      info->SetPropertyAsBool(NS_LITERAL_STRING("isMedia"), webkit_hit_test_result_context_is_media(hit));
+      info->SetPropertyAsBool(NS_LITERAL_STRING("isEditable"), webkit_hit_test_result_context_is_editable(hit));
+      info->SetPropertyAsBool(NS_LITERAL_STRING("hasSelection"), webkit_hit_test_result_context_is_selection(hit));
+      int x = 0, y = 0;
+      webkit_context_menu_get_position(menu, &x, &y);
+      info->SetPropertyAsInt32(NS_LITERAL_STRING("x"), x);
+      info->SetPropertyAsInt32(NS_LITERAL_STRING("y"), y);
+      static_cast<WebKitContentView*>(data)->Notify("content-view-context-menu",
+        static_cast<nsIWritablePropertyBag2*>(info));
+      return TRUE; // XUL owns the menu; suppress backend UI.
     }), this);
   gtk_widget_set_parent_window(mHost->area, native);
   moz_container_put(mContainer, mHost->area, 0, 0);
@@ -94,7 +121,7 @@ NS_IMETHODIMP WebKitContentView::Destroy()
   }
   return NS_OK;
 }
-void WebKitContentView::Notify(const char* topic, const char16_t* data)
+void WebKitContentView::Notify(const char* topic, nsISupports* subject)
 {
   // Listener code can synchronously close the host. Keep the component and
   // emitter alive until the callback returns, and never access mHost afterward.
@@ -102,7 +129,7 @@ void WebKitContentView::Notify(const char* topic, const char16_t* data)
   nsCOMPtr<nsIObserver> listener = mListener;
   auto* view = mHost ? mHost->webView : nullptr;
   if (view) g_object_ref(view);
-  if (listener) listener->Observe(this, topic, data);
+  if (listener) listener->Observe(subject ? subject : this, topic, nullptr);
   if (view) g_object_unref(view);
 }
 

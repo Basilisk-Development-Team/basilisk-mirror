@@ -16,6 +16,10 @@ interface nsIWebContentView : nsISupports
 {
   /** listener topics: content-view-state (read state getters) and
    * content-view-process-terminated. Subject is this view.
+   * content-view-context-menu carries an nsIPropertyBag2 subject with UTF-8
+   * pageURL/linkURL/imageURL/mediaURL; boolean isLink/isImage/isMedia/
+   * isEditable/hasSelection; and int32 x/y in host logical pixels.
+   * Selected text is not available in the prototype.
    */
   void attach(in mozIDOMWindowProxy window, in nsIObserver listener);
   void setBounds(in long x, in long y, in long width, in long height);

@@ -7,6 +7,15 @@
         id="wpe-prototype" title="WPE content view experiment"
         width="1000" height="760" windowtype="basilisk:wpe-prototype">
   <script type="application/javascript" src="chrome://browser/content/webkit/prototype.js"/>
+  <popupset>
+    <menupopup id="content-menu">
+      <menuitem id="context-back" label="Back"/>
+      <menuitem id="context-forward" label="Forward"/>
+      <menuitem id="context-reload" label="Reload"/>
+      <menuseparator/>
+      <menuitem id="context-link" label="Open link in this WPE view"/>
+    </menupopup>
+  </popupset>
   <hbox align="center">
     <button id="back" label="Back" disabled="true"/>
     <button id="forward" label="Forward" disabled="true"/>
