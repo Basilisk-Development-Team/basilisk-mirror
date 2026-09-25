@@ -117,3 +117,30 @@ requests are denied pending a real browser policy UI. IME, accessibility,
 printing, downloads, select popups, dialogs, and browser shortcut parity are
 not yet implemented or validated. Never use this experiment for normal browsing
 until the runtime validation gates above pass.
+
+## Dependency build and disabled-build audit
+
+`tools/wpe/fetch-source.sh` explicitly downloads and verifies the pinned upstream
+source. Nothing invokes it automatically. For a local WPE build, use upstream's
+CMake/Ninja support in `build-wpe-deps/wpe-build`, with `PORT=WPE`,
+`ENABLE_WPE_PLATFORM=ON`, `ENABLE_WPE_LEGACY_API=OFF`, and an install prefix of
+`build-wpe-deps/prefix`. This prototype needs neither the DRM nor Wayland host
+backends. This machine also needed `USE_SYSTEM_SYSPROF_CAPTURE=OFF` to use the
+upstream bundled dependency. Install build prerequisites or supply private
+copies; WPE's upstream build reports missing dependencies. Keep all dependency
+source/build/install products in the already-ignored `build-wpe-deps/` directory.
+Set `PKG_CONFIG_PATH` to the installed WPE pkgconfig directory when configuring
+Basilisk with `--enable-webkit`. The source-build pkgconfig directory can also
+be used for development, but its shared library must exist before linking or
+running Basilisk.
+
+After a completed disabled build:
+
+```
+python3 tools/wpe/check-disabled.py obj-webkit-disabled
+```
+
+This audits the feature define, backend traversal, interface installation,
+component registration string, loose/archived XUL resources, direct ELF
+DT_NEEDED entries and the runtime library dependency closure. It does not
+replace interactive Gecko regression testing.
