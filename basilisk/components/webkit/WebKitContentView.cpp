@@ -30,6 +30,10 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
   NS_ENSURE_TRUE(native, NS_ERROR_NOT_AVAILABLE);
   gpointer container = nullptr;
   gdk_window_get_user_data(native, &container);
+  // Without client-side decorations nsWindow draws on its GtkWindow and the
+  // MozContainer is its windowless child. With CSD it owns the GdkWindow itself.
+  if (container && GTK_IS_WINDOW(container))
+    container = gtk_bin_get_child(GTK_BIN(container));
   NS_ENSURE_TRUE(container && IS_MOZ_CONTAINER(container), NS_ERROR_NOT_AVAILABLE);
   mHost = wpe_host_new();
   NS_ENSURE_TRUE(mHost, NS_ERROR_FAILURE);
@@ -101,6 +105,10 @@ NS_IMETHODIMP WebKitContentView::SetBounds(int32_t x, int32_t y, int32_t width, 
   NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
   NS_ENSURE_TRUE(width > 0 && height > 0 && width <= 16384 && height <= 16384,
                  NS_ERROR_INVALID_ARG);
+  mBounds[0] = x;
+  mBounds[1] = y;
+  mBounds[2] = width;
+  mBounds[3] = height;
   int scale = WPEGtk::Get().scaleFactor(mHost->area);
   int nativeWidth = (width + scale - 1) / scale;
   int nativeHeight = (height + scale - 1) / scale;
@@ -112,8 +120,13 @@ NS_IMETHODIMP WebKitContentView::SetBounds(int32_t x, int32_t y, int32_t width, 
 NS_IMETHODIMP WebKitContentView::SetVisible(bool visible)
 {
   NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
-  if (visible) gtk_widget_show(mHost->area);
-  else gtk_widget_hide(mHost->area);
+  if (visible) {
+    gtk_widget_show(mHost->area);
+    // GTK ignores size allocation for hidden widgets. Reapply the owner's
+    // requested rectangle after mapping instead of leaving a 1x1 child.
+    return SetBounds(mBounds[0], mBounds[1], mBounds[2], mBounds[3]);
+  }
+  gtk_widget_hide(mHost->area);
   return NS_OK;
 }
 NS_IMETHODIMP WebKitContentView::Focus()

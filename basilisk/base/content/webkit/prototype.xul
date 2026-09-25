@@ -24,6 +24,6 @@
     <textbox id="location" flex="1" value="https://example.com/"/>
     <button id="go" label="Go"/>
   </hbox>
-  <description id="status" value="Experimental WPE view — separate, temporary storage"/>
+  <description id="status" crop="end" value="Experimental WPE view — separate, temporary storage"/>
   <vbox id="content-host" flex="1"/>
 </window>

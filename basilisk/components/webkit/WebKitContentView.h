@@ -23,5 +23,6 @@ private:
   WPEHost* mHost = nullptr;
   _MozContainer* mContainer = nullptr;
   nsCOMPtr<nsIObserver> mListener;
+  int32_t mBounds[4] = {0, 0, 1, 1};
 };
 #endif
