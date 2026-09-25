@@ -104,11 +104,104 @@ static void basilisk_wpe_display_class_init(BasiliskWPEDisplayClass* klass)
   };
 }
 
+static WPEModifiers Modifiers(guint state)
+{
+  unsigned result = 0;
+  if (state & GDK_SHIFT_MASK) result |= WPE_MODIFIER_KEYBOARD_SHIFT;
+  if (state & GDK_CONTROL_MASK) result |= WPE_MODIFIER_KEYBOARD_CONTROL;
+  if (state & GDK_MOD1_MASK) result |= WPE_MODIFIER_KEYBOARD_ALT;
+  if (state & (GDK_META_MASK | GDK_SUPER_MASK)) result |= WPE_MODIFIER_KEYBOARD_META;
+  if (state & GDK_LOCK_MASK) result |= WPE_MODIFIER_KEYBOARD_CAPS_LOCK;
+  if (state & GDK_BUTTON1_MASK) result |= WPE_MODIFIER_POINTER_BUTTON1;
+  if (state & GDK_BUTTON2_MASK) result |= WPE_MODIFIER_POINTER_BUTTON2;
+  if (state & GDK_BUTTON3_MASK) result |= WPE_MODIFIER_POINTER_BUTTON3;
+  return static_cast<WPEModifiers>(result);
+}
+
+static gboolean Input(GtkWidget* area, GdkEvent* event, gpointer data)
+{
+  auto* host = static_cast<WPEHost*>(data);
+  WPEEvent* input = nullptr;
+  switch (event->type) {
+    case GDK_BUTTON_PRESS:
+    case GDK_BUTTON_RELEASE: {
+      auto& e = event->button;
+      if (e.type == GDK_BUTTON_PRESS) gtk_widget_grab_focus(area);
+      guint count = e.type == GDK_BUTTON_PRESS ?
+        wpe_view_compute_press_count(host->view, e.x, e.y, e.button, e.time) : 0;
+      input = wpe_event_pointer_button_new(e.type == GDK_BUTTON_PRESS ?
+        WPE_EVENT_POINTER_DOWN : WPE_EVENT_POINTER_UP, host->view,
+        WPE_INPUT_SOURCE_MOUSE, e.time, Modifiers(e.state), e.button, e.x, e.y, count);
+      break;
+    }
+    // WPE computes click counts; do not dispatch GTK's synthetic double click again.
+    case GDK_2BUTTON_PRESS:
+    case GDK_3BUTTON_PRESS:
+      return TRUE;
+    case GDK_MOTION_NOTIFY: {
+      auto& e = event->motion;
+      input = wpe_event_pointer_move_new(WPE_EVENT_POINTER_MOVE, host->view,
+        WPE_INPUT_SOURCE_MOUSE, e.time, Modifiers(e.state), e.x, e.y, 0, 0);
+      break;
+    }
+    case GDK_ENTER_NOTIFY:
+    case GDK_LEAVE_NOTIFY: {
+      auto& e = event->crossing;
+      input = wpe_event_pointer_move_new(e.type == GDK_ENTER_NOTIFY ?
+        WPE_EVENT_POINTER_ENTER : WPE_EVENT_POINTER_LEAVE, host->view,
+        WPE_INPUT_SOURCE_MOUSE, e.time, Modifiers(e.state), e.x, e.y, 0, 0);
+      break;
+    }
+    case GDK_SCROLL: {
+      auto& e = event->scroll;
+      double dx = 0, dy = 0;
+      bool precise = gdk_event_get_scroll_deltas(event, &dx, &dy);
+      if (!precise) {
+        if (e.direction == GDK_SCROLL_UP) dy = -1;
+        if (e.direction == GDK_SCROLL_DOWN) dy = 1;
+        if (e.direction == GDK_SCROLL_LEFT) dx = -1;
+        if (e.direction == GDK_SCROLL_RIGHT) dx = 1;
+      }
+      input = wpe_event_scroll_new(host->view, WPE_INPUT_SOURCE_MOUSE, e.time,
+        Modifiers(e.state), -dx, -dy, precise, precise && dx == 0 && dy == 0, e.x, e.y);
+      break;
+    }
+    case GDK_KEY_PRESS:
+    case GDK_KEY_RELEASE: {
+      auto& e = event->key;
+      input = wpe_event_keyboard_new(e.type == GDK_KEY_PRESS ?
+        WPE_EVENT_KEYBOARD_KEY_DOWN : WPE_EVENT_KEYBOARD_KEY_UP, host->view,
+        WPE_INPUT_SOURCE_KEYBOARD, e.time, Modifiers(e.state), e.hardware_keycode, e.keyval);
+      break;
+    }
+    case GDK_FOCUS_CHANGE:
+      if (event->focus_change.in) {
+        wpe_toplevel_state_changed(host->toplevel, WPE_TOPLEVEL_STATE_ACTIVE);
+        wpe_view_focus_in(host->view);
+      } else {
+        wpe_view_focus_out(host->view);
+        wpe_toplevel_state_changed(host->toplevel, WPE_TOPLEVEL_STATE_NONE);
+      }
+      return FALSE;
+    default:
+      return FALSE;
+  }
+  wpe_view_event(host->view, input);
+  wpe_event_unref(input);
+  return TRUE;
+}
+
 WPEHost* wpe_host_new()
 {
   auto* host = g_new0(WPEHost, 1);
   host->area = gtk_drawing_area_new();
   g_object_ref_sink(host->area);
+  gtk_widget_set_can_focus(host->area, TRUE);
+  gtk_widget_add_events(host->area, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
+    GDK_POINTER_MOTION_MASK | GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK |
+    GDK_SCROLL_MASK | GDK_SMOOTH_SCROLL_MASK | GDK_KEY_PRESS_MASK |
+    GDK_KEY_RELEASE_MASK | GDK_FOCUS_CHANGE_MASK);
+  g_signal_connect(host->area, "event", G_CALLBACK(Input), host);
   host->display = WPE_DISPLAY(g_object_new(basilisk_wpe_display_get_type(), nullptr));
   if (!wpe_display_connect(host->display, nullptr)) {
     wpe_host_free(host);
