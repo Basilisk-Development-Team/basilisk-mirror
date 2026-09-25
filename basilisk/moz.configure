@@ -19,7 +19,9 @@ def webkit(value, toolkit, target):
         if target.os != 'GNU' or target.kernel != 'Linux' or toolkit != 'gtk3':
             die('--enable-webkit currently requires Linux and cairo-gtk3')
         return True
-    return False
+    # This tree serializes False as an empty define in mozilla-config.h.
+    # None must omit the define entirely so #ifdef guards also remain off.
+    return None
 
 set_config('MOZ_WEBKIT', webkit)
 set_define('MOZ_WEBKIT', webkit)
