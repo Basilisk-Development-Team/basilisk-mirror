@@ -12,6 +12,7 @@
 #include "nsHashPropertyBag.h"
 #include "mozcontainer.h"
 #include "WPEHost.h"
+#include "WPEGtk.h"
 
 NS_IMPL_ISUPPORTS(WebKitContentView, nsIWebContentView)
 WebKitContentView::~WebKitContentView() { Destroy(); }
@@ -73,7 +74,7 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
       int y = 0;
       webkit_context_menu_get_position(menu, &x, &y);
       auto* self = static_cast<WebKitContentView*>(data);
-      int scale = self->mHost ? gtk_widget_get_scale_factor(self->mHost->area) : 1;
+      int scale = self->mHost ? WPEGtk::Get().scaleFactor(self->mHost->area) : 1;
       info->SetPropertyAsInt32(NS_LITERAL_STRING("x"), x * scale);
       info->SetPropertyAsInt32(NS_LITERAL_STRING("y"), y * scale);
       static_cast<WebKitContentView*>(data)->Notify("content-view-context-menu",
@@ -85,7 +86,7 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
   // Give the foreign surface its own native child window. A client-side GDK
   // window alone is not a clipping boundary for Gecko's compositor output.
   gtk_widget_realize(mHost->area);
-  if (!gdk_window_ensure_native(gtk_widget_get_window(mHost->area))) {
+  if (!WPEGtk::Get().ensureNative(gtk_widget_get_window(mHost->area))) {
     Destroy();
     return NS_ERROR_NOT_AVAILABLE;
   }
@@ -100,7 +101,7 @@ NS_IMETHODIMP WebKitContentView::SetBounds(int32_t x, int32_t y, int32_t width, 
   NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
   NS_ENSURE_TRUE(width > 0 && height > 0 && width <= 16384 && height <= 16384,
                  NS_ERROR_INVALID_ARG);
-  int scale = gtk_widget_get_scale_factor(mHost->area);
+  int scale = WPEGtk::Get().scaleFactor(mHost->area);
   int nativeWidth = (width + scale - 1) / scale;
   int nativeHeight = (height + scale - 1) / scale;
   moz_container_move(mContainer, mHost->area, x / scale, y / scale, nativeWidth, nativeHeight);

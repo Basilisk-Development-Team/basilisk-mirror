@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include "WPEHost.h"
+#include "WPEGtk.h"
 #include <cstring>
 
 struct BasiliskWPEView {
@@ -54,7 +55,7 @@ static gboolean RenderBuffer(WPEView* view, WPEBuffer* buffer,
   for (int y = 0; y < height; ++y)
     std::memcpy(dest + gsize(y) * destStride, data + gsize(y) * stride, width * 4);
   cairo_surface_mark_dirty(self->surface);
-  if (self->area) gtk_widget_queue_draw(self->area);
+  if (self->area) WPEGtk::Get().queueDraw(self->area);
   self->pending = WPE_BUFFER(g_object_ref(buffer));
   // Acknowledge asynchronously: the backing store commits after this returns.
   // Throttle software presentation, including when the host is occluded.
@@ -170,7 +171,7 @@ static gboolean Input(GtkWidget* area, GdkEvent* event, gpointer data)
     case GDK_SCROLL: {
       auto& e = event->scroll;
       double dx = 0, dy = 0;
-      bool precise = gdk_event_get_scroll_deltas(event, &dx, &dy);
+      bool precise = WPEGtk::Get().scrollDeltas(event, &dx, &dy);
       if (!precise) {
         if (e.direction == GDK_SCROLL_UP) dy = -1;
         if (e.direction == GDK_SCROLL_DOWN) dy = 1;
@@ -208,8 +209,9 @@ static gboolean Input(GtkWidget* area, GdkEvent* event, gpointer data)
 
 WPEHost* wpe_host_new()
 {
+  if (!WPEGtk::Get().Available()) return nullptr;
   auto* host = g_new0(WPEHost, 1);
-  host->area = gtk_drawing_area_new();
+  host->area = WPEGtk::Get().drawingAreaNew();
   g_object_ref_sink(host->area);
   gtk_widget_set_can_focus(host->area, TRUE);
   gtk_widget_add_events(host->area, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
