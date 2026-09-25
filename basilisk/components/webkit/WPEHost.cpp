@@ -60,12 +60,15 @@ static gboolean RenderBuffer(WPEView* view, WPEBuffer* buffer,
   // Throttle software presentation, including when the host is occluded.
   self->frameSource = g_timeout_add(16, [](gpointer data) -> gboolean {
     auto* self = static_cast<BasiliskWPEView*>(data);
+    // A frame-displayed callback may synchronously tear down the owner.
+    g_object_ref(self);
     self->frameSource = 0;
     auto* buffer = self->pending;
     self->pending = nullptr;
     wpe_view_buffer_rendered(WPE_VIEW(self), buffer);
     wpe_view_buffer_released(WPE_VIEW(self), buffer);
     g_object_unref(buffer);
+    g_object_unref(self);
     return G_SOURCE_REMOVE;
   }, self);
   return TRUE;

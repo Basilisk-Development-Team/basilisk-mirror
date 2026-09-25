@@ -144,3 +144,18 @@ This audits the feature define, backend traversal, interface installation,
 component registration string, loose/archived XUL resources, direct ELF
 DT_NEEDED entries and the runtime library dependency closure. It does not
 replace interactive Gecko regression testing.
+
+The standalone host runtime smoke test uses the production native host and
+requires an X display (an isolated Xvfb display is suitable):
+
+```
+c++ tools/wpe/host-smoke.cpp basilisk/components/webkit/WPEHost.cpp \
+  -Ibasilisk/components/webkit \
+  $(pkg-config --cflags --libs wpe-webkit-2.0 wpe-platform-2.0 gtk+-3.0) \
+  -o build-wpe-deps/host-smoke
+build-wpe-deps/host-smoke
+```
+
+It requires real frame delivery and checks load/title plus ten create/destroy
+cycles. It is not proof of XUL integration, keyboard/mouse operation, HTTPS,
+history, or absence of leaks. Those remain separate runtime gates.
