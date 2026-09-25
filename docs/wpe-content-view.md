@@ -141,6 +141,26 @@ Basilisk with `--enable-webkit`. The source-build pkgconfig directory can also
 be used for development, but its shared library must exist before linking or
 running Basilisk.
 
+Keep your normal compiler/application settings in a separate experimental
+mozconfig, adding:
+
+```sh
+mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-webkit-enabled
+ac_add_options --enable-webkit
+```
+
+Then build using that configuration and the private dependency metadata:
+
+```sh
+PKG_CONFIG_PATH="$PWD/build-wpe-deps/prefix/lib64/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" \
+  MOZCONFIG=/path/to/experimental.mozconfig ./mach build
+```
+
+For the disabled build, use a separate object directory and
+`ac_add_options --disable-webkit`; no WPE pkg-config path or installation is
+needed. Omitting both feature options also disables WPE. The existing normal
+mozconfig in this checkout was not modified.
+
 For this checkout's private dependency installation, the launch command is:
 
 ```sh
