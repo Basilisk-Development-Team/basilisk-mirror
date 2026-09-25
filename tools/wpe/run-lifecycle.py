@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+"""Run the XUL component lifecycle test in an unpackaged enabled build.
+
+Requires DISPLAY and a runtime loader path that finds the installed WPE library.
+Uses a fresh profile, a loopback HTTP server, and temporary build-only chrome.
+Never run concurrently with a build in the same object directory.
+"""
+import argparse
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import json
+from pathlib import Path
+import subprocess
+import tempfile
+import threading
+import time
+
+
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
+
+    def do_GET(self):
+        title = "Page B" if self.path == "/b" else "Page A"
+        if self.path == "/slow":
+            time.sleep(2)
+            title = "Page Slow"
+        page = ("<!doctype html><title>%s %.9f</title><h1>%s</h1>"
+                % (title, time.monotonic(), title)).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(page)))
+        self.end_headers()
+        try:
+            self.wfile.write(page)
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # The delayed request is intentionally cancelled by stop().
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("objdir", type=Path)
+    args = parser.parse_args()
+    objdir = args.objdir.resolve()
+    binary = objdir / "dist/bin/basilisk"
+    chrome = objdir / "dist/bin/browser/chrome/browser/content/browser/webkit"
+    if not binary.is_file() or not (chrome / "prototype.xul").is_file():
+        parser.error("requires a completed, unpackaged --enable-webkit build")
+    fixture = Path(__file__).resolve().parent / "lifecycle"
+    staged = []
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        for suffix in ("js", "xul"):
+            destination = chrome / ("wpe-lifecycle-test." + suffix)
+            # Refuse to overwrite an existing test or product resource.
+            destination.symlink_to(fixture / ("lifecycle." + suffix))
+            staged.append(destination)
+        with tempfile.TemporaryDirectory(prefix="basilisk-wpe-test-") as profile:
+            prefs = {
+                "browser.shell.checkDefaultBrowser": False,
+                "browser.startup.page": 0,
+                "browser.dom.window.dump.enabled": True,
+                "wpe.test.port": server.server_port,
+            }
+            Path(profile, "user.js").write_text("\n".join(
+                "user_pref(%s, %s);" % (json.dumps(key), json.dumps(value))
+                for key, value in prefs.items()))
+            result = subprocess.run([
+                str(binary), "-no-remote", "-profile", profile, "-chrome",
+                "chrome://browser/content/webkit/wpe-lifecycle-test.xul",
+            ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, timeout=210)
+            print(result.stdout, end="")
+            return 0 if (result.returncode == 0 and
+                         "WPE-LIFECYCLE PASS " in result.stdout and
+                         "WPE-LIFECYCLE FAIL " not in result.stdout) else 1
+    finally:
+        for path in staged:
+            path.unlink()
+        server.shutdown()
+        server.server_close()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

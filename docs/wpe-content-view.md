@@ -17,8 +17,15 @@ Relevant boundaries inspected:
 * `platform/embedding/browser/nsIWebBrowser.idl` also exposes Gecko DOM and
   progress-listener interfaces. Leave it and existing extension behavior alone.
 * `platform/widget/gtk/nsWindow.cpp::GetNativeData(NS_NATIVE_WIDGET)` returns
-  a **GdkWindow**, not a GtkWidget. `mozcontainer.h` documents native child
-  parenting and geometry. UXP's GTK/GLib event loop can dispatch WPE callbacks.
+  a **GdkWindow**, not a GtkWidget. Without client-side decorations its owner
+  is the GtkWindow containing a windowless MozContainer; with decorations it
+  is the MozContainer. `mozcontainer.h` supplies native child parenting and
+  geometry. UXP's GTK/GLib event loop dispatches WPE callbacks.
+* The GTK symbol shim permits GTK2 NPAPI processes. Additional GTK3 host
+  functions are resolved inside the integration instead of linking GTK3
+  directly into libxul. Component registration is restricted to the main
+  process. A native child window clips Gecko's compositor output; its damage
+  is processed at the WPE presentation tick, independently of Gecko painting.
 * A separate privileged XUL test window with a content-view host is the first
   integration point. This meets the view milestone without pretending that
   tabbrowser's docshell-dependent features work. Ordinary tabs remain Gecko.
@@ -47,8 +54,8 @@ Planned independently reviewable commits:
 
 ## WPE dependency and API selection
 
-This machine is Linux/LoongArch64 with GTK3 and WebKitGTK installed, but has no
-WPE pkg-config modules or WPE shared libraries. WebKitGTK is not a fallback.
+This machine is Linux/LoongArch64 with GTK3 and WebKitGTK installed, but initially
+had no WPE pkg-config modules or WPE shared libraries. WebKitGTK is not a fallback.
 WPE WebKit 2.54.0 sources were fetched into ignored `build-wpe-deps/` for API
 inspection and a private dependency build. SHA-256:
 `efa9bcc3cb891c2d88f50eec710d9ccee71cbdf1040420361eb98c17355eb452`.
@@ -96,7 +103,7 @@ is not milestone completion. Record any blocked gates explicitly.
 Build gate validation: disabled configure completed successfully with a
 pkg-config wrapper that rejects all WPE/WebKit queries (none occurred). Enabled
 configure fails explicitly on missing `wpe-webkit-2.0 >= 2.54.0`, as intended.
-The disabled full build is running. Upstream WPE configuration needed locally
+Both disabled and enabled full builds completed. Upstream WPE configuration needed locally
 built gperf and unifdef tools; those stay under ignored `build-wpe-deps/`.
 
 ## Opening the dedicated test view
@@ -115,8 +122,8 @@ interface. HTTP(S) and `about:blank` are accepted by the initial load operation.
 The WPE network session is ephemeral and separate from Gecko. Permission
 requests are denied pending a real browser policy UI. IME, accessibility,
 printing, downloads, select popups, dialogs, and browser shortcut parity are
-not yet implemented or validated. Never use this experiment for normal browsing
-until the runtime validation gates above pass.
+not yet implemented or validated. This remains a development experiment; the
+basic view checks below do not establish complete browser compatibility.
 
 ## Dependency build and disabled-build audit
 
@@ -133,6 +140,22 @@ Set `PKG_CONFIG_PATH` to the installed WPE pkgconfig directory when configuring
 Basilisk with `--enable-webkit`. The source-build pkgconfig directory can also
 be used for development, but its shared library must exist before linking or
 running Basilisk.
+
+For this checkout's private dependency installation, the launch command is:
+
+```sh
+mkdir -p build-wpe-deps/my-test-profile
+LD_LIBRARY_PATH="$PWD/build-wpe-deps/prefix/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+  obj-webkit-enabled/dist/bin/basilisk -no-remote \
+  -profile "$PWD/build-wpe-deps/my-test-profile" \
+  -chrome chrome://browser/content/webkit/prototype.xul
+```
+
+Use `lib` instead of `lib64` if that is where your WPE installation places its
+libraries. Install WPE's helper executables and resources with the library;
+copying only its shared object is insufficient. No runtime sandbox was disabled
+for the validation here. WPE web processes ran through upstream's bubblewrap
+sandbox, alongside Gecko's existing process setup.
 
 After a completed disabled build:
 
@@ -152,13 +175,29 @@ requires an X display (an isolated Xvfb display is suitable):
 c++ tools/wpe/host-smoke.cpp basilisk/components/webkit/WPEHost.cpp \
   -Ibasilisk/components/webkit \
   $(pkg-config --cflags --libs wpe-webkit-2.0 wpe-platform-2.0 gtk+-3.0) \
-  -o build-wpe-deps/host-smoke
+  -ldl -o build-wpe-deps/host-smoke
 build-wpe-deps/host-smoke
 ```
 
 It requires real frame delivery and checks load/title plus ten create/destroy
 cycles. It is not proof of XUL integration, keyboard/mouse operation, HTTPS,
 history, or absence of leaks. Those remain separate runtime gates.
+
+The XUL lifecycle test additionally exercises the actual XPCOM component:
+
+```sh
+DISPLAY=:91 LD_LIBRARY_PATH="$PWD/build-wpe-deps/prefix/lib64" \
+  python3 tools/wpe/run-lifecycle.py obj-webkit-enabled
+```
+
+Supply an existing test display (the checks here used Xvfb), and do not run
+concurrently with a build in that object directory. The runner creates a fresh
+profile and loopback server, temporarily stages two test chrome resources in
+the enabled build, and removes them afterward. It asserts URI/title changes,
+back/forward state and navigation, reload with a changed server response,
+cancellation of a delayed load, hide/show, and ten attach/destroy cycles.
+Mouse/keyboard, continuous rendering and XUL context menus require separate
+interactive checks; this harness does not claim to test those.
 
 ### Completed disabled-build checks (2026-09-25, Linux/LoongArch64)
 
@@ -174,11 +213,42 @@ history, or absence of leaks. Those remain separate runtime gates.
   in ordinary Gecko tabs on an isolated Xvfb display and test profile. Tab
   switching, creation, closing and history navigation were smoke-tested.
 * Enabled configure rejects absent WPE packages. Against the fetched upstream
-  build metadata it completes and traverses only the enabled component.
-  Enabled full-build/runtime validation remains pending the WPE dependency
-  build; the initial attempt correctly failed on its not-yet-generated header.
+  build metadata it completes and traverses the enabled component.
 
 An early implementation returned False from the configure dependency, which
 this tree serialized into an empty C define. The disabled artifact audit
 caught it. The final configuration returns None and completely omits the
 feature define. The audit retains that check.
+
+### Completed enabled-view checks (2026-09-25, Linux/LoongArch64, GTK3/X11)
+
+* WPE 2.54.0 built from the verified upstream source and was installed under
+  the private prefix. Basilisk's normal enabled make completed with status 0.
+* ELF inspection finds `libWPEWebKit-2.0.so.1` and `libmozgtk.so` in the enabled
+  libxul dependency list, with no direct GTK3 linkage. The disabled build has
+  no direct or transitive WPE/WebKit dependency.
+* The production native host test passed ten load/title/frame/destroy cycles.
+* The dedicated XUL view rendered Example Domain and Wikipedia over HTTPS.
+  A changing local page repainted its counter and alternating background
+  without additional input or exposure. Resizing updated the native rectangle.
+* Mouse clicks focused a real WebKit input; typed text rendered and changed
+  the XUL window title. Focus returned to the XUL location field for navigation.
+  Back/forward toolbar commands worked. Right-click on a link produced the
+  XUL popup, and its link command navigated the WPE view to the correct URL.
+* The XUL lifecycle test passed ten cycles with 360 state notifications,
+  including back/forward/reload and stop before a delayed response completed.
+  No crash or accumulating native child windows was observed. This is a
+  smoke test, not a heap-leak proof. WPE may retain shared process-pool caches
+  beyond an individual view's lifetime; application exit ended its processes.
+* A normal window-manager close removed the WPE window and its native child
+  while ordinary Gecko tabs remained usable in the same process. Gecko tabs
+  loaded Example Domain/Wikipedia, switched, opened and closed normally.
+
+The first **dedicated-view** milestone is demonstrated. Ordinary mixed-engine
+tabbrowser tabs remain future work. No content-extension/DOM compatibility,
+per-site routing, cookie synchronization, ad blocker, or media permission UI
+has been added. Existing Gecko/NPAPI implementation and platform sources were
+not changed. NPAPI plugins and existing extensions were not exhaustively
+runtime-tested; the disabled artifact audit and Gecko smoke tests are the
+regression evidence here. Other architectures, GTK CSD, HiDPI, Wayland, IME,
+accessibility and long-running memory behavior still need validation.
