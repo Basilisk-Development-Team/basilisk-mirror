@@ -1,0 +1,14 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+XPIDL_SOURCES += ['nsIWebContentView.idl']
+XPIDL_MODULE = 'webcontentview'
+SOURCES += ['WebKitContentView.cpp']
+FINAL_LIBRARY = 'xul'
+LOCAL_INCLUDES += ['/dom/base', '/widget/gtk']
+CXXFLAGS += CONFIG['WPE_WEBKIT_CFLAGS']
+CXXFLAGS += CONFIG['WPE_PLATFORM_CFLAGS']
+CXXFLAGS += CONFIG['TK_CFLAGS']
+OS_LIBS += CONFIG['WPE_WEBKIT_LIBS']
+OS_LIBS += CONFIG['WPE_PLATFORM_LIBS']

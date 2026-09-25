@@ -1,0 +1,33 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+#include "nsISupports.idl"
+interface mozIDOMWindowProxy;
+interface nsIObserver;
+
+/** Experimental chrome-only content view. No Gecko DOM/docshell contract.
+ * All calls and callbacks occur on the main thread. The owner must destroy()
+ * on window unload. Coordinates are native GTK logical pixels, relative to
+ * the chrome window's client area. Only an unobscured rectangular host in a
+ * dedicated chrome window is supported initially.
+ */
+[scriptable, uuid(bf78b1c3-787d-48bb-810c-9d5d98eac5ce)]
+interface nsIWebContentView : nsISupports
+{
+  void attach(in mozIDOMWindowProxy window, in nsIObserver listener);
+  void setBounds(in long x, in long y, in long width, in long height);
+  void setVisible(in boolean visible);
+  void focus();
+  /** Idempotent. Disconnects callbacks and releases native/engine resources. */
+  void destroy();
+
+  void loadURI(in AUTF8String uri);
+  void reload();
+  void stop();
+  void goBack();
+  void goForward();
+  readonly attribute boolean canGoBack;
+  readonly attribute boolean canGoForward;
+  readonly attribute AUTF8String currentURI;
+  readonly attribute AUTF8String title;
+};
