@@ -55,7 +55,6 @@ static gboolean RenderBuffer(WPEView* view, WPEBuffer* buffer,
   for (int y = 0; y < height; ++y)
     std::memcpy(dest + gsize(y) * destStride, data + gsize(y) * stride, width * 4);
   cairo_surface_mark_dirty(self->surface);
-  if (self->area) WPEGtk::Get().queueDraw(self->area);
   self->pending = WPE_BUFFER(g_object_ref(buffer));
   // Acknowledge asynchronously: the backing store commits after this returns.
   // Throttle software presentation, including when the host is occluded.
@@ -66,6 +65,14 @@ static gboolean RenderBuffer(WPEView* view, WPEBuffer* buffer,
     self->frameSource = 0;
     auto* buffer = self->pending;
     self->pending = nullptr;
+    if (self->area && gtk_widget_get_mapped(self->area)) {
+      // Gecko drives its own painting; a GTK queue_draw alone can leave a
+      // native child stale until an external expose. Flush this child's damage
+      // at our presentation tick without invalidating Gecko's chrome surface.
+      GdkWindow* window = gtk_widget_get_window(self->area);
+      gdk_window_invalidate_rect(window, nullptr, FALSE);
+      gdk_window_process_updates(window, FALSE);
+    }
     wpe_view_buffer_rendered(WPE_VIEW(self), buffer);
     wpe_view_buffer_released(WPE_VIEW(self), buffer);
     g_object_unref(buffer);
