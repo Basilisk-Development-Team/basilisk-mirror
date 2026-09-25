@@ -4,17 +4,76 @@
 #include "WebKitContentView.h"
 #include "mozilla/ModuleUtils.h"
 #include "nsString.h"
+#include "nsGlobalWindow.h"
+#include "nsIWidget.h"
+#include "nsThreadUtils.h"
+#include "mozcontainer.h"
+#include "WPEHost.h"
 
 NS_IMPL_ISUPPORTS(WebKitContentView, nsIWebContentView)
 WebKitContentView::~WebKitContentView() { Destroy(); }
-NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy*, nsIObserver*)
-{ return NS_ERROR_NOT_IMPLEMENTED; }
-NS_IMETHODIMP WebKitContentView::SetBounds(int32_t, int32_t, int32_t, int32_t)
-{ return NS_ERROR_NOT_INITIALIZED; }
-NS_IMETHODIMP WebKitContentView::SetVisible(bool)
-{ return NS_ERROR_NOT_INITIALIZED; }
-NS_IMETHODIMP WebKitContentView::Focus() { return NS_ERROR_NOT_INITIALIZED; }
-NS_IMETHODIMP WebKitContentView::Destroy() { return NS_OK; }
+NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver* listener)
+{
+  NS_ENSURE_TRUE(NS_IsMainThread(), NS_ERROR_NOT_SAME_THREAD);
+  NS_ENSURE_ARG_POINTER(window);
+  NS_ENSURE_ARG_POINTER(listener);
+  NS_ENSURE_TRUE(!mHost, NS_ERROR_ALREADY_INITIALIZED);
+  auto* chrome = nsGlobalWindow::Cast(window);
+  NS_ENSURE_TRUE(chrome->IsChromeWindow(), NS_ERROR_DOM_SECURITY_ERR);
+  nsCOMPtr<nsIWidget> widget = chrome->GetMainWidget();
+  NS_ENSURE_TRUE(widget, NS_ERROR_NOT_AVAILABLE);
+  auto* native = static_cast<GdkWindow*>(widget->GetNativeData(NS_NATIVE_WIDGET));
+  NS_ENSURE_TRUE(native, NS_ERROR_NOT_AVAILABLE);
+  gpointer container = nullptr;
+  gdk_window_get_user_data(native, &container);
+  NS_ENSURE_TRUE(container && IS_MOZ_CONTAINER(container), NS_ERROR_NOT_AVAILABLE);
+  mHost = wpe_host_new();
+  NS_ENSURE_TRUE(mHost, NS_ERROR_FAILURE);
+  mContainer = MOZ_CONTAINER(container);
+  mListener = listener;
+  gtk_widget_set_parent_window(mHost->area, native);
+  moz_container_put(mContainer, mHost->area, 0, 0);
+  // Native parent destruction can precede the XUL unload handler.
+  g_signal_connect(mHost->area, "destroy", G_CALLBACK(+[](GtkWidget*, gpointer data) {
+    static_cast<WebKitContentView*>(data)->Destroy();
+  }), this);
+  return NS_OK;
+}
+NS_IMETHODIMP WebKitContentView::SetBounds(int32_t x, int32_t y, int32_t width, int32_t height)
+{
+  NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
+  NS_ENSURE_TRUE(width > 0 && height > 0 && width <= 16384 && height <= 16384,
+                 NS_ERROR_INVALID_ARG);
+  moz_container_move(mContainer, mHost->area, x, y, width, height);
+  wpe_host_resize(mHost, width, height);
+  return NS_OK;
+}
+NS_IMETHODIMP WebKitContentView::SetVisible(bool visible)
+{
+  NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
+  if (visible) gtk_widget_show(mHost->area);
+  else gtk_widget_hide(mHost->area);
+  return NS_OK;
+}
+NS_IMETHODIMP WebKitContentView::Focus()
+{
+  NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
+  gtk_widget_grab_focus(mHost->area);
+  return NS_OK;
+}
+NS_IMETHODIMP WebKitContentView::Destroy()
+{
+  mListener = nullptr;
+  if (mHost) {
+    WPEHost* host = mHost;
+    mHost = nullptr;
+    mContainer = nullptr;
+    g_signal_handlers_disconnect_by_data(host->area, this);
+    g_signal_handlers_disconnect_by_data(host->webView, this);
+    wpe_host_free(host);
+  }
+  return NS_OK;
+}
 NS_IMETHODIMP WebKitContentView::LoadURI(const nsACString&)
 { return NS_ERROR_NOT_INITIALIZED; }
 NS_IMETHODIMP WebKitContentView::Reload() { return NS_ERROR_NOT_INITIALIZED; }

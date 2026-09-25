@@ -8,6 +8,9 @@
 #include "nsCOMPtr.h"
 #include "nsIObserver.h"
 
+struct WPEHost;
+struct _MozContainer;
+
 class WebKitContentView final : public nsIWebContentView
 {
 public:
@@ -16,5 +19,8 @@ public:
   WebKitContentView() = default;
 private:
   ~WebKitContentView();
+  WPEHost* mHost = nullptr;
+  _MozContainer* mContainer = nullptr;
+  nsCOMPtr<nsIObserver> mListener;
 };
 #endif
