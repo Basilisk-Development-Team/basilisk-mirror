@@ -76,13 +76,14 @@ def stage(prefix, dist, patchelf):
     # directory. This also makes plugin/container/NSS ELF audits self-contained.
     for path in sorted(dist.rglob('*')):
         if not elf(path): continue
-        if path.is_symlink():
+        if path.is_symlink() or path.stat().st_nlink > 1:
             data = path.resolve()
-            try:
-                data.relative_to(dist)
-                continue # An application-local SONAME alias is already portable.
-            except ValueError:
-                pass
+            if path.is_symlink():
+                try:
+                    data.relative_to(dist)
+                    continue # An application-local SONAME alias is already portable.
+                except ValueError:
+                    pass
             replacement = path.with_name(path.name + '.runtime-copy')
             shutil.copy2(data, replacement)
             os.replace(replacement, path)
@@ -90,9 +91,19 @@ def stage(prefix, dist, patchelf):
         seen.add(path)
         dynamic = subprocess.check_output(['readelf', '-d', str(path)], text=True)
         if '(NEEDED)' not in dynamic: continue
+        local_paths = []
+        for line in dynamic.splitlines():
+            if '(RPATH)' not in line and '(RUNPATH)' not in line: continue
+            for entry in line.split('[')[-1].split(']')[0].split(':'):
+                entry = entry.replace('${ORIGIN}', '$ORIGIN')
+                if entry != '$ORIGIN' and not entry.startswith('$ORIGIN/'): continue
+                target = Path(os.path.normpath(str(path.parent / entry[7:].lstrip('/'))))
+                try: target.relative_to(dist)
+                except ValueError: continue
+                local_paths.append(entry)
         to_root = os.path.relpath(dist, path.parent)
         root = '$ORIGIN' if to_root == '.' else '$ORIGIN/' + to_root
-        rpath = ':'.join(dict.fromkeys(('$ORIGIN', root, root + '/webkit/lib')))
+        rpath = ':'.join(dict.fromkeys(local_paths + ['$ORIGIN', root, root + '/webkit/lib']))
         subprocess.check_call([patchelf, '--set-rpath', rpath, str(path)])
         count += 1
     print('Staged WPE helpers/resources/libraries; relocated %d ELF files' % count)
