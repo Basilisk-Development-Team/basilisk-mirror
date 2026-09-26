@@ -92,3 +92,136 @@ Keep an explicit strict acceptance mode: it must fail when WebKit requests reach
 the server, even if an audit completed successfully. Rerun generic filtering and
 extension fixtures as independent controls. Do not call those independent passes
 unmodified-uBlock compatibility.
+
+
+## Public hook alternatives checked
+
+* `WebKitURIRequest.h.in` exposes URI, HTTP method and request headers. Those
+  facts can be truthfully copied; the request method was not actually consumed
+  by this uBlock version's HTTP observer. `originalURI`, URI `port` and `prePath`
+  likewise are not requirements of this observed request path. URI parsing
+  support must not be mistaken for request ownership/attribution support.
+* `WebKitWebResource::sent-request` explicitly runs **after sending**; it cannot
+  implement pre-fetch cancellation. `resource-load-started` is an observation
+  signal without a general suspend/decision handle.
+* `WebKitWebView::decide-policy` covers navigation/new-window/response decisions;
+  it is not an equivalent cancellable callback for every script/image/XHR/socket.
+* The WebProcess `send-request` signal allows request URI/header mutation and
+  immediate cancellation. A narrow URL-only policy there is possible, but would
+  neither expose missing origin/frame/type facts nor execute the existing
+  privileged uBlock closure. Moving/copying that engine would introduce different
+  extension state and privileged execution, not preserve legacy API semantics.
+
+## Resource contract comparison
+
+| Generic class | Legacy numeric type consumed by this version | Boundary |
+| --- | --- | --- |
+| topDocument / subdocument | 6 / 7 | Declarative matching only; no live attributed callback |
+| document | Both 6 and 7 | Must distinguish before invoking legacy callback |
+| script / image / stylesheet | 2 / 3 (also 21) / 4 | Declarative matching exists |
+| font / media | 14 / 15 | Declarative matching exists |
+| fetch | 11 and 20 | Generic class covers XHR and fetch; does not invent a distinction |
+| websocket | 16 | Declarative pre-fetch test passes; HTTP-to-WS normalization belongs to existing extension path |
+| ping | 10 / beacon 19 | Mapping needs actual backend classification, not URL guessing |
+| other | 1 | Unknown is not evidence of a specific resource class |
+| object/plugin | 5 / 12 | No separate alternate plugin capability; NPAPI stays Gecko |
+| CSP report | 17 | No separate generic class currently exposed |
+
+The numeric table describes extension source, not events currently emitted by a
+compatibility layer. Frame IDs available to generic content scripts cannot be
+assigned to a network request merely because its URL resembles a document URL.
+First/third-party inputs used by uBlock depend on correct tab/frame tracking;
+the generic declarative main-document party predicate is not a replacement.
+
+## Functional categories and decision
+
+| Area | Existing truthful facility | Remaining unchanged-extension dependency |
+| --- | --- | --- |
+| Startup/chrome UI | Native hidden/windowless Gecko chrome and XUL | None related to selected engine |
+| Tabs/current site | Real XUL browser, nsIURI, title and selection | Location listener initialization still needs Gecko DOMWindow |
+| Network block/classification/redirect | Compiled generic URL/resource rules | Attributed immediate channel callback into existing filter engine |
+| First/third party/frame context | Actual document URLs and opaque content frame IDs | No safe correlation to public per-request metadata |
+| Cosmetics/procedural scripts | Real isolated DOM, CSS and MutationObserver | Privileged Gecko document observer and Sandbox bootstrap |
+| Messages | Generic async serialized exchange | Existing frame-script import/loader plus synchronous lookups |
+| Picker/zapper | Portable page execution can implement interactions | Legacy injectScript message reaches native bookkeeping frame manager |
+| Logger/statistics | No accurate per-request generic observation today | Native channel-derived filter events/page stores absent |
+| Per-site policy/filter updates | Existing extension engine and native storage | It receives no alternate request events and exports no declarative rules |
+| Reload | Generic browser.reload works | Extension explicitly uses native browser.webNavigation.reload |
+
+An async facade for explicitly portable scripts is possible future adapter work.
+It does not automatically port these entry scripts. Building unused facade classes
+and declaring success would conceal the unchanged call graph. No production shim
+was installed, so Gecko traffic remains completely native and there are no new
+request adapters whose lifetime, principal or QI semantics could be mistaken for
+implemented behavior. No compatibility-overhead benchmark is claimed: there is
+no new dispatch path to measure. Existing generic filter overhead is unchanged.
+
+
+## Expanded clean-XPI acceptance results
+
+The runner copies the original XPI into a fresh profile, records version/hash,
+and verifies both original and installed-copy hashes after the run. It only sets
+local test filters through the existing extension settings API. No extension
+source or in-memory hook is replaced. Host platform milestone is 6.9.0; the
+extension's source `modernFirefox > 44` branch is therefore false, consistent
+with the observed legacy `shouldLoad` messages.
+
+The new `--require-webkit` mode returns failure when the measured WebKit acceptance
+probes fail. Ordinary audit completion does not mean extension compatibility.
+
+| Probe | Native Gecko control | Unmodified uBlock on WebKit |
+| --- | --- | --- |
+| First-party blocked script | 0 server requests | 1 request |
+| Third-party blocked script (`localhost` vs `127.0.0.1`) | 0 | 1 |
+| Blocked image / stylesheet / iframe | 0 each | 1 each |
+| Blocked XHR / fetch | 0 each | 1 each |
+| Blocked WebSocket upgrade | 0 | 1 |
+| Blocked redirect target | 0 | 1 |
+| Allowed controls of the same classes | Arrive/load | Arrive/load |
+| Static and dynamically inserted cosmetic target | Hidden | Visible |
+| Page store and location/policy messages | Correct | Absent |
+| Logger for test-engine request URLs | Entries present | 0 |
+| Element picker iframe added | 1 | 0 |
+| Extension reload changes page count | 1 to 2 | Remains 1 |
+| Per-site disable then enable | Allows then blocks/hides again | Ineffective |
+| Extension storage / dashboard | Pass | Same native chrome/storage works |
+| Popup | Existing automation closes before sampling | Opens with page title, but lacks correct filtering data |
+
+These counts are sampled before the per-site toggle deliberately allows requests.
+WebSocket fixtures perform a real HTTP upgrade and close handshake; a missing
+rendered element is not used as evidence of network blocking. The picker result
+only measures actual injection, not full user interaction or a zapper workflow.
+The strict mode also checks page-store/reload/logger/toggle/picker results. It does
+not pretend to cover all 26 acceptance criteria when the foundation already fails.
+
+Independent controls rerun in this phase:
+
+* Generic server-counter filtering: pass for script/image/stylesheet/subframe/
+  XHR/fetch/WebSocket/redirect targets, party constraints, policy toggle and
+  independent Gecko behavior.
+* Existing extension fixtures A–F and routing/manual override: pass.
+* Generic boundary scan: pass.
+* Disabled build dependency/component/interface/resource audit: pass, 30 ELF files.
+
+There are no production-source/build changes in this phase, so no new enabled or
+disabled binary build is claimed. WebRTC/permissions, upstream sources and UXP are
+untouched. No production extension-identity conditions were added. No mock request
+adapter, stress/performance benchmark, or security guarantee for an unimplemented
+legacy dispatch path is claimed.
+
+Reproduce the failing primary acceptance test:
+
+```sh
+DISPLAY=:91 python3 tools/contentengine/ublock/run-audit.py obj-webkit-enabled \
+  /path/to/unmodified/uBlock0@raymondhill.net.xpi --require-webkit
+```
+
+Evidence logs from this run: `/tmp/basilisk-phase4-ublock-final.log`,
+`/tmp/basilisk-phase4-generic-network.log`,
+`/tmp/basilisk-phase4-extension-regression.log` and
+`/tmp/basilisk-phase4-disabled-audit.log`. They are generated artifacts, not committed
+build products. The machine-readable member matrix and expanded fixture are
+committed independently. **Phase 4's functional objective is not achieved.**
+The requested stop conditions have been reached for live request dispatch and
+transparent Gecko content bootstrap; no misleading compatibility objects were
+installed to conceal those missing semantics.

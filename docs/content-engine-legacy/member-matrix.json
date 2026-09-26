@@ -404,6 +404,101 @@
       "source": "bootstrap.js:240-246; js/vapi-background.js:135-312",
       "status": "existing-native",
       "generic_equivalent": "Unchanged chrome preferences."
+    },
+    {
+      "interface": "nsIStringBundleService",
+      "members": [
+        "flushBundles"
+      ],
+      "purpose": "Invalidate chrome localization cache at extension install",
+      "source": "bootstrap.js:219-220",
+      "status": "existing-native",
+      "generic_equivalent": "Unchanged privileged UXP service."
+    },
+    {
+      "interface": "nsIIdleService",
+      "members": [
+        "idleTime"
+      ],
+      "purpose": "Schedule extension SQLite vacuum during idle",
+      "source": "js/vapi-background.js:425-431",
+      "status": "existing-native",
+      "generic_equivalent": "Unchanged privileged UXP service."
+    },
+    {
+      "interface": "nsIStyleSheetService",
+      "members": [
+        "sheetRegistered",
+        "loadAndRegisterSheet",
+        "unregisterSheet",
+        "AUTHOR_SHEET"
+      ],
+      "purpose": "Global XUL toolbar/palette stylesheet, not page cosmetics",
+      "source": "js/vapi-background.js:2705-2717,2850-2855",
+      "status": "existing-native",
+      "generic_equivalent": "Unchanged privileged UXP service."
+    },
+    {
+      "interface": "nsISupportsString",
+      "members": [
+        "data"
+      ],
+      "purpose": "Unicode cloud preference payload",
+      "source": "js/vapi-background.js:3621-3689",
+      "status": "existing-native",
+      "generic_equivalent": "Unchanged privileged UXP service."
+    },
+    {
+      "interface": "nsIMessageSender",
+      "members": [
+        "sendAsyncMessage"
+      ],
+      "purpose": "Privileged extension restart command",
+      "source": "js/vapi-background.js:89-94",
+      "status": "existing-native",
+      "generic_equivalent": "Unchanged privileged UXP service."
+    },
+    {
+      "interface": "nsIDOMWindow",
+      "members": [
+        "document",
+        "top",
+        "parent",
+        "location",
+        "opener",
+        "frames",
+        "QueryInterface"
+      ],
+      "purpose": "Real Gecko content/bootstrap context; chrome windows stay native",
+      "source": "frameScript.js:31-36; frameScript0.js:36-51; frameModule.js:251-289,315-364,493-542",
+      "status": "forbidden-dom",
+      "generic_equivalent": "Real WebKit DOM exists only inside the engine. No synchronous Gecko window proxy is permitted."
+    },
+    {
+      "interface": "nsIObserver",
+      "members": [
+        "observe"
+      ],
+      "purpose": "HTTP/document observer callbacks",
+      "source": "frameModule.js:518-588; js/vapi-background.js:2129-2224",
+      "status": "missing-backend",
+      "generic_equivalent": "Existing native chrome lifetime/interface handling stays unchanged; alternate DOM/request callback subjects are not fabricated."
+    },
+    {
+      "interface": "nsISupportsWeakReference",
+      "members": [],
+      "purpose": "Advertised by extension QI for native observer lifetime; no direct members consumed",
+      "source": "frameModule.js:189; js/vapi-background.js:1840",
+      "status": "existing-native",
+      "generic_equivalent": "Existing native chrome lifetime/interface handling stays unchanged; alternate DOM/request callback subjects are not fabricated."
+    },
+    {
+      "interface": "nsIWebProgressListener2",
+      "members": [],
+      "purpose": "Advertised by background load listener QI; no additional interface-specific member implemented or consumed here",
+      "source": "bootstrap.js:92",
+      "status": "existing-native",
+      "generic_equivalent": "Existing native chrome lifetime/interface handling stays unchanged; alternate DOM/request callback subjects are not fabricated."
     }
   ]
 }
