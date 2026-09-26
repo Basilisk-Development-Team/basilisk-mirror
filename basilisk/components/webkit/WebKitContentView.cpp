@@ -12,6 +12,7 @@
 #include "nsHashPropertyBag.h"
 #include "mozcontainer.h"
 #include "WPEHost.h"
+#include "WPEStorage.h"
 #include "WPEGtk.h"
 
 NS_IMPL_ISUPPORTS(WebKitContentView, nsIWebContentView)
@@ -35,12 +36,13 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
   if (container && GTK_IS_WINDOW(container))
     container = gtk_bin_get_child(GTK_BIN(container));
   NS_ENSURE_TRUE(container && IS_MOZ_CONTAINER(container), NS_ERROR_NOT_AVAILABLE);
-  // Share WPE storage among tabs in this chrome window. The session remains
-  // ephemeral and private windows cannot share it with normal windows.
+  // A chrome window retains its session even when its last WPE tab closes.
+  // Normal windows share profile storage; private windows never open it.
   auto* session = static_cast<WebKitNetworkSession*>(
     g_object_get_data(G_OBJECT(container), "basilisk-wpe-session"));
   if (!session) {
-    session = webkit_network_session_new_ephemeral();
+    nsresult rv = WPEGetProfileSession(chrome->IsPrivateBrowsing(), &session);
+    NS_ENSURE_SUCCESS(rv, rv);
     g_object_set_data_full(G_OBJECT(container), "basilisk-wpe-session", session, g_object_unref);
   }
   mHost = wpe_host_new(session);
