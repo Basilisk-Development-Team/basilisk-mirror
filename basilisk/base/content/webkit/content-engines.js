@@ -30,6 +30,9 @@ var ContentEngines = {
     // upward separately; XUL controls are still handled by existing keysets.
   },
   handleEvent(event) {
+    if (ContentEngineFullscreen.view &&
+        (event.type == "TabSelect" || event.type == "TabClose" || event.type == "unload"))
+      ContentEngineFullscreen.exit();
     if (event.type == "TabClose") {
       let view = this.get(event.target.linkedBrowser);
       if (view) view.destroy();
@@ -225,6 +228,8 @@ class ExternalContentBrowser {
         case "previous-tab": gBrowser.tabContainer.advanceSelectedTab(-1, true); break;
         case "find": gFindBar.onFindCommand(); break;
         case "devtools": ContentEngineDevTools.open(this.browser); break;
+        case "fullscreen-enter": ContentEngineFullscreen.enter(this); break;
+        case "fullscreen-exit": ContentEngineFullscreen.exit(); break;
         case "reload": this.native.reload(); break;
         case "back": this.native.goBack(); break;
         case "forward": this.native.goForward(); break;
@@ -272,6 +277,7 @@ class ExternalContentBrowser {
   }
   destroy() {
     if (this.destroyed) return;
+    if (ContentEngineFullscreen.view == this) ContentEngineFullscreen.exit();
     this.destroyed = true;
     this.finder.destroy();
     this.native.destroy();

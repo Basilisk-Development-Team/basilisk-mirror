@@ -476,3 +476,11 @@ NS_IMETHODIMP WebKitContentView::InspectElement()
   g_object_unref(action);
   return NS_OK;
 }
+NS_IMETHODIMP WebKitContentView::SetFullscreen(bool active)
+{
+  NS_ENSURE_TRUE(mHost && mHost->toplevel, NS_ERROR_NOT_INITIALIZED);
+  auto state = wpe_toplevel_get_state(mHost->toplevel);
+  wpe_toplevel_state_changed(mHost->toplevel, static_cast<WPEToplevelState>(
+    active ? state | WPE_TOPLEVEL_STATE_FULLSCREEN : state & ~WPE_TOPLEVEL_STATE_FULLSCREEN));
+  return NS_OK;
+}

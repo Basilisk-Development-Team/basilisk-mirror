@@ -97,7 +97,15 @@ struct BasiliskWPEToplevel { WPEToplevel parent; };
 struct BasiliskWPEToplevelClass { WPEToplevelClass parent; };
 G_DEFINE_TYPE(BasiliskWPEToplevel, basilisk_wpe_toplevel, WPE_TYPE_TOPLEVEL)
 static void basilisk_wpe_toplevel_init(BasiliskWPEToplevel*) {}
-static void basilisk_wpe_toplevel_class_init(BasiliskWPEToplevelClass*) {}
+static void basilisk_wpe_toplevel_class_init(BasiliskWPEToplevelClass* klass)
+{
+  WPE_TOPLEVEL_CLASS(klass)->set_fullscreen = [](WPEToplevel* top, gboolean active) -> gboolean {
+    auto* host = static_cast<WPEHost*>(g_object_get_data(G_OBJECT(top), "basilisk-host"));
+    if (!host || !host->chromeCommand) return FALSE;
+    host->chromeCommand(active ? "fullscreen-enter" : "fullscreen-exit", host->chromeData);
+    return TRUE;
+  };
+}
 
 struct BasiliskWPEDisplay { WPEDisplay parent; };
 struct BasiliskWPEDisplayClass { WPEDisplayClass parent; };
@@ -219,6 +227,8 @@ static gboolean Input(GtkWidget* area, GdkEvent* event, gpointer data)
         if (e.keyval == GDK_KEY_Right) command = "forward";
       } else if (e.keyval == GDK_KEY_F5) command = "reload";
       else if (e.keyval == GDK_KEY_F12) command = "devtools";
+      else if (e.keyval == GDK_KEY_Escape &&
+               (wpe_toplevel_get_state(host->toplevel) & WPE_TOPLEVEL_STATE_FULLSCREEN)) command = "fullscreen-exit";
       if (command && host->chromeCommand) {
         // The command may close the tab and free host. Do not touch it again.
         if (e.type == GDK_KEY_PRESS) host->chromeCommand(command, host->chromeData);
@@ -291,6 +301,7 @@ static void BindView(WPEHost* host)
   auto* existing = wpe_view_get_toplevel(host->view);
   host->toplevel = existing ? WPE_TOPLEVEL(g_object_ref(existing)) : wpe_display_create_toplevel(host->display, 1);
   wpe_view_set_toplevel(host->view, host->toplevel);
+  g_object_set_data(G_OBJECT(host->toplevel), "basilisk-host", host);
   g_signal_connect(host->area, "map", G_CALLBACK(+[](GtkWidget*, gpointer data) {
     wpe_view_map(static_cast<WPEHost*>(data)->view);
   }), host);
@@ -365,6 +376,9 @@ void wpe_host_resize(WPEHost* host, int width, int height)
 void wpe_host_free(WPEHost* host)
 {
   if (!host) return;
+  if (host->toplevel) g_object_set_data(G_OBJECT(host->toplevel), "basilisk-host", nullptr);
+  if (host->display && g_object_get_data(G_OBJECT(host->display), "basilisk-host") == host)
+    g_object_set_data(G_OBJECT(host->display), "basilisk-host", nullptr);
   if (host->area) {
     g_signal_handlers_disconnect_by_data(host->area, host);
     gtk_widget_destroy(host->area);

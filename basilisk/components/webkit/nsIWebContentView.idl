@@ -54,4 +54,6 @@ interface nsIWebContentView : nsISupports
   /** Upstream inspector. Context inspection requires a retained menu action. */
   void openDeveloperTools();
   void inspectElement();
+  /** Acknowledge XUL-controlled fullscreen state to the WPE platform. */
+  void setFullscreen(in boolean active);
 };
