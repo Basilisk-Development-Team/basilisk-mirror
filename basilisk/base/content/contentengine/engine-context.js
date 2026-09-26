@@ -73,8 +73,12 @@ var ContentEngineContext = {
 var ContentEngineEditController = {
   commands: {cmd_copy: "copy", cmd_cut: "cut", cmd_paste: "paste", cmd_selectAll: "selectAll"},
   get view() {
-    let view = ContentEngineContext.active || ContentEngines.get();
-    return view && (ContentEngineContext.active || view.native.focused) ? view : null;
+    if (ContentEngineContext.active) return ContentEngineContext.active;
+    let view = ContentEngines.get();
+    // Chrome focus changes synchronously; native focus-out may arrive later.
+    // Never steal Paste & Go (or another chrome editor command) in that gap.
+    let focused = Services.focus.focusedElement;
+    return view && (!focused || focused == view.browser) && view.native.focused ? view : null;
   },
   supportsCommand(command) { return !!this.commands[command] && !!this.view; },
   isCommandEnabled(command) { return this.supportsCommand(command); },

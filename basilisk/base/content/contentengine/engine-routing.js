@@ -64,9 +64,11 @@ var ContentEngineRouting = {
       return false; // Stop cross-engine redirects without issuing another load.
     }
     chain.push({uri, engine, time: now});
-    tab._contentRoutePending = true;
+    let pending = {};
+    tab._contentRoutePending = pending;
     // Never tear down a WebKit view from inside its policy signal callback.
     setTimeout(() => {
+      if (tab._contentRoutePending !== pending) return;
       delete tab._contentRoutePending;
       if (tab.closing || !tab.parentNode) return;
       try {

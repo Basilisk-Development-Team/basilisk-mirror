@@ -14,6 +14,15 @@ var ContentEngines = {
   // content-view contract accepts a resolved URI. Keep UXP's fixup service at
   // this boundary; alternate engines must not load the bookkeeping docshell.
   navigate(browser, input, params = {}) {
+    // A new chrome navigation is not another hop in the preceding redirect
+    // chain. Also invalidate a queued route for an older user request.
+    let tab = gBrowser.getTabForBrowser(browser);
+    if (tab) {
+      delete tab._contentRouteChain;
+      delete tab._contentRoutePending;
+      delete tab._contentPendingLoad;
+      tab.removeAttribute("contentroutingblocked");
+    }
     let view = this.get(browser);
     if (!view) return false; // Preserve the ordinary Gecko navigation path.
     let text = String(input || "about:blank").replace(/[\r\n]/g, "").trim();
@@ -162,8 +171,13 @@ var ContentEngines = {
       view.ready = ready;
       this.loadWhenReady(view, uri);
     } else {
+      let pending = {};
+      replacement._contentPendingLoad = pending;
       Promise.resolve(ready).then(() => {
-        if (!replacement.closing) replacement.linkedBrowser.loadURI(uri);
+        if (!replacement.closing && replacement._contentPendingLoad === pending) {
+          delete replacement._contentPendingLoad;
+          replacement.linkedBrowser.loadURI(uri);
+        }
       }, error => {
         Cu.reportError(error);
         if (!replacement.closing) replacement.label = "Content setup failed";
