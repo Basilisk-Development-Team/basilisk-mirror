@@ -33,6 +33,17 @@ async function run() {
   api.addMessageListener(value => echoed = value);
   await api.executeScript("browserContent.sendMessage({runtime:'relocated'});");
   await waitFor(() => echoed && echoed.runtime == "relocated", "isolated messages");
+  const rtcSource = await new Promise(resolve => {
+    let xhr = new XMLHttpRequest(); xhr.open("GET", "chrome://basilisk-runtime-test/content/webrtc.js");
+    xhr.onload = () => resolve(xhr.responseText); xhr.send();
+  });
+  const rtc = await api.executeScript(rtcSource);
+  dump("WPE-RUNTIME WEBRTC " + JSON.stringify(rtc) + "\n");
+  check(rtc.exposed.peerConnection == "function" &&
+    (rtc.message == "echo:hello" || (rtc.local == "offer" && rtc.remote == "answer")), "relocated peer API/SDP pipeline");
+  // Dependency/relocation success is not transport success. Keep the failure
+  // visible; the focused WebRTC suite requires actual data-channel delivery.
+  if (rtc.message != "echo:hello") dump("WPE-RUNTIME WEBRTC TRANSPORT UNAVAILABLE " + rtc.error + "\n");
   win.ContentEngineDevTools.open();
   await waitFor(() => Services.wm.getMostRecentWindow("Basilisk:WebInspector"), "Inspector host");
   // Keep the real upstream frontend visible long enough to inspect/capture it.

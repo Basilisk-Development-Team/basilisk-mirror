@@ -68,7 +68,7 @@ def main():
     try:
         with tempfile.TemporaryDirectory(prefix='basilisk-relocated-') as temporary:
             root = Path(temporary)
-            dist = root / 'application'
+            dist = root / 'distribution/application'
             source = args.location.resolve() if args.packaged else args.location.resolve() / 'dist/bin'
             shutil.copytree(source, dist, symlinks=False)
             for name in ('tmp', 'runtime'):
@@ -87,6 +87,7 @@ def main():
             for suffix in ('js', 'xul'):
                 shutil.copy2(Path(__file__).parent / 'runtime' / ('runtime.' + suffix),
                              chrome / ('runtime-test.' + suffix))
+            shutil.copy2(checkout / 'tools/contentengine/webrtc/content.js', chrome / 'webrtc.js')
             profile = root / 'profile'
             profile.mkdir()
             prefs = {'browser.shell.checkDefaultBrowser':False, 'browser.dom.window.dump.enabled':True,
