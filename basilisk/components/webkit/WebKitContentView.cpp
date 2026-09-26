@@ -85,6 +85,12 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
       static_cast<nsIWritablePropertyBag2*>(info));
   };
   mLastError.Truncate();
+  g_signal_connect(mHost->webView, "leave-fullscreen", G_CALLBACK(+[](WebKitWebView*, gpointer data) -> gboolean {
+    auto* self = static_cast<WebKitContentView*>(data);
+    if (self->mHost && self->mHost->chromeCommand)
+      self->mHost->chromeCommand("fullscreen-exit", self);
+    return FALSE; // Let WPE finish its own fullscreen state transition too.
+  }), this);
   auto* finder = webkit_web_view_get_find_controller(mHost->webView);
   g_signal_connect(finder, "found-text", G_CALLBACK(+[](WebKitFindController*, guint, gpointer data) {
     static_cast<WebKitContentView*>(data)->Notify("content-view-find-found");
