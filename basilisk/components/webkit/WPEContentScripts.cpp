@@ -85,3 +85,62 @@ NS_IMETHODIMP WebKitContentView::ExecuteScript(uint32_t id, const nsACString& so
     }, reply);
   return NS_OK;
 }
+
+NS_IMETHODIMP WebKitContentView::InsertCSS(const nsACString& identifier, const nsACString& source)
+{
+  NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(!identifier.IsEmpty() && identifier.Length() <= 256 && source.Length() <= 1024 * 1024,
+                 NS_ERROR_INVALID_ARG);
+  RemoveCSS(identifier);
+  if (!mStyleSheets) mStyleSheets = g_hash_table_new_full(g_str_hash, g_str_equal, g_free,
+    +[](gpointer value) { webkit_user_style_sheet_unref(static_cast<WebKitUserStyleSheet*>(value)); });
+  nsAutoCString id(identifier);
+  nsAutoCString css(source);
+  auto* sheet = webkit_user_style_sheet_new_for_world(css.get(), WEBKIT_USER_CONTENT_INJECT_TOP_FRAME,
+    WEBKIT_USER_STYLE_LEVEL_USER, kContentWorld, nullptr, nullptr);
+  webkit_user_content_manager_add_style_sheet(webkit_web_view_get_user_content_manager(mHost->webView), sheet);
+  g_hash_table_insert(mStyleSheets, g_strdup(id.get()), sheet);
+  return NS_OK;
+}
+NS_IMETHODIMP WebKitContentView::RemoveCSS(const nsACString& identifier)
+{
+  NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed, NS_ERROR_NOT_AVAILABLE);
+  nsAutoCString id(identifier);
+  auto* sheet = mStyleSheets ? static_cast<WebKitUserStyleSheet*>(g_hash_table_lookup(mStyleSheets, id.get())) : nullptr;
+  if (sheet) {
+    webkit_user_content_manager_remove_style_sheet(webkit_web_view_get_user_content_manager(mHost->webView), sheet);
+    g_hash_table_remove(mStyleSheets, id.get());
+  }
+  return NS_OK;
+}
+NS_IMETHODIMP WebKitContentView::RegisterScript(const nsACString& identifier, const nsACString& source)
+{
+  NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(!identifier.IsEmpty() && identifier.Length() <= 256 && source.Length() <= 1024 * 1024,
+                 NS_ERROR_INVALID_ARG);
+  UnregisterScript(identifier);
+  EnsureMessaging();
+  if (!mUserScripts) mUserScripts = g_hash_table_new_full(g_str_hash, g_str_equal, g_free,
+    +[](gpointer value) { webkit_user_script_unref(static_cast<WebKitUserScript*>(value)); });
+  nsAutoCString id(identifier);
+  nsAutoCString code(kMessagingBootstrap);
+  code.AppendLiteral("\n(async function(){\n");
+  code.Append(source);
+  code.AppendLiteral("\n})();");
+  auto* script = webkit_user_script_new_for_world(code.get(), WEBKIT_USER_CONTENT_INJECT_TOP_FRAME,
+    WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_END, kContentWorld, nullptr, nullptr);
+  webkit_user_content_manager_add_script(webkit_web_view_get_user_content_manager(mHost->webView), script);
+  g_hash_table_insert(mUserScripts, g_strdup(id.get()), script);
+  return NS_OK;
+}
+NS_IMETHODIMP WebKitContentView::UnregisterScript(const nsACString& identifier)
+{
+  NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed, NS_ERROR_NOT_AVAILABLE);
+  nsAutoCString id(identifier);
+  auto* script = mUserScripts ? static_cast<WebKitUserScript*>(g_hash_table_lookup(mUserScripts, id.get())) : nullptr;
+  if (script) {
+    webkit_user_content_manager_remove_script(webkit_web_view_get_user_content_manager(mHost->webView), script);
+    g_hash_table_remove(mUserScripts, id.get());
+  }
+  return NS_OK;
+}

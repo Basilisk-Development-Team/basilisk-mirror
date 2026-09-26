@@ -238,6 +238,8 @@ NS_IMETHODIMP WebKitContentView::Destroy()
   if (mDestroyed) return NS_OK;
   mDestroyed = true;
   CancelScripts();
+  if (mStyleSheets) { g_hash_table_unref(mStyleSheets); mStyleSheets = nullptr; }
+  if (mUserScripts) { g_hash_table_unref(mUserScripts); mUserScripts = nullptr; }
   for (auto& inspector : mInspectors) inspector->Destroy();
   mInspectors.Clear();
   if (mInspectorView) Notify("content-view-closed");

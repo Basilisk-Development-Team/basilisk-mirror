@@ -58,4 +58,8 @@ interface nsIWebContentView : nsISupports
   void setFullscreen(in boolean active);
   /** Async function body in the isolated Basilisk world. Replies are JSON. */
   void executeScript(in unsigned long requestId, in AUTF8String source);
+  void insertCSS(in AUTF8String identifier, in AUTF8String source);
+  void removeCSS(in AUTF8String identifier);
+  void registerScript(in AUTF8String identifier, in AUTF8String source);
+  void unregisterScript(in AUTF8String identifier);
 };

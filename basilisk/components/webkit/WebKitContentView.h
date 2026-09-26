@@ -17,6 +17,7 @@ struct _WPEView;
 struct _GAction;
 struct _GdkWindow;
 struct _GCancellable;
+struct _GHashTable;
 
 class WebKitContentView final : public nsIWebContentView
 {
@@ -44,5 +45,7 @@ private:
   bool mPrivate = false;
   _GCancellable* mScriptCancellation = nullptr;
   bool mMessaging = false;
+  _GHashTable* mStyleSheets = nullptr;
+  _GHashTable* mUserScripts = nullptr;
 };
 #endif

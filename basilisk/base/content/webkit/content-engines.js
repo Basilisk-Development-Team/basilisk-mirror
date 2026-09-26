@@ -70,6 +70,7 @@ var ContentEngines = {
     this.views.set(tab.linkedBrowser, view);
     try { view.attach(); }
     catch (error) { view.destroy(); throw error; }
+    ContentEngineScripts.transfer(tab.linkedBrowser, tab.linkedBrowser);
     return view;
   },
   switchEngine(tab, engine) {
@@ -95,6 +96,7 @@ var ContentEngines = {
     gBrowser.moveTabTo(replacement, tab._tPos);
     if (tab.pinned) gBrowser.pinTab(replacement);
     if (selected) gBrowser.selectedTab = replacement;
+    ContentEngineScripts.transfer(tab.linkedBrowser, replacement.linkedBrowser);
     gBrowser.removeTab(tab, {animate: false, skipPermitUnload: true});
     this.layout();
     return replacement;
