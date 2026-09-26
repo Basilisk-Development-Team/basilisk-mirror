@@ -7,5 +7,6 @@
 struct _WebKitNetworkSession;
 // Main-thread only. Returns an owned reference, or an error; never falls back
 // to WebKit's global default directories if the Basilisk profile is unavailable.
-nsresult WPEGetProfileSession(bool isPrivate, _WebKitNetworkSession** result);
+struct ContentViewConfiguration;
+nsresult WPEGetProfileSession(const ContentViewConfiguration& config, _WebKitNetworkSession** result);
 #endif

@@ -13,6 +13,7 @@
 #include "mozcontainer.h"
 #include "WPEHost.h"
 #include "WPEStorage.h"
+#include "ContentViewConfiguration.h"
 #include "WPEGtk.h"
 
 NS_IMPL_ISUPPORTS(WPEContentView, nsIWebContentView)
@@ -38,7 +39,10 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
   NS_ENSURE_TRUE(container && IS_MOZ_CONTAINER(container), NS_ERROR_NOT_AVAILABLE);
   mContainer = MOZ_CONTAINER(container);
   mListener = listener;
-  mPrivate = chrome->IsPrivateBrowsing();
+  ContentViewConfiguration config;
+  nsresult rv = GetContentViewConfiguration(window, config);
+  NS_ENSURE_SUCCESS(rv, rv);
+  mPrivate = config.privateBrowsing;
   if (mInspectorView) {
     mHost = wpe_host_for_view(mInspectorView);
     NS_ENSURE_TRUE(mHost, NS_ERROR_FAILURE);
@@ -49,7 +53,7 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
   auto* session = static_cast<WebKitNetworkSession*>(
     g_object_get_data(G_OBJECT(container), "basilisk-wpe-session"));
   if (!session) {
-    nsresult rv = WPEGetProfileSession(chrome->IsPrivateBrowsing(), &session);
+    nsresult rv = WPEGetProfileSession(config, &session);
     NS_ENSURE_SUCCESS(rv, rv);
     g_object_set_data_full(G_OBJECT(container), "basilisk-wpe-session", session, g_object_unref);
   }
@@ -63,6 +67,8 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
       if (self->mHost && webkit_download_get_web_view(download) == self->mHost->webView)
         self->TrackDownload(download);
     }), this);
+  if (!config.userAgent.IsEmpty())
+    webkit_settings_set_user_agent(webkit_web_view_get_settings(mHost->webView), config.userAgent.get());
   webkit_settings_set_enable_developer_extras(webkit_web_view_get_settings(mHost->webView), !mPrivate);
   mHost->inspectorCreated = [](WPEView* view, void* data) {
     RefPtr<WPEContentView> self = static_cast<WPEContentView*>(data);

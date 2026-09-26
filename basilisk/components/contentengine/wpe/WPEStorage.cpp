@@ -2,18 +2,18 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include "WPEStorage.h"
-#include "nsDirectoryServiceUtils.h"
-#include "nsAppDirectoryServiceDefs.h"
+#include "ContentViewConfiguration.h"
 #include "nsIFile.h"
 #include "nsCOMPtr.h"
 #include "nsString.h"
 #include "nsThreadUtils.h"
 #include <wpe/webkit.h>
 
-nsresult WPEGetProfileSession(bool isPrivate, WebKitNetworkSession** result)
+nsresult WPEGetProfileSession(const ContentViewConfiguration& config, WebKitNetworkSession** result)
 {
   NS_ENSURE_TRUE(NS_IsMainThread(), NS_ERROR_NOT_SAME_THREAD);
   *result = nullptr;
+  const bool isPrivate = config.privateBrowsing;
   // Chrome windows and their views own the strong references. Weak caches
   // share storage across windows without retaining a private session forever.
   static GWeakRef normal;
@@ -29,7 +29,7 @@ nsresult WPEGetProfileSession(bool isPrivate, WebKitNetworkSession** result)
   if (!session && isPrivate) session = webkit_network_session_new_ephemeral();
   if (!session) {
     nsCOMPtr<nsIFile> directory;
-    nsresult rv = NS_GetSpecialDirectory(NS_APP_USER_PROFILE_50_DIR, getter_AddRefs(directory));
+    nsresult rv = config.profileDirectory->Clone(getter_AddRefs(directory));
     NS_ENSURE_SUCCESS(rv, rv);
     rv = directory->AppendNative(NS_LITERAL_CSTRING("webkit"));
     NS_ENSURE_SUCCESS(rv, rv);

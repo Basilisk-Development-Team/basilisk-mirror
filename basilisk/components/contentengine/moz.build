@@ -3,6 +3,9 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 XPIDL_SOURCES += ['nsIContentViewObserver.idl', 'nsIWebContentView.idl']
 XPIDL_MODULE = 'webcontentview'
+SOURCES += ['ContentViewConfiguration.cpp']
+LOCAL_INCLUDES += ['/platform/dom/base']
+FINAL_LIBRARY = 'xul'
 # Platform selection belongs here, never in shared browser chrome.
 if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gtk3':
     DIRS += ['wpe']
