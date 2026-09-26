@@ -25,6 +25,7 @@ var ContentEngineContext = {
     let editable = info.getPropertyAsBool("isEditable");
     let selection = info.getPropertyAsBool("hasSelection");
     let visible = new Set(["context-navigation", "context-sep-navigation", "context-selectall"]);
+    if (info.getPropertyAsBool("canInspect")) visible.add("context-inspect");
     if (isLink) for (let id of ["context-openlink", "context-openlinkintab", "context-openlinkincurrent", "context-copylink"])
       visible.add(id);
     if (selection || editable) visible.add("context-copy");
@@ -43,6 +44,7 @@ var ContentEngineContext = {
       shouldDisplay: true,
       browser: view.browser,
       reload() { view.native.reload(); },
+      inspectNode() { view.native.inspectElement(); },
       openLinkInCurrent() { view.loadURI(link); },
       openLinkInTab() { ContentEngines.open(link); },
       openLink() {

@@ -108,8 +108,10 @@ static void basilisk_wpe_display_class_init(BasiliskWPEDisplayClass* klass)
   auto* display = WPE_DISPLAY_CLASS(klass);
   display->connect = [](WPEDisplay*, GError**) -> gboolean { return TRUE; };
   display->create_view = [](WPEDisplay* display) -> WPEView* {
-    return WPE_VIEW(g_object_new(basilisk_wpe_view_get_type(),
-                                "display", display, nullptr));
+    auto* view = WPE_VIEW(g_object_new(basilisk_wpe_view_get_type(), "display", display, nullptr));
+    auto* owner = static_cast<WPEHost*>(g_object_get_data(G_OBJECT(display), "basilisk-host"));
+    if (owner && owner->inspectorCreated) owner->inspectorCreated(view, owner->chromeData);
+    return view;
   };
   display->create_toplevel = [](WPEDisplay* display, guint) -> WPEToplevel* {
     return WPE_TOPLEVEL(g_object_new(basilisk_wpe_toplevel_get_type(),
@@ -208,10 +210,15 @@ static gboolean Input(GtkWidget* area, GdkEvent* event, gpointer data)
           case GDK_KEY_0: command = "zoom-reset"; break;
         }
         if (e.keyval == GDK_KEY_Tab && (e.state & GDK_SHIFT_MASK)) command = "previous-tab";
+        if ((e.state & GDK_SHIFT_MASK) &&
+            (e.keyval == GDK_KEY_i || e.keyval == GDK_KEY_I ||
+             e.keyval == GDK_KEY_k || e.keyval == GDK_KEY_K ||
+             e.keyval == GDK_KEY_c || e.keyval == GDK_KEY_C)) command = "devtools";
       } else if (e.state & GDK_MOD1_MASK) {
         if (e.keyval == GDK_KEY_Left) command = "back";
         if (e.keyval == GDK_KEY_Right) command = "forward";
       } else if (e.keyval == GDK_KEY_F5) command = "reload";
+      else if (e.keyval == GDK_KEY_F12) command = "devtools";
       if (command && host->chromeCommand) {
         // The command may close the tab and free host. Do not touch it again.
         if (e.type == GDK_KEY_PRESS) host->chromeCommand(command, host->chromeData);
@@ -254,7 +261,7 @@ static void ImportClipboard(GtkClipboard* systemClipboard, WPEClipboard* clipboa
     }, g_object_ref(clipboard));
 }
 
-WPEHost* wpe_host_new(WebKitNetworkSession* sharedSession)
+static WPEHost* CreateHost()
 {
   if (!WPEGtk::Get().Available()) return nullptr;
   auto* host = g_new0(WPEHost, 1);
@@ -266,6 +273,46 @@ WPEHost* wpe_host_new(WebKitNetworkSession* sharedSession)
     GDK_SCROLL_MASK | GDK_SMOOTH_SCROLL_MASK | GDK_KEY_PRESS_MASK |
     GDK_KEY_RELEASE_MASK | GDK_FOCUS_CHANGE_MASK);
   g_signal_connect(host->area, "event", G_CALLBACK(Input), host);
+  return host;
+}
+
+static void BindView(WPEHost* host)
+{
+  auto* nativeView = reinterpret_cast<BasiliskWPEView*>(host->view);
+  nativeView->area = host->area;
+  g_signal_connect(host->area, "draw", G_CALLBACK(+[](GtkWidget*, cairo_t* cr, gpointer data) -> gboolean {
+    auto* view = reinterpret_cast<BasiliskWPEView*>(static_cast<WPEHost*>(data)->view);
+    if (view->surface) {
+      cairo_set_source_surface(cr, view->surface, 0, 0);
+      cairo_paint(cr);
+    }
+    return TRUE;
+  }), host);
+  auto* existing = wpe_view_get_toplevel(host->view);
+  host->toplevel = existing ? WPE_TOPLEVEL(g_object_ref(existing)) : wpe_display_create_toplevel(host->display, 1);
+  wpe_view_set_toplevel(host->view, host->toplevel);
+  g_signal_connect(host->area, "map", G_CALLBACK(+[](GtkWidget*, gpointer data) {
+    wpe_view_map(static_cast<WPEHost*>(data)->view);
+  }), host);
+  g_signal_connect(host->area, "unmap", G_CALLBACK(+[](GtkWidget*, gpointer data) {
+    wpe_view_unmap(static_cast<WPEHost*>(data)->view);
+  }), host);
+}
+
+WPEHost* wpe_host_for_view(WPEView* view)
+{
+  auto* host = CreateHost();
+  if (!host) return nullptr;
+  host->display = WPE_DISPLAY(g_object_ref(wpe_view_get_display(view)));
+  host->view = WPE_VIEW(g_object_ref(view));
+  BindView(host);
+  return host;
+}
+
+WPEHost* wpe_host_new(WebKitNetworkSession* sharedSession)
+{
+  auto* host = CreateHost();
+  if (!host) return nullptr;
   host->display = WPE_DISPLAY(g_object_new(basilisk_wpe_display_get_type(), nullptr));
   if (!wpe_display_connect(host->display, nullptr)) {
     wpe_host_free(host);
@@ -298,24 +345,8 @@ WPEHost* wpe_host_new(WebKitNetworkSession* sharedSession)
     "display", host->display, "network-session", session, nullptr));
   g_object_unref(session);
   host->view = webkit_web_view_get_wpe_view(host->webView);
-  auto* nativeView = reinterpret_cast<BasiliskWPEView*>(host->view);
-  nativeView->area = host->area;
-  g_signal_connect(host->area, "draw", G_CALLBACK(+[](GtkWidget*, cairo_t* cr, gpointer data) -> gboolean {
-    auto* view = reinterpret_cast<BasiliskWPEView*>(static_cast<WPEHost*>(data)->view);
-    if (view->surface) {
-      cairo_set_source_surface(cr, view->surface, 0, 0);
-      cairo_paint(cr);
-    }
-    return TRUE;
-  }), host);
-  host->toplevel = wpe_display_create_toplevel(host->display, 1);
-  wpe_view_set_toplevel(host->view, host->toplevel);
-  g_signal_connect(host->area, "map", G_CALLBACK(+[](GtkWidget*, gpointer data) {
-    wpe_view_map(static_cast<WPEHost*>(data)->view);
-  }), host);
-  g_signal_connect(host->area, "unmap", G_CALLBACK(+[](GtkWidget*, gpointer data) {
-    wpe_view_unmap(static_cast<WPEHost*>(data)->view);
-  }), host);
+  BindView(host);
+  g_object_set_data(G_OBJECT(host->display), "basilisk-host", host);
   // Browser policy UI has not been implemented. Never auto-approve capture.
   g_signal_connect(host->webView, "permission-request",
     G_CALLBACK(+[](WebKitWebView*, WebKitPermissionRequest* request, gpointer) -> gboolean {
@@ -338,8 +369,8 @@ void wpe_host_free(WPEHost* host)
     g_signal_handlers_disconnect_by_data(host->area, host);
     gtk_widget_destroy(host->area);
   }
-  if (host->webView) {
-    g_signal_handlers_disconnect_by_data(host->webView, host);
+  if (host->view) {
+    if (host->webView) g_signal_handlers_disconnect_by_data(host->webView, host);
     auto* view = reinterpret_cast<BasiliskWPEView*>(host->view);
     view->area = nullptr;
     if (view->frameSource) { g_source_remove(view->frameSource); view->frameSource = 0; }
@@ -348,12 +379,15 @@ void wpe_host_free(WPEHost* host)
       wpe_view_buffer_released(host->view, view->pending);
       g_clear_object(&view->pending);
     }
-    webkit_web_view_stop_loading(host->webView);
+    if (host->webView) webkit_web_view_stop_loading(host->webView);
     wpe_view_unmap(host->view);
     wpe_view_set_toplevel(host->view, nullptr);
-    g_object_unref(host->webView);
+    if (host->webView) g_object_unref(host->webView);
+    else g_object_unref(host->view);
   }
   g_clear_object(&host->toplevel);
+  if (host->display && g_object_get_data(G_OBJECT(host->display), "basilisk-host") == host)
+    g_object_set_data(G_OBJECT(host->display), "basilisk-host", nullptr);
   g_clear_object(&host->display);
   g_clear_object(&host->area);
   g_free(host);

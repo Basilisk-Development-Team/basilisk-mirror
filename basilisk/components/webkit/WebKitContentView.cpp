@@ -22,7 +22,7 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
   NS_ENSURE_TRUE(NS_IsMainThread(), NS_ERROR_NOT_SAME_THREAD);
   NS_ENSURE_ARG_POINTER(window);
   NS_ENSURE_ARG_POINTER(listener);
-  NS_ENSURE_TRUE(!mHost, NS_ERROR_ALREADY_INITIALIZED);
+  NS_ENSURE_TRUE(!mHost && !mDestroyed, NS_ERROR_ALREADY_INITIALIZED);
   auto* chrome = nsGlobalWindow::Cast(window);
   NS_ENSURE_TRUE(chrome->IsChromeWindow(), NS_ERROR_DOM_SECURITY_ERR);
   nsCOMPtr<nsIWidget> widget = chrome->GetMainWidget();
@@ -36,6 +36,14 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
   if (container && GTK_IS_WINDOW(container))
     container = gtk_bin_get_child(GTK_BIN(container));
   NS_ENSURE_TRUE(container && IS_MOZ_CONTAINER(container), NS_ERROR_NOT_AVAILABLE);
+  mContainer = MOZ_CONTAINER(container);
+  mListener = listener;
+  mPrivate = chrome->IsPrivateBrowsing();
+  if (mInspectorView) {
+    mHost = wpe_host_for_view(mInspectorView);
+    NS_ENSURE_TRUE(mHost, NS_ERROR_FAILURE);
+    return Mount(native);
+  }
   // A chrome window retains its session even when its last WPE tab closes.
   // Normal windows share profile storage; private windows never open it.
   auto* session = static_cast<WebKitNetworkSession*>(
@@ -55,6 +63,20 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
       if (self->mHost && webkit_download_get_web_view(download) == self->mHost->webView)
         self->TrackDownload(download);
     }), this);
+  webkit_settings_set_enable_developer_extras(webkit_web_view_get_settings(mHost->webView), !mPrivate);
+  mHost->inspectorCreated = [](WPEView* view, void* data) {
+    RefPtr<WebKitContentView> self = static_cast<WebKitContentView*>(data);
+    RefPtr<WebKitContentView> inspector = new WebKitContentView();
+    inspector->mInspectorView = WPE_VIEW(g_object_ref(view));
+    for (size_t i = self->mInspectors.Length(); i; --i)
+      if (self->mInspectors[i - 1]->mDestroyed) self->mInspectors.RemoveElementAt(i - 1);
+    self->mInspectors.AppendElement(inspector);
+    // Upstream finishes assigning the inspector toplevel before XUL mounts it.
+    NS_DispatchToMainThread(NS_NewRunnableFunction([self, inspector]() {
+      if (!self->mDestroyed) self->Notify("content-view-inspector", inspector);
+      else inspector->Destroy();
+    }));
+  };
   mHost->chromeData = this;
   mHost->chromeCommand = [](const char* command, void* data) {
     RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
@@ -115,7 +137,15 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
   g_signal_connect(mHost->webView, "context-menu",
     G_CALLBACK(+[](WebKitWebView* view, WebKitContextMenu* menu,
                    WebKitHitTestResult* hit, gpointer data) -> gboolean {
+      auto* owner = static_cast<WebKitContentView*>(data);
+      g_clear_object(&owner->mInspectAction);
+      for (GList* item = webkit_context_menu_get_items(menu); item; item = item->next) {
+        auto* entry = WEBKIT_CONTEXT_MENU_ITEM(item->data);
+        if (webkit_context_menu_item_get_stock_action(entry) == WEBKIT_CONTEXT_MENU_ACTION_INSPECT_ELEMENT)
+          owner->mInspectAction = G_ACTION(g_object_ref(webkit_context_menu_item_get_gaction(entry)));
+      }
       RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
+      info->SetPropertyAsBool(NS_LITERAL_STRING("canInspect"), owner->mInspectAction && !owner->mPrivate);
       auto text = [&](const char16_t* key, const char* value) {
         info->SetPropertyAsAUTF8String(nsDependentString(key), nsDependentCString(value ? value : ""));
       };
@@ -141,6 +171,10 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
         static_cast<nsIWritablePropertyBag2*>(info));
       return TRUE; // XUL owns the menu; suppress backend UI.
     }), this);
+  return Mount(native);
+}
+nsresult WebKitContentView::Mount(GdkWindow* native)
+{
   gtk_widget_set_parent_window(mHost->area, native);
   moz_container_put(mContainer, mHost->area, 0, 0);
   // Give the foreign surface its own native child window. A client-side GDK
@@ -193,7 +227,14 @@ NS_IMETHODIMP WebKitContentView::Focus()
 }
 NS_IMETHODIMP WebKitContentView::Destroy()
 {
+  if (mDestroyed) return NS_OK;
+  mDestroyed = true;
+  for (auto& inspector : mInspectors) inspector->Destroy();
+  mInspectors.Clear();
+  if (mInspectorView) Notify("content-view-closed");
   mListener = nullptr;
+  g_clear_object(&mInspectAction);
+  if (mInspectorView) wpe_view_closed(mInspectorView);
   for (auto* download : mDownloads) {
     g_signal_handlers_disconnect_by_data(download, this);
     webkit_download_cancel(download);
@@ -205,12 +246,15 @@ NS_IMETHODIMP WebKitContentView::Destroy()
     mHost = nullptr;
     mContainer = nullptr;
     g_signal_handlers_disconnect_by_data(host->area, this);
-    g_signal_handlers_disconnect_by_data(host->webView, this);
-    g_signal_handlers_disconnect_by_data(webkit_web_view_get_network_session(host->webView), this);
-    g_signal_handlers_disconnect_by_data(webkit_web_view_get_find_controller(host->webView), this);
-    g_signal_handlers_disconnect_by_data(webkit_web_view_get_back_forward_list(host->webView), this);
+    if (host->webView) {
+      g_signal_handlers_disconnect_by_data(host->webView, this);
+      g_signal_handlers_disconnect_by_data(webkit_web_view_get_network_session(host->webView), this);
+      g_signal_handlers_disconnect_by_data(webkit_web_view_get_find_controller(host->webView), this);
+      g_signal_handlers_disconnect_by_data(webkit_web_view_get_back_forward_list(host->webView), this);
+    }
     wpe_host_free(host);
   }
+  g_clear_object(&mInspectorView);
   return NS_OK;
 }
 void WebKitContentView::TrackDownload(WebKitDownload* download)
@@ -410,3 +454,25 @@ static const mozilla::Module kModule = {
   mozilla::Module::kVersion, kCIDs, kContracts
 };
 NSMODULE_DEFN(WebKitContentViewModule) = &kModule;
+
+NS_IMETHODIMP WebKitContentView::OpenDeveloperTools()
+{
+  NS_ENSURE_TRUE(mHost && mHost->webView && !mPrivate, NS_ERROR_NOT_AVAILABLE);
+  for (auto& inspector : mInspectors) {
+    if (!inspector->mDestroyed) {
+      inspector->Destroy();
+      return NS_OK;
+    }
+  }
+  webkit_web_view_toggle_inspector(mHost->webView);
+  return NS_OK;
+}
+NS_IMETHODIMP WebKitContentView::InspectElement()
+{
+  NS_ENSURE_TRUE(mHost && mInspectAction && !mPrivate, NS_ERROR_NOT_AVAILABLE);
+  // Retain WebKit's action and actual context target, never re-hit-test in XUL.
+  GAction* action = G_ACTION(g_object_ref(mInspectAction));
+  g_action_activate(action, nullptr);
+  g_object_unref(action);
+  return NS_OK;
+}

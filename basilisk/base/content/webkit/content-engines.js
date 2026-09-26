@@ -201,6 +201,10 @@ class ExternalContentBrowser {
   }
   observe(subject, topic) {
     if (this.destroyed) return;
+    if (topic == "content-view-inspector") {
+      window.openDialog("chrome://browser/content/webkit/inspector.xul", "_blank", "chrome,all,dialog=no", subject);
+      return;
+    }
     if (topic.startsWith("content-view-download-")) {
       ContentEngineDownloads.observe(this, topic, subject.QueryInterface(Ci.nsIWritablePropertyBag2));
       return;
@@ -220,6 +224,7 @@ class ExternalContentBrowser {
         case "next-tab": gBrowser.tabContainer.advanceSelectedTab(1, true); break;
         case "previous-tab": gBrowser.tabContainer.advanceSelectedTab(-1, true); break;
         case "find": gFindBar.onFindCommand(); break;
+        case "devtools": ContentEngineDevTools.open(this.browser); break;
         case "reload": this.native.reload(); break;
         case "back": this.native.goBack(); break;
         case "forward": this.native.goForward(); break;

@@ -13,6 +13,9 @@
 struct WPEHost;
 struct _MozContainer;
 struct _WebKitDownload;
+struct _WPEView;
+struct _GAction;
+struct _GdkWindow;
 
 class WebKitContentView final : public nsIWebContentView
 {
@@ -24,11 +27,17 @@ public:
   void TrackDownload(_WebKitDownload* download);
 private:
   ~WebKitContentView();
+  nsresult Mount(_GdkWindow* native);
   WPEHost* mHost = nullptr;
   _MozContainer* mContainer = nullptr;
   nsCOMPtr<nsIObserver> mListener;
   int32_t mBounds[4] = {0, 0, 1, 1};
   nsCString mLastError;
   nsTArray<_WebKitDownload*> mDownloads;
+  nsTArray<RefPtr<WebKitContentView>> mInspectors;
+  _WPEView* mInspectorView = nullptr;
+  _GAction* mInspectAction = nullptr;
+  bool mDestroyed = false;
+  bool mPrivate = false;
 };
 #endif

@@ -11,7 +11,7 @@ interface nsIObserver;
  * the chrome window's client area. The chrome owner manages tab visibility
  * and must keep the native host inside its content rectangle.
  */
-[scriptable, uuid(c7a5b598-2819-4e3d-b82d-64d81f29430b)]
+[scriptable, uuid(29b2fb4d-7aa0-4ead-a0dd-09027e59d1bc)]
 interface nsIWebContentView : nsISupports
 {
   /** listener topics: content-view-state (read state getters) and
@@ -51,4 +51,7 @@ interface nsIWebContentView : nsISupports
   void find(in AUTF8String text, in boolean backwards, in boolean caseSensitive);
   void findAgain(in boolean backwards);
   void clearFind();
+  /** Upstream inspector. Context inspection requires a retained menu action. */
+  void openDeveloperTools();
+  void inspectElement();
 };

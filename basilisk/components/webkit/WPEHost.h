@@ -16,8 +16,10 @@ struct WPEHost {
   WPEView* view; // borrowed from webView
   void (*chromeCommand)(const char*, void*);
   void* chromeData;
+  void (*inspectorCreated)(WPEView*, void*);
 };
 WPEHost* wpe_host_new(WebKitNetworkSession* session = nullptr);
+WPEHost* wpe_host_for_view(WPEView* view);
 void wpe_host_free(WPEHost* host);
 void wpe_host_resize(WPEHost* host, int width, int height);
 #endif
