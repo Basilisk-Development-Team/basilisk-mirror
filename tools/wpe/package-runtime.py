@@ -59,6 +59,8 @@ def stage(prefix, dist, patchelf):
             if bundle.is_dir(): shutil.copytree(bundle, temporary / 'injected-bundle', dirs_exist_ok=True)
             modules = directory / 'wpe-platform-2.0/modules'
             if modules.is_dir(): shutil.copytree(modules, temporary / 'lib/modules', dirs_exist_ok=True)
+            plugins = directory / 'gstreamer-1.0'
+            if plugins.is_dir(): shutil.copytree(plugins, temporary / 'lib/gstreamer-1.0', dirs_exist_ok=True)
         helpers = prefix / 'libexec/wpe-webkit-2.0'
         for source in helpers.iterdir():
             if source.is_file(): shutil.copy2(source, temporary / 'libexec' / source.name)

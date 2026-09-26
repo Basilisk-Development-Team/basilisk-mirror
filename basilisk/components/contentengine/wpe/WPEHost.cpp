@@ -360,8 +360,20 @@ WPEHost* wpe_host_new(WebKitNetworkSession* sharedSession)
   g_object_set_data(G_OBJECT(host->display), "basilisk-host", host);
   // Browser policy UI has not been implemented. Never auto-approve capture.
   g_signal_connect(host->webView, "permission-request",
-    G_CALLBACK(+[](WebKitWebView*, WebKitPermissionRequest* request, gpointer) -> gboolean {
+    G_CALLBACK(+[](WebKitWebView*, WebKitPermissionRequest* request, gpointer data) -> gboolean {
+      auto* host = static_cast<WPEHost*>(data);
+      const char* kind = "unsupported";
+      if (WEBKIT_IS_USER_MEDIA_PERMISSION_REQUEST(request)) {
+        auto* media = WEBKIT_USER_MEDIA_PERMISSION_REQUEST(request);
+        bool audio = webkit_user_media_permission_is_for_audio_device(media);
+        bool video = webkit_user_media_permission_is_for_video_device(media);
+        kind = webkit_user_media_permission_is_for_display_device(media) ? "screen-capture" :
+          audio && video ? "camera-microphone" : audio ? "microphone" : video ? "camera" : "media";
+      }
+      // Even a top-level-looking request has no trustworthy public requester
+      // origin in WPE 2.54. Deny before notifying reentrant chrome observers.
       webkit_permission_request_deny(request);
+      if (host->permissionDenied) host->permissionDenied(kind, host->chromeData);
       return TRUE;
     }), host);
   return host;

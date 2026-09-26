@@ -5,4 +5,5 @@
 #define WPERuntime_h
 #include "nsError.h"
 nsresult WPEInitializeRuntime();
+bool WPEWebRTCPluginsAvailable();
 #endif

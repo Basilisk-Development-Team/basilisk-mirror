@@ -292,6 +292,13 @@ class ExternalContentBrowser {
   }
   onContentEvent(sender, topic, subject) {
     if (this.destroyed) return;
+    if (topic == "content-view-permission-denied") {
+      let info = subject.QueryInterface(Ci.nsIPropertyBag2);
+      this.browser.dispatchEvent(new CustomEvent("ContentPermissionDenied", {bubbles: true,
+        detail: Object.freeze({engine: this.engineId, permission: info.getPropertyAsAUTF8String("permission"),
+          reason: info.getPropertyAsAUTF8String("reason"), requestingOrigin: null, topLevelOrigin: null})}));
+      return;
+    }
     if (topic == "content-view-process-terminated") {
       if (ContentEngineFullscreen.view == this) ContentEngineFullscreen.exit();
       let client = ContentEngineScripts.clients.get(this.browser);

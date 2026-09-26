@@ -28,6 +28,7 @@ set_define('MOZ_WEBKIT', webkit)
 
 pkg_check_modules('WPE_WEBKIT', 'wpe-webkit-2.0 >= 2.54.0', when=webkit)
 pkg_check_modules('WPE_PLATFORM', 'wpe-platform-2.0 >= 2.54.0', when=webkit)
+pkg_check_modules('WPE_GSTREAMER', 'gstreamer-1.0 >= 1.20', when=webkit)
 
 option('--with-wpe-runtime', nargs=1,
        help='Installed WPE runtime prefix to bundle (defaults to pkg-config prefix)')

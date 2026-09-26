@@ -35,6 +35,7 @@ if not args.install_only:
                '-DPORT=WPE', '-DCMAKE_BUILD_TYPE=Release', '-DDEVELOPER_MODE=ON',
                '-DDEVELOPER_MODE_FATAL_WARNINGS=OFF', '-DCLANGD_AUTO_SETUP=OFF',
                '-DENABLE_API_TESTS=OFF', '-DENABLE_LAYOUT_TESTS=OFF', '-DENABLE_MINIBROWSER=OFF',
+               '-DENABLE_WEB_RTC=ON', '-DUSE_GSTREAMER_WEBRTC=ON',
                '-DENABLE_BUBBLEWRAP_SANDBOX=ON', '-DCMAKE_INSTALL_PREFIX=/usr', '-DEXEC_INSTALL_DIR=/usr/bin',
                '-DCMAKE_INSTALL_LIBDIR=lib64', '-DLIB_INSTALL_DIR=/usr/lib64',
                '-DLIBEXEC_INSTALL_DIR=/usr/libexec/wpe-webkit-2.0', '-DCMAKE_INSTALL_DATADIR=share']
@@ -59,6 +60,14 @@ for pc in (prefix / 'lib64/pkgconfig').glob('*.pc'):
                 line = name + '=' + str(prefix) + value[4:]
         lines.append(line)
     pc.write_text('\n'.join(lines) + '\n')
+# Adapter-owned runtime metadata: feature values only, never developer paths.
+features = {}
+for name in ('ENABLE_WEB_RTC', 'USE_GSTREAMER_WEBRTC', 'USE_LIBRICE', 'ENABLE_BUBBLEWRAP_SANDBOX',
+             'ENABLE_MEDIA_STREAM', 'ENABLE_C_LOOP', 'ENABLE_JIT', 'ENABLE_DFG_JIT', 'ENABLE_FTL_JIT'):
+    match = re.search(r'^' + name + r':BOOL=(ON|OFF)$', cache, re.M)
+    features[name] = bool(match and match.group(1) == 'ON')
+metadata = prefix / 'share/wpe-webkit-2.0/basilisk-build.ini'
+metadata.write_text('[Build]\n' + ''.join('%s=%s\n' % (name, str(value).lower()) for name, value in features.items()))
 licenses = prefix / 'share/wpe-webkit-2.0/licenses'
 for path in (source / 'Source').rglob('*'):
     if path.is_file() and re.match(r'^(LICENSE|COPYING)([.-].*)?$', path.name, re.I):

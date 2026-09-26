@@ -12,7 +12,7 @@ interface nsIContentRequestRule;
  * the chrome window's client area. The chrome owner manages tab visibility
  * and must keep the native host inside its content rectangle.
  */
-[scriptable, uuid(b33c5ebe-4028-4be9-995e-cb52a7d0a322)]
+[scriptable, uuid(a45068a6-7252-469d-89cb-c40ee4bfae3f)]
 interface nsIWebContentView : nsISupports
 {
   const unsigned long CAP_DEVTOOLS = 0x0001;
@@ -29,6 +29,10 @@ interface nsIWebContentView : nsISupports
   const unsigned long CAP_MESSAGING = 0x0800;
   const unsigned long CAP_FIND = 0x1000;
   const unsigned long CAP_REQUEST_FILTERING = 0x2000;
+  /** Peer connections/data channels, independently of camera/microphone grants. */
+  const unsigned long CAP_WEBRTC = 0x4000;
+  /** Capture with trustworthy requester identity and browser permission mediation. */
+  const unsigned long CAP_MEDIA_CAPTURE = 0x8000;
   /** Available in this view's configuration, not an OS/version guess. */
   readonly attribute unsigned long capabilities;
   /** listener topics: content-view-state (read state getters) and
@@ -63,6 +67,9 @@ interface nsIWebContentView : nsISupports
   attribute double zoom;
   attribute boolean muted;
   readonly attribute boolean audioPlaying;
+  readonly attribute boolean cameraActive;
+  readonly attribute boolean microphoneActive;
+  readonly attribute boolean screenCaptureActive;
   /** Plain-text editing commands: copy, cut, paste, selectAll. */
   void edit(in AUTF8String command);
   void find(in AUTF8String text, in boolean backwards, in boolean caseSensitive);

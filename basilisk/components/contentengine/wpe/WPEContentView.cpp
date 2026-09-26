@@ -88,6 +88,14 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
     }));
   };
   mHost->chromeData = this;
+  mHost->permissionDenied = [](const char* kind, void* data) {
+    RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
+    info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("permission"), nsDependentCString(kind));
+    info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("reason"), nsDependentCString(
+      g_str_equal(kind, "unsupported") ? "unsupported-permission" : "requesting-origin-unavailable"));
+    static_cast<WPEContentView*>(data)->Notify("content-view-permission-denied",
+      static_cast<nsIWritablePropertyBag2*>(info));
+  };
   mHost->chromeCommand = [](const char* command, void* data) {
     RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
     info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("command"), nsDependentCString(command));
@@ -108,7 +116,9 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
   g_signal_connect(finder, "failed-to-find-text", G_CALLBACK(+[](WebKitFindController*, gpointer data) {
     static_cast<WPEContentView*>(data)->Notify("content-view-find-not-found");
   }), this);
-  for (const char* signal : {"notify::is-loading", "notify::is-playing-audio", "notify::is-muted"})
+  for (const char* signal : {"notify::is-loading", "notify::is-playing-audio", "notify::is-muted",
+                             "notify::camera-capture-state", "notify::microphone-capture-state",
+                             "notify::display-capture-state"})
     g_signal_connect(mHost->webView, signal, G_CALLBACK(+[](GObject*, GParamSpec*, gpointer data) {
       static_cast<WPEContentView*>(data)->Notify("content-view-state");
     }), this);
@@ -541,5 +551,14 @@ NS_IMETHODIMP WPEContentView::GetCapabilities(uint32_t* result)
     CAP_ISOLATED_CONTENT_WORLD | CAP_PRIVATE_STORAGE | CAP_AUDIO_CONTROL |
     CAP_CSS | CAP_SCRIPT_REGISTRATION | CAP_MESSAGING | CAP_FIND;
   if (!mPrivate) *result |= CAP_PERSISTENT_STORAGE | CAP_DEVTOOLS | CAP_INSPECT_ELEMENT | CAP_REQUEST_FILTERING;
+  if (mHost && webkit_settings_get_enable_webrtc(webkit_web_view_get_settings(mHost->webView)) &&
+      WPEWebRTCPluginsAvailable()) *result |= CAP_WEBRTC;
   return NS_OK;
 }
+
+NS_IMETHODIMP WPEContentView::GetCameraActive(bool* result)
+{ *result = mHost && webkit_web_view_get_camera_capture_state(mHost->webView) == WEBKIT_MEDIA_CAPTURE_STATE_ACTIVE; return NS_OK; }
+NS_IMETHODIMP WPEContentView::GetMicrophoneActive(bool* result)
+{ *result = mHost && webkit_web_view_get_microphone_capture_state(mHost->webView) == WEBKIT_MEDIA_CAPTURE_STATE_ACTIVE; return NS_OK; }
+NS_IMETHODIMP WPEContentView::GetScreenCaptureActive(bool* result)
+{ *result = mHost && webkit_web_view_get_display_capture_state(mHost->webView) == WEBKIT_MEDIA_CAPTURE_STATE_ACTIVE; return NS_OK; }

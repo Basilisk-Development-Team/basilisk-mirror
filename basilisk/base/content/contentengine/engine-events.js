@@ -29,6 +29,11 @@ var ContentEngineEvents = {
       canGoBack: browser.canGoBack, canGoForward: browser.canGoForward,
       muted: tab.hasAttribute("muted"), audioPlaying: tab.hasAttribute("soundplaying")
     };
+    if (view) {
+      state.cameraActive = view.native.cameraActive;
+      state.microphoneActive = view.native.microphoneActive;
+      state.screenCaptureActive = view.native.screenCaptureActive;
+    }
     let serialized = JSON.stringify(state);
     if (this.previous.get(browser) == serialized) return;
     this.previous.set(browser, serialized);

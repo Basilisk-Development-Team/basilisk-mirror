@@ -17,6 +17,7 @@ struct WPEHost {
   void (*chromeCommand)(const char*, void*);
   void* chromeData;
   void (*inspectorCreated)(WPEView*, void*);
+  void (*permissionDenied)(const char*, void*);
 };
 WPEHost* wpe_host_new(WebKitNetworkSession* session = nullptr);
 WPEHost* wpe_host_for_view(WPEView* view);
