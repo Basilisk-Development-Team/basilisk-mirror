@@ -43,22 +43,29 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("objdir", type=Path)
+    parser.add_argument("--mixed", action="store_true", help="test real mixed browser tabs and engine switching")
     args = parser.parse_args()
     objdir = args.objdir.resolve()
     binary = objdir / "dist/bin/basilisk"
     chrome = objdir / "dist/bin/browser/chrome/browser/content/browser/webkit"
     if not binary.is_file() or not (chrome / "prototype.xul").is_file():
         parser.error("requires a completed, unpackaged --enable-webkit build")
-    fixture = Path(__file__).resolve().parent / "lifecycle"
+    name = "mixed" if args.mixed else "lifecycle"
+    marker = "WPE-" + name.upper()
+    fixture = Path(__file__).resolve().parent / name
     staged = []
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
         for suffix in ("js", "xul"):
-            destination = chrome / ("wpe-lifecycle-test." + suffix)
+            destination = chrome / ("wpe-" + name + "-test." + suffix)
             # Refuse to overwrite an existing test or product resource.
-            destination.symlink_to(fixture / ("lifecycle." + suffix))
+            destination.symlink_to(fixture / (name + "." + suffix))
+            staged.append(destination)
+        if args.mixed:
+            destination = chrome / "wpe-mixed-operations.js"
+            destination.symlink_to(fixture / "operations.js")
             staged.append(destination)
         with tempfile.TemporaryDirectory(prefix="basilisk-wpe-test-") as profile:
             prefs = {
@@ -72,13 +79,13 @@ def main():
                 for key, value in prefs.items()))
             result = subprocess.run([
                 str(binary), "-no-remote", "-profile", profile, "-chrome",
-                "chrome://browser/content/webkit/wpe-lifecycle-test.xul",
+                "chrome://browser/content/webkit/wpe-" + name + "-test.xul",
             ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, timeout=210)
             print(result.stdout, end="")
             return 0 if (result.returncode == 0 and
-                         "WPE-LIFECYCLE PASS " in result.stdout and
-                         "WPE-LIFECYCLE FAIL " not in result.stdout) else 1
+                         marker + " PASS " in result.stdout and
+                         marker + " FAIL " not in result.stdout) else 1
     finally:
         for path in staged:
             path.unlink()
