@@ -69,7 +69,7 @@ twenty simultaneous filtered views; ten Inspector open/close cycles; test-owned
 WebProcess kill/recovery with policy enforcement verified after reload; Inspector
 owner closure; detach/close during navigation; shutdown with twenty active loads,
 filters, Inspector and extension. No test browser helper processes remained.
-No sanitizer was run. RSS was sampled during the native/filtered stress runs;
+No sanitizer was run. Native-cycle main-process RSS samples were 343–351 MiB;
 this is a bounded smoke check, not proof of leak freedom.
 
 The routing fixture now waits for an HTTP URI before reading its host because

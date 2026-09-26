@@ -26,6 +26,7 @@ backend = (obj / 'backend.RecursiveMakeBackend.in').read_text()
 require('components/contentengine/moz.build' not in backend and 'components/webkit/moz.build' not in backend,
         'WPE directory participated in the build')
 root = obj / 'dist/bin'
+require(not (root / 'webkit').exists(), 'optional WPE runtime directory installed')
 # Auxiliary executables/components rely on the application's library directory
 # being in the loader search path (normally supplied by the launcher). Resolve
 # their transitive dependencies in that same environment, not as isolated files.
