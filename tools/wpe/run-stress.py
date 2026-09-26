@@ -49,7 +49,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("objdir", type=Path)
 
-    parser.add_argument("--mode", choices=["lifecycle", "shutdown"], default="lifecycle")
+    parser.add_argument("--mode", choices=["lifecycle", "shutdown", "switching"], default="lifecycle")
     args = parser.parse_args()
     objdir = args.objdir.resolve()
     binary = objdir / "dist/bin/basilisk"

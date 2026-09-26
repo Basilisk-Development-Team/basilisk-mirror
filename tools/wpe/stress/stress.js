@@ -29,6 +29,28 @@ async function run() {
   let win = window.openDialog("chrome://browser/content/browser.xul", "_blank", "chrome,all,dialog=no", base + "a");
   await waitFor(() => win.gBrowser && win.gBrowserInit.delayedStartupFinished && win.contentBridgeFixture, "browser and extension startup");
   let g = win.gBrowser, engines = win.ContentEngines;
+  if (Services.prefs.getCharPref("wpe.test.mode") == "switching") {
+    await waitFor(() => g.selectedBrowser.contentTitle.startsWith("Page A") && !g.selectedTab.hasAttribute("busy"), "initial Gecko");
+    let tab = g.selectedTab, api = tab.linkedBrowser.contentAPI;
+    await api.registerScript("stress", "document.body.setAttribute('data-stress', 'registered');");
+    await api.insertCSS("body {color: rgb(1, 23, 45) !important;}", "stress");
+    for (let cycle = 0; cycle < 100; cycle++) {
+      for (let engine of ["webkit", "gecko"]) {
+        tab = engines.switchEngine(tab, engine);
+        await waitFor(() => tab.linkedBrowser.contentEngine == engine &&
+          tab.linkedBrowser.contentTitle.startsWith("Page A") && !tab.hasAttribute("busy"), "switch " + cycle + " " + engine);
+        check(tab.linkedBrowser.contentAPI === api, "script client lost on switch");
+        let result = await api.executeScript("return [document.body.getAttribute('data-stress'), getComputedStyle(document.body).color]");
+        check(result[0] == "registered" && result[1] == "rgb(1, 23, 45)", "registration lost on switch");
+      }
+      check(engines.views.size == 0 && g.tabs.length == 1, "round trip leaked view/tab");
+      check(win.contentBridgeFixture.item.parentNode, "XUL extension lost");
+      dump("WPE-STRESS round trip " + (cycle + 1) + "\n");
+    }
+    await win.contentBridgeFixture.run(tab.linkedBrowser);
+    dump("WPE-STRESS PASS 100 Gecko to WPE to Gecko cycles with XUL extension, CSS and script registrations\n");
+    return;
+  }
   let tabs = [];
   for (let n = 0; n < 20; n++) tabs.push(engines.open(base + (n % 2 ? "a" : "b"), false));
   await waitFor(() => tabs.every(tab => tab.linkedBrowser.contentTitle.startsWith("Page") && !tab.hasAttribute("busy")), "twenty loaded WPE tabs");
