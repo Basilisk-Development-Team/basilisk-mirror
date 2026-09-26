@@ -2792,6 +2792,17 @@
 
             // That's gBrowser for the other window, not the tab's browser!
             var remoteBrowser = aOtherTab.ownerDocument.defaultView.gBrowser;
+#ifdef MOZ_WEBKIT
+            if (otherBrowser.contentEngine == "webkit") {
+              // Native WPE views belong to their chrome window. Transfer only
+              // serialized tab metadata, then restore a fresh destination view.
+              let state = SessionStore.getTabState(aOtherTab);
+              SessionStore.setTabState(aOurTab, state);
+              if (remoteBrowser._beginRemoveTab(aOtherTab, aOurTab, true))
+                remoteBrowser._endRemoveTab(aOtherTab);
+              return;
+            }
+#endif
             var isPending = aOtherTab.hasAttribute("pending");
 
             let otherTabListener = remoteBrowser._tabListeners.get(aOtherTab);
@@ -6103,8 +6114,16 @@
         // For the non e10s case we can just use PageThumbs
         // sync. No need for xul magic, the native dnd will
         // be fine, so let's use the canvas for setDragImage.
-        PageThumbs.captureToCanvas(browser, canvas);
-        toDrag = canvas;
+#ifdef MOZ_WEBKIT
+        if (browser.contentEngine == "webkit") {
+          // A Gecko canvas capture cannot read a foreign native surface.
+          toDrag = tab;
+        } else
+#endif
+        {
+          PageThumbs.captureToCanvas(browser, canvas);
+          toDrag = canvas;
+        }
         dragImageOffset = dragImageOffset * scale;
         dt.setDragImage(toDrag, dragImageOffset, dragImageOffset);
 

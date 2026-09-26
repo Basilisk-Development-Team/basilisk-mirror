@@ -8,7 +8,7 @@
 // chrome-facing navigation/state properties; Gecko instances are untouched.
 var ContentEngines = {
   views: new Map(),
-  engineFor(browser) { return this.views.has(browser) ? "webkit" : "gecko"; },
+  engineFor(browser) { return this.views.has(browser) ? "webkit" : browser.contentEngine || "gecko"; },
   get(browser = gBrowser.selectedBrowser) { return this.views.get(browser); },
   forBrowser(browser) {
     return this.get(browser) || {
@@ -23,31 +23,6 @@ var ContentEngines = {
     window.controllers.insertControllerAt(0, ContentEngineEditController);
     gBrowser.tabContainer.addEventListener("TabSelect", this);
     gBrowser.tabContainer.addEventListener("TabClose", this);
-    // Native children belong to their chrome window. Until adoption can
-    // recreate a backend safely, do not let the Gecko frame-loader swap path
-    // move just the empty shell and strand a live WPE view.
-    gBrowser.tabContainer.addEventListener("dragstart", event => {
-      let tab = event.target.closest("tab");
-      if (tab && this.get(tab.linkedBrowser)) event.preventDefault();
-    }, true);
-    document.getElementById("tabContextMenu").addEventListener("popupshowing", () => {
-      if (!this.get(TabContextMenu.contextTab.linkedBrowser)) return;
-      let saved = ["context_duplicateTab", "context_openTabInWindow"].map(id => {
-        let item = document.getElementById(id);
-        let disabled = item.getAttribute("disabled");
-        item.setAttribute("disabled", "true");
-        return [item, disabled];
-      });
-      let menu = document.getElementById("tabContextMenu");
-      let restore = () => {
-        for (let [item, disabled] of saved) {
-          if (disabled) item.setAttribute("disabled", disabled);
-          else item.removeAttribute("disabled");
-        }
-        menu.removeEventListener("popuphidden", restore);
-      };
-      menu.addEventListener("popuphidden", restore);
-    });
     window.addEventListener("resize", this);
     window.addEventListener("MozAfterPaint", this);
     window.addEventListener("unload", this);

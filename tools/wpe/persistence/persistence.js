@@ -74,5 +74,25 @@ async function run(win) {
     if (tab.linkedBrowser.contentTitle != "Read:none:none:none")
       throw new Error("private storage survived last private window");
     reopened.close();
+    // Exercise the same tab transfer entry point used by drag/drop, retaining
+    // the shared normal data store while recreating native views per window.
+    let other = win.OpenBrowserWindow();
+    await waitFor(() => other.gBrowser && other.gBrowserInit.delayedStartupFinished, "adoption window");
+    let moved = g.selectedTab;
+    g.moveTabTo(moved, 1);
+    if (moved._tPos != 1) throw new Error("same-window move failed");
+    for (let cycle = 0; cycle < 10; ++cycle) {
+      moved = other.gBrowser.adoptTab(moved, 1, true);
+      await waitFor(() => moved.linkedBrowser.contentTitle == "Read:cookie:local:indexed" &&
+                    other.ContentEngines.get(moved.linkedBrowser), "adopt out");
+      moved = g.adoptTab(moved, 2, true);
+      await waitFor(() => moved.linkedBrowser.contentTitle == "Read:cookie:local:indexed" &&
+                    engines.get(moved.linkedBrowser), "adopt back");
+    }
+    other.close();
+    let detached = g.replaceTabWithWindow(moved);
+    await waitFor(() => detached.gBrowser && detached.ContentEngines.get() &&
+                  detached.gBrowser.selectedBrowser.contentTitle == "Read:cookie:local:indexed", "detach");
+    detached.close();
   }
 }
