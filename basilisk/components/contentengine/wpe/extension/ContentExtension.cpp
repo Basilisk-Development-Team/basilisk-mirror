@@ -209,6 +209,7 @@ void Execute(Frame* frame, guint id, const char* source, WebKitUserMessage* requ
       }
       auto* page = WEBKIT_WEB_PAGE(g_weak_ref_get(&frame->page));
       selectedWorld = page ? static_cast<WebKitScriptWorld*>(g_hash_table_lookup(OwnedWorlds(page), worldId)) : nullptr;
+      if (!selectedWorld) selectedWorld = static_cast<WebKitScriptWorld*>(g_hash_table_lookup(initialWorlds, worldId));
       if (selectedWorld) g_object_ref(selectedWorld); else selectedWorld = webkit_script_world_new();
       g_clear_object(&page);
       g_hash_table_insert(frame->worlds, g_strdup(worldId), selectedWorld);
@@ -349,22 +350,6 @@ void webkit_web_process_extension_initialize_with_user_data(WebKitWebProcessExte
     }
   }
   world = webkit_script_world_new_with_name("basilisk-content");
-  // Observe normal public world creation so restored user-script worlds can be
-  // addressed after a WebProcess restart without creating a second same-name world.
-  g_signal_add_emission_hook(g_signal_lookup("window-object-cleared", WEBKIT_TYPE_SCRIPT_WORLD), 0,
-    +[](GSignalInvocationHint*, guint count, const GValue* values, gpointer) -> gboolean {
-      if (count < 3) return TRUE;
-      auto* scriptWorld=WEBKIT_SCRIPT_WORLD(g_value_get_object(values));
-      const char* name=webkit_script_world_get_name(scriptWorld);
-      const char* prefix="basilisk-legacy-";
-      if(name && g_str_has_prefix(name,prefix)) {
-        auto* page=WEBKIT_WEB_PAGE(g_value_get_object(values+1));
-        auto* worlds=OwnedWorlds(page); const char* key=name+strlen(prefix);
-        if(!g_hash_table_contains(worlds,key) && g_hash_table_size(worlds)<64)
-          g_hash_table_insert(worlds,g_strdup(key),g_object_ref(scriptWorld));
-      }
-      return TRUE;
-    }, nullptr, nullptr);
   g_signal_connect(world, "window-object-cleared", G_CALLBACK(WindowCleared), nullptr);
   g_signal_connect(extension, "page-created", G_CALLBACK(+[](WebKitWebProcessExtension*, WebKitWebPage* page, gpointer) {
     g_signal_connect(page, "user-message-received", G_CALLBACK(Message), nullptr);
