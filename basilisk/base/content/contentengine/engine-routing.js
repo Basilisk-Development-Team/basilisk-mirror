@@ -24,7 +24,8 @@ var ContentEngineRouting = {
     catch (error) { return null; }
     if (!uri.schemeIs("http") && !uri.schemeIs("https")) return null;
     let override = SessionStore.getTabValue(tab, "basilisk.engineOverride");
-    if (override == "gecko" || override == "webkit") return override;
+    if (override == "gecko" || (override &&
+        "@basilisk-browser.org/content-view;1?engine=" + override in Cc)) return override;
     let text = this.preference("siteRules", "{}");
     if (text != this.rulesText) {
       this.rulesText = text;

@@ -803,6 +803,9 @@ function gKeywordURIFixup({ target: browser, data: fixupInfo }) {
 // A shared function used by both remote and non-remote browser XBL bindings to
 // load a URI or redirect it to the correct process.
 function _loadURIWithFlags(browser, uri, params) {
+#ifdef MOZ_WEBKIT
+  if (ContentEngines.navigate(browser, uri, params)) return;
+#endif
   if (!uri) {
     uri = "about:blank";
   }

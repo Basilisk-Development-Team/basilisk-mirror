@@ -10,6 +10,27 @@ var ContentEngines = {
   views: new Map(),
   engineFor(browser) { return this.views.has(browser) ? this.views.get(browser).engineId : browser.contentEngine || "gecko"; },
   get(browser = gBrowser.selectedBrowser) { return this.views.get(browser); },
+  // Chrome supplies user input and nsIWebNavigation fixup flags, whereas the
+  // content-view contract accepts a resolved URI. Keep UXP's fixup service at
+  // this boundary; alternate engines must not load the bookkeeping docshell.
+  navigate(browser, input, params = {}) {
+    let view = this.get(browser);
+    if (!view) return false; // Preserve the ordinary Gecko navigation path.
+    let text = String(input || "about:blank").replace(/[\r\n]/g, "").trim();
+    let flags = params.flags || 0, fixupFlags = 0;
+    try { Services.io.newURI(text, null, null); flags &= ~Ci.nsIWebNavigation.LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP; }
+    catch (error) { /* The fixup service resolves host names and search terms. */ }
+    if (flags & Ci.nsIWebNavigation.LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP)
+      fixupFlags |= Ci.nsIURIFixup.FIXUP_FLAG_ALLOW_KEYWORD_LOOKUP;
+    if (flags & Ci.nsIWebNavigation.LOAD_FLAGS_FIXUP_SCHEME_TYPOS)
+      fixupFlags |= Ci.nsIURIFixup.FIXUP_FLAG_FIX_SCHEME_TYPOS;
+    let post = {}, info = Services.uriFixup.getFixupURIInfo(text, fixupFlags, post);
+    if (params.postData || post.value)
+      throw Components.Exception("Alternate content does not support chrome POST navigation", Cr.NS_ERROR_NOT_IMPLEMENTED);
+    let uri = info.preferredURI.spec;
+    if (!ContentEngineRouting.route(view.tab, uri)) view.loadURI(uri);
+    return true;
+  },
   forBrowser(browser) {
     return this.get(browser) || {
       engineId: "gecko", browser,
@@ -236,10 +257,10 @@ class ExternalContentBrowser {
     for (let name of Object.keys(getters)) this.define(name, {get: getters[name]});
     this.define("finder", {get: () => this.finder});
     let methods = {
-      loadURI: uri => this.loadURI(uri),
+      loadURI: uri => ContentEngines.navigate(b, uri),
       loadURIWithFlags: (uri, flags, referrer, charset, postData) => {
-        if (postData || (flags && flags.postData)) throw new Error("alternate content chrome POST loading is not supported");
-        this.loadURI(uri);
+        ContentEngines.navigate(b, uri, flags && typeof flags == "object" ? flags :
+          {flags, referrerURI: referrer, charset, postData});
       },
       goBack: () => this.native.goBack(), goForward: () => this.native.goForward(),
       reload: () => this.native.reload(), reloadWithFlags: () => this.native.reload(),
