@@ -35,3 +35,14 @@ configure/backend build files. `--disable-webkit` excludes the optional shim,
 backend, registrations and resources exactly as before.
 
 Known origin and Inspector upstream limitations remain feature-local blockers.
+
+## Refactor gate results
+
+Before adding request-filter primitives: enabled build and disabled build passed;
+the disabled audit checked 30 ELF files and found no WPE dependencies or optional
+components/resources. The mock/boundary audit passed. Existing tests passed: 100
+native cycles; 100 reverse mixed-engine cycles; 100 Gecko→WebKit→Gecko cycles with
+scripts/CSS and extension active; fixtures A–F and routing; 20 simultaneous views;
+20 adoptions; Inspector lifetime; WebProcess termination/recovery; active shutdown;
+persistent data, private isolation and mixed session restoration. The pre-existing
+platform gitlink difference is untouched.
