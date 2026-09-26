@@ -9,6 +9,7 @@
 #include "nsIContentViewObserver.h"
 #include "nsString.h"
 #include "nsTArray.h"
+#include "nsIFile.h"
 
 struct WPEHost;
 struct _MozContainer;
@@ -18,6 +19,7 @@ struct _GAction;
 struct _GdkWindow;
 struct _GCancellable;
 struct _GHashTable;
+struct _WebKitUserContentFilterStore;
 
 class WPEContentView final : public nsIWebContentView
 {
@@ -32,6 +34,8 @@ private:
   nsresult Mount(_GdkWindow* native);
   void CancelScripts();
   void EnsureMessaging();
+  nsresult EnsureFilterStore();
+  void ClearRequestRules();
   WPEHost* mHost = nullptr;
   _MozContainer* mContainer = nullptr;
   nsCOMPtr<nsIContentViewObserver> mListener;
@@ -47,5 +51,10 @@ private:
   bool mMessaging = false;
   _GHashTable* mStyleSheets = nullptr;
   _GHashTable* mUserScripts = nullptr;
+  nsCOMPtr<nsIFile> mProfileDirectory;
+  _WebKitUserContentFilterStore* mFilterStore = nullptr;
+  _GCancellable* mFilterCancellation = nullptr;
+  _GHashTable* mRequestRules = nullptr;
+  uint64_t mFilterGeneration = 0;
 };
 #endif

@@ -4,6 +4,7 @@
 #include "nsISupports.idl"
 interface mozIDOMWindowProxy;
 interface nsIContentViewObserver;
+interface nsIContentRequestRule;
 
 /** Experimental chrome-only content view. No Gecko DOM/docshell contract.
  * All calls and callbacks occur on the main thread. The owner must destroy()
@@ -11,7 +12,7 @@ interface nsIContentViewObserver;
  * the chrome window's client area. The chrome owner manages tab visibility
  * and must keep the native host inside its content rectangle.
  */
-[scriptable, uuid(6bd9efcc-35cd-41b3-a541-bf9d55a0c253)]
+[scriptable, uuid(b33c5ebe-4028-4be9-995e-cb52a7d0a322)]
 interface nsIWebContentView : nsISupports
 {
   const unsigned long CAP_DEVTOOLS = 0x0001;
@@ -78,4 +79,12 @@ interface nsIWebContentView : nsISupports
   void removeCSS(in AUTF8String identifier);
   void registerScript(in AUTF8String identifier, in AUTF8String source);
   void unregisterScript(in AUTF8String identifier);
+  /** Async atomic replacement. Completion is content-view-policy-result.
+   * Caller must await completion before starting a navigation to be filtered.
+   * Tokens are local to this view. Unknown/unsupported rules must fail.
+   */
+  void setRequestRules(in unsigned long requestId, in AUTF8String identifier,
+                       in unsigned long count,
+                       [array, size_is(count)] in nsIContentRequestRule rules);
+  void removeRequestRules(in AUTF8String identifier);
 };

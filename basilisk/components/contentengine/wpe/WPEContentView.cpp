@@ -43,6 +43,7 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
   nsresult rv = GetContentViewConfiguration(window, config);
   NS_ENSURE_SUCCESS(rv, rv);
   mPrivate = config.privateBrowsing;
+  mProfileDirectory = config.profileDirectory;
   if (mInspectorView) {
     mHost = wpe_host_for_view(mInspectorView);
     NS_ENSURE_TRUE(mHost, NS_ERROR_FAILURE);
@@ -269,6 +270,7 @@ NS_IMETHODIMP WPEContentView::Destroy()
   if (mDestroyed) return NS_OK;
   mDestroyed = true;
   CancelScripts();
+  ClearRequestRules();
   if (mStyleSheets) { g_hash_table_unref(mStyleSheets); mStyleSheets = nullptr; }
   if (mUserScripts) { g_hash_table_unref(mUserScripts); mUserScripts = nullptr; }
   for (auto& inspector : mInspectors) inspector->Destroy();
@@ -535,6 +537,6 @@ NS_IMETHODIMP WPEContentView::GetCapabilities(uint32_t* result)
   *result = CAP_FULLSCREEN | CAP_DOWNLOADS | CAP_CONTENT_SCRIPTS |
     CAP_ISOLATED_CONTENT_WORLD | CAP_PRIVATE_STORAGE | CAP_AUDIO_CONTROL |
     CAP_CSS | CAP_SCRIPT_REGISTRATION | CAP_MESSAGING | CAP_FIND;
-  if (!mPrivate) *result |= CAP_PERSISTENT_STORAGE | CAP_DEVTOOLS | CAP_INSPECT_ELEMENT;
+  if (!mPrivate) *result |= CAP_PERSISTENT_STORAGE | CAP_DEVTOOLS | CAP_INSPECT_ELEMENT | CAP_REQUEST_FILTERING;
   return NS_OK;
 }

@@ -1,0 +1,184 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+#include "WPEContentView.h"
+#include "WPEHost.h"
+#include "nsIContentRequestRule.h"
+#include "nsHashPropertyBag.h"
+#include "nsNetUtil.h"
+#include "nsIURI.h"
+
+namespace {
+struct Policy {
+  uint64_t generation = 0;
+  WebKitUserContentFilter* filter = nullptr;
+  nsCString storeId;
+  ~Policy() { if (filter) webkit_user_content_filter_unref(filter); }
+};
+struct Reply {
+  RefPtr<WPEContentView> owner;
+  nsCString token;
+  nsCString storeId;
+  uint64_t generation;
+  uint32_t request;
+};
+void RemoveStored(WebKitUserContentFilterStore* store, const nsCString& id)
+{
+  if (!id.IsEmpty()) webkit_user_content_filter_store_remove(store, id.get(), nullptr,
+    [](GObject* source, GAsyncResult* result, gpointer) {
+      GError* error = nullptr;
+      webkit_user_content_filter_store_remove_finish(WEBKIT_USER_CONTENT_FILTER_STORE(source), result, &error);
+      g_clear_error(&error);
+    }, nullptr);
+}
+// Prefix is already ASCII and URI-canonicalized. Escape regex operators, then
+// JSON string delimiters, entirely inside the backend's rule translator.
+void AppendPrefix(nsCString& json, const nsCString& prefix)
+{
+  json.AppendLiteral("\"^");
+  for (uint32_t i = 0; i < prefix.Length(); ++i) {
+    char c = prefix[i];
+    if (strchr(".*+?^${}()|[]\\", c)) json.AppendLiteral("\\\\");
+    if (c == '\\' || c == '"') json.Append('\\');
+    json.Append(c);
+  }
+  json.Append('"');
+}
+}
+
+nsresult WPEContentView::EnsureFilterStore()
+{
+  // The public store API persists compiled policies. Do not open it privately.
+  NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed && !mPrivate, NS_ERROR_NOT_AVAILABLE);
+  if (mFilterStore) return NS_OK;
+  nsCOMPtr<nsIFile> directory;
+  nsresult rv = mProfileDirectory->Clone(getter_AddRefs(directory));
+  NS_ENSURE_SUCCESS(rv, rv);
+  rv = directory->AppendNative(NS_LITERAL_CSTRING("webkit"));
+  NS_ENSURE_SUCCESS(rv, rv);
+  rv = directory->AppendNative(NS_LITERAL_CSTRING("content-filters"));
+  NS_ENSURE_SUCCESS(rv, rv);
+  nsAutoCString path;
+  rv = directory->GetNativePath(path);
+  NS_ENSURE_SUCCESS(rv, rv);
+  mFilterStore = webkit_user_content_filter_store_new(path.get());
+  mFilterCancellation = g_cancellable_new();
+  mRequestRules = g_hash_table_new_full(g_str_hash, g_str_equal, g_free,
+    +[](gpointer item) { delete static_cast<Policy*>(item); });
+  return NS_OK;
+}
+
+NS_IMETHODIMP WPEContentView::SetRequestRules(uint32_t request, const nsACString& identifier,
+                                            uint32_t count, nsIContentRequestRule** rules)
+{
+  NS_ENSURE_TRUE(!identifier.IsEmpty() && identifier.Length() <= 256 && count && count <= 1024 && rules,
+                 NS_ERROR_INVALID_ARG);
+  nsAutoCString json("[");
+  const char* names[] = {"image", "style-sheet", "script", "font", "media", "document", "fetch"};
+  for (uint32_t i = 0; i < count; ++i) {
+    NS_ENSURE_ARG_POINTER(rules[i]);
+    nsAutoCString prefix;
+    uint32_t types = 0;
+    nsresult rv = rules[i]->GetUrlPrefix(prefix);
+    NS_ENSURE_SUCCESS(rv, rv);
+    rv = rules[i]->GetResourceTypes(&types);
+    NS_ENSURE_SUCCESS(rv, rv);
+    NS_ENSURE_TRUE(prefix.Length() <= 8192 && !(types & ~127u), NS_ERROR_INVALID_ARG);
+    nsCOMPtr<nsIURI> uri;
+    rv = NS_NewURI(getter_AddRefs(uri), prefix);
+    NS_ENSURE_SUCCESS(rv, rv);
+    bool http = false, https = false;
+    uri->SchemeIs("http", &http); uri->SchemeIs("https", &https);
+    NS_ENSURE_TRUE(http || https, NS_ERROR_INVALID_ARG);
+    nsAutoCString canonical;
+    uri->GetAsciiSpec(canonical);
+    NS_ENSURE_TRUE(canonical.Equals(prefix), NS_ERROR_INVALID_ARG);
+    if (i) json.Append(',');
+    json.AppendLiteral("{\"trigger\":{\"url-filter\":");
+    AppendPrefix(json, prefix);
+    json.AppendLiteral(",\"url-filter-is-case-sensitive\":true");
+    if (types) {
+      json.AppendLiteral(",\"resource-type\":[");
+      bool first = true;
+      for (uint32_t bit = 0; bit < 7; ++bit) if (types & (1u << bit)) {
+        if (!first) json.Append(','); first = false;
+        json.Append('"'); json.Append(names[bit]); json.Append('"');
+      }
+      json.Append(']');
+    }
+    json.AppendLiteral("},\"action\":{\"type\":\"block\"}}");
+    NS_ENSURE_TRUE(json.Length() <= 1024 * 1024, NS_ERROR_INVALID_ARG);
+  }
+  json.Append(']');
+  nsresult rv = EnsureFilterStore();
+  NS_ENSURE_SUCCESS(rv, rv);
+  nsCString token(identifier);
+  auto* policy = static_cast<Policy*>(g_hash_table_lookup(mRequestRules, token.get()));
+  if (!policy) { policy = new Policy(); g_hash_table_insert(mRequestRules, g_strdup(token.get()), policy); }
+  policy->generation = ++mFilterGeneration;
+  char* unique = g_uuid_string_random();
+  auto* reply = new Reply{this, token, nsCString(unique), policy->generation, request};
+  g_free(unique);
+  GBytes* bytes = g_bytes_new(json.get(), json.Length());
+  webkit_user_content_filter_store_save(mFilterStore, reply->storeId.get(), bytes, mFilterCancellation,
+    [](GObject* source, GAsyncResult* result, gpointer data) {
+      auto* reply = static_cast<Reply*>(data);
+      auto* owner = reply->owner.get();
+      auto* store = WEBKIT_USER_CONTENT_FILTER_STORE(source);
+      GError* error = nullptr;
+      auto* filter = webkit_user_content_filter_store_save_finish(store, result, &error);
+      auto* policy = owner->mRequestRules ? static_cast<Policy*>(g_hash_table_lookup(owner->mRequestRules, reply->token.get())) : nullptr;
+      bool current = !owner->mDestroyed && policy && policy->generation == reply->generation;
+      if (current && filter) {
+        auto* manager = webkit_web_view_get_user_content_manager(owner->mHost->webView);
+        if (policy->filter) {
+          webkit_user_content_manager_remove_filter(manager, policy->filter);
+          webkit_user_content_filter_unref(policy->filter);
+          RemoveStored(store, policy->storeId);
+        }
+        policy->filter = filter;
+        policy->storeId = reply->storeId;
+        webkit_user_content_manager_add_filter(manager, filter);
+      } else {
+        if (filter) webkit_user_content_filter_unref(filter);
+        RemoveStored(store, reply->storeId);
+        if (current && !policy->filter)
+          g_hash_table_remove(owner->mRequestRules, reply->token.get());
+      }
+      RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
+      info->SetPropertyAsUint32(NS_LITERAL_STRING("id"), reply->request);
+      info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("json"), NS_LITERAL_CSTRING("null"));
+      info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("error"), nsDependentCString(
+        !current ? "Content policy superseded or view closed" : error ? error->message : ""));
+      owner->Notify("content-view-policy-result", static_cast<nsIWritablePropertyBag2*>(info));
+      g_clear_error(&error);
+      delete reply;
+    }, reply);
+  g_bytes_unref(bytes);
+  return NS_OK;
+}
+
+NS_IMETHODIMP WPEContentView::RemoveRequestRules(const nsACString& identifier)
+{
+  if (!mRequestRules) return NS_OK;
+  nsCString token(identifier);
+  auto* policy = static_cast<Policy*>(g_hash_table_lookup(mRequestRules, token.get()));
+  if (!policy) return NS_OK;
+  if (policy->filter && mHost) webkit_user_content_manager_remove_filter(
+    webkit_web_view_get_user_content_manager(mHost->webView), policy->filter);
+  RemoveStored(mFilterStore, policy->storeId);
+  g_hash_table_remove(mRequestRules, token.get());
+  return NS_OK;
+}
+void WPEContentView::ClearRequestRules()
+{
+  if (mFilterCancellation) g_cancellable_cancel(mFilterCancellation);
+  if (mRequestRules) {
+    GHashTableIter iter; gpointer key, value;
+    g_hash_table_iter_init(&iter, mRequestRules);
+    while (g_hash_table_iter_next(&iter, &key, &value)) RemoveStored(mFilterStore, static_cast<Policy*>(value)->storeId);
+    g_hash_table_unref(mRequestRules); mRequestRules = nullptr;
+  }
+  g_clear_object(&mFilterCancellation);
+  g_clear_object(&mFilterStore);
+}

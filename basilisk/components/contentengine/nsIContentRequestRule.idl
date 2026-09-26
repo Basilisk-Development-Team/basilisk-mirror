@@ -1,0 +1,22 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+#include "nsISupports.idl"
+/** Version 1 declarative block rule. All unmatched requests are allowed.
+ * No origin inference, callback, channel emulation or third-party rule syntax.
+ * URL prefix is a canonical ASCII HTTP(S) URI, matched case-sensitively.
+ * Resource types are project-owned bits; zero matches all resource classes.
+ */
+[scriptable, uuid(481890ce-268d-48db-a930-5f992ff13b13)]
+interface nsIContentRequestRule : nsISupports
+{
+  const unsigned long IMAGE = 1;
+  const unsigned long STYLESHEET = 2;
+  const unsigned long SCRIPT = 4;
+  const unsigned long FONT = 8;
+  const unsigned long MEDIA = 16;
+  const unsigned long DOCUMENT = 32;
+  const unsigned long FETCH = 64;
+  readonly attribute AUTF8String urlPrefix;
+  readonly attribute unsigned long resourceTypes;
+};
