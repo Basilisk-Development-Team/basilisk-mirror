@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-SOURCES += ['WPEContentScripts.cpp', 'WPEContentView.cpp', 'WPEHost.cpp', 'WPERequestFilters.cpp', 'WPEStorage.cpp']
+SOURCES += ['WPEContentScripts.cpp', 'WPEContentView.cpp', 'WPEHost.cpp', 'WPERequestFilters.cpp', 'WPERuntime.cpp', 'WPEStorage.cpp']
 FINAL_LIBRARY = 'xul'
 LOCAL_INCLUDES += ['..', '/platform/dom/base', '/platform/widget/gtk']
 CXXFLAGS += CONFIG['WPE_WEBKIT_CFLAGS']

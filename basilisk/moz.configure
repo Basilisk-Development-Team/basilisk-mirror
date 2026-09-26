@@ -28,3 +28,31 @@ set_define('MOZ_WEBKIT', webkit)
 
 pkg_check_modules('WPE_WEBKIT', 'wpe-webkit-2.0 >= 2.54.0', when=webkit)
 pkg_check_modules('WPE_PLATFORM', 'wpe-platform-2.0 >= 2.54.0', when=webkit)
+
+option('--with-wpe-runtime', nargs=1,
+       help='Installed WPE runtime prefix to bundle (defaults to pkg-config prefix)')
+
+@depends_when(pkg_config, '--with-wpe-runtime', when=webkit)
+@imports('os')
+@imports('shutil')
+def wpe_runtime(pkg_config, value):
+    prefix = value[0] if value else check_cmd_output(
+        pkg_config, '--variable=prefix', 'wpe-webkit-2.0').strip()
+    prefix = os.path.abspath(prefix)
+    if not os.path.isfile(os.path.join(prefix, 'libexec', 'wpe-webkit-2.0', 'WPEWebProcess')):
+        die('WPE runtime helpers are missing beneath %s; install WPE or use --with-wpe-runtime', prefix)
+    patchelf = shutil.which('patchelf')
+    if not patchelf:
+        die('--enable-webkit requires patchelf to stage a relocatable runtime')
+    return namespace(prefix=prefix, patchelf=patchelf)
+
+@depends_if(wpe_runtime)
+def wpe_runtime_prefix(runtime):
+    return runtime.prefix
+
+@depends_if(wpe_runtime)
+def wpe_patchelf(runtime):
+    return runtime.patchelf
+
+set_config('WPE_RUNTIME_PREFIX', wpe_runtime_prefix)
+set_config('WPE_PATCHELF', wpe_patchelf)

@@ -13,6 +13,7 @@
 #include "mozcontainer.h"
 #include "WPEHost.h"
 #include "WPEStorage.h"
+#include "WPERuntime.h"
 #include "ContentViewConfiguration.h"
 #include "WPEGtk.h"
 
@@ -41,6 +42,8 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
   mListener = listener;
   ContentViewConfiguration config;
   nsresult rv = GetContentViewConfiguration(window, config);
+  NS_ENSURE_SUCCESS(rv, rv);
+  rv = WPEInitializeRuntime();
   NS_ENSURE_SUCCESS(rv, rv);
   mPrivate = config.privateBrowsing;
   mProfileDirectory = config.profileDirectory;

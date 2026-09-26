@@ -63,6 +63,9 @@
 #endif
 
 [xpcom]
+#ifdef MOZ_WEBKIT
+@BINPATH@/webkit/*
+#endif
 @RESPATH@/dependentlibs.list
 #ifdef MOZ_SHARED_MOZGLUE
 @BINPATH@/@DLL_PREFIX@mozglue@DLL_SUFFIX@
