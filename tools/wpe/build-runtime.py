@@ -13,6 +13,7 @@ identity may require a new build directory (as required by upstream CMake).
 import argparse
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 
@@ -34,7 +35,7 @@ if not args.install_only:
                '-DPORT=WPE', '-DCMAKE_BUILD_TYPE=Release', '-DDEVELOPER_MODE=ON',
                '-DDEVELOPER_MODE_FATAL_WARNINGS=OFF', '-DCLANGD_AUTO_SETUP=OFF',
                '-DENABLE_API_TESTS=OFF', '-DENABLE_LAYOUT_TESTS=OFF', '-DENABLE_MINIBROWSER=OFF',
-               '-DENABLE_BUBBLEWRAP_SANDBOX=ON', '-DCMAKE_INSTALL_PREFIX=/usr',
+               '-DENABLE_BUBBLEWRAP_SANDBOX=ON', '-DCMAKE_INSTALL_PREFIX=/usr', '-DEXEC_INSTALL_DIR=/usr/bin',
                '-DCMAKE_INSTALL_LIBDIR=lib64', '-DLIB_INSTALL_DIR=/usr/lib64',
                '-DLIBEXEC_INSTALL_DIR=/usr/libexec/wpe-webkit-2.0', '-DCMAKE_INSTALL_DATADIR=share']
     if args.interpreter:
@@ -60,7 +61,7 @@ for pc in (prefix / 'lib64/pkgconfig').glob('*.pc'):
     pc.write_text('\n'.join(lines) + '\n')
 licenses = prefix / 'share/wpe-webkit-2.0/licenses'
 for path in (source / 'Source').rglob('*'):
-    if path.is_file() and path.name.upper().startswith(('LICENSE', 'COPYING')):
+    if path.is_file() and re.match(r'^(LICENSE|COPYING)([.-].*)?$', path.name, re.I):
         target = licenses / path.relative_to(source)
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, target)
