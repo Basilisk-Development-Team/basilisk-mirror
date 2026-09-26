@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<window xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul" title="Unmodified uBlock audit">
+<script type="application/javascript" src="content-ublock-audit.js"/>
+</window>
