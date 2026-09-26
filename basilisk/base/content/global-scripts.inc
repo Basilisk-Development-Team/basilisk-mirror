@@ -7,6 +7,11 @@
 <script type="application/javascript" src="chrome://global/content/viewZoomOverlay.js"/>
 <script type="application/javascript" src="chrome://browser/content/places/browserPlacesViews.js"/>
 <script type="application/javascript" src="chrome://browser/content/browser.js"/>
+#ifdef MOZ_WEBKIT
+<script type="application/javascript" src="chrome://browser/content/webkit/content-engines.js"/>
+<script type="application/javascript" src="chrome://browser/content/webkit/engine-context.js"/>
+<script type="application/javascript" src="chrome://browser/content/webkit/engine-finder.js"/>
+#endif
 <script type="application/javascript" src="chrome://browser/content/customizableui/panelUI.js"/>
 <script type="application/javascript" src="chrome://global/content/viewSourceUtils.js"/>
 
@@ -29,4 +34,3 @@
 #ifdef MOZ_DATA_REPORTING
 <script type="application/javascript" src="chrome://browser/content/browser-data-submission-info-bar.js"/>
 #endif
-

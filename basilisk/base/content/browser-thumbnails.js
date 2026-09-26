@@ -116,6 +116,11 @@ var gBrowserThumbnails = {
   },
 
   _shouldCapture: function(aBrowser, aCallback) {
+    // A foreign content view has no Gecko document to thumbnail.
+    if (!aBrowser.isRemoteBrowser && !aBrowser.contentWindow) {
+      aCallback(false);
+      return;
+    }
     // Capture only if it's the currently selected tab.
     if (aBrowser != gBrowser.selectedBrowser) {
       aCallback(false);

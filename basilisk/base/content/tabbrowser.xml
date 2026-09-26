@@ -1285,6 +1285,13 @@
         }
 
         // We're now committed to focusing the content area.
+#ifdef MOZ_WEBKIT
+        let contentView = ContentEngines.get(newBrowser);
+        if (contentView) {
+          contentView.focus();
+          return;
+        }
+#endif
         let fm = Services.focus;
         let focusFlags = fm.FLAG_NOSCROLL;
 

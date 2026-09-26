@@ -1674,6 +1674,9 @@ function BrowserHandleShiftBackspace()
 }
 
 function BrowserStop() {
+#ifdef MOZ_WEBKIT
+  if (ContentEngines.get()) { gBrowser.selectedBrowser.stop(); return; }
+#endif
   const stopFlags = nsIWebNavigation.STOP_ALL;
   gBrowser.webNavigation.stop(stopFlags);
 }
@@ -2909,6 +2912,9 @@ function getWebNavigation()
 }
 
 function BrowserReloadWithFlags(reloadFlags) {
+#ifdef MOZ_WEBKIT
+  if (ContentEngines.get()) { gBrowser.selectedBrowser.reloadWithFlags(reloadFlags); return; }
+#endif
 
   // Reset DOS mitigation for auth prompts when user initiates a reload.
   let browser = gBrowser.selectedBrowser;
@@ -3977,6 +3983,9 @@ var XULBrowserWindow = {
   },
 
   onLocationChange: function (aWebProgress, aRequest, aLocationURI, aFlags) {
+#ifdef MOZ_WEBKIT
+    if (ContentEngines.get()) { ContentEngines.refresh(); return; }
+#endif
     var location = aLocationURI ? aLocationURI.spec : "";
 
     // If displayed, hide the form validation popup.
@@ -6535,9 +6544,11 @@ var gIdentityHandler = {
     // Firstly, populate the state properties required to display the UI. See
     // the documentation of the individual properties for details.
     this.setURI(uri);
-    this._sslStatus = gBrowser.securityUI
+    // An external content engine has no Gecko TLS status provider. Clear the
+    // preceding tab's certificate instead of presenting it for another page.
+    this._sslStatus = gBrowser.securityUI ? gBrowser.securityUI
                               .QueryInterface(Ci.nsISSLStatusProvider)
-                              .SSLStatus;
+                              .SSLStatus : null;
     if (this._sslStatus) {
       this._sslStatus.QueryInterface(Ci.nsISSLStatus);
     }
