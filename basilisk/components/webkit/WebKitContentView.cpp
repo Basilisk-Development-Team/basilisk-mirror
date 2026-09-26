@@ -35,10 +35,24 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
   if (container && GTK_IS_WINDOW(container))
     container = gtk_bin_get_child(GTK_BIN(container));
   NS_ENSURE_TRUE(container && IS_MOZ_CONTAINER(container), NS_ERROR_NOT_AVAILABLE);
-  mHost = wpe_host_new();
+  // Share WPE storage among tabs in this chrome window. The session remains
+  // ephemeral and private windows cannot share it with normal windows.
+  auto* session = static_cast<WebKitNetworkSession*>(
+    g_object_get_data(G_OBJECT(container), "basilisk-wpe-session"));
+  if (!session) {
+    session = webkit_network_session_new_ephemeral();
+    g_object_set_data_full(G_OBJECT(container), "basilisk-wpe-session", session, g_object_unref);
+  }
+  mHost = wpe_host_new(session);
   NS_ENSURE_TRUE(mHost, NS_ERROR_FAILURE);
   mContainer = MOZ_CONTAINER(container);
   mListener = listener;
+  g_signal_connect(session, "download-started", G_CALLBACK(+[](WebKitNetworkSession*,
+    WebKitDownload* download, gpointer data) {
+      auto* self = static_cast<WebKitContentView*>(data);
+      if (self->mHost && webkit_download_get_web_view(download) == self->mHost->webView)
+        self->TrackDownload(download);
+    }), this);
   mHost->chromeData = this;
   mHost->chromeCommand = [](const char* command, void* data) {
     RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
@@ -60,6 +74,8 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
     }), this);
   g_signal_connect(mHost->webView, "load-failed",
     G_CALLBACK(+[](WebKitWebView*, WebKitLoadEvent, const char*, GError* error, gpointer data) -> gboolean {
+      if (g_error_matches(error, WEBKIT_NETWORK_ERROR, WEBKIT_NETWORK_ERROR_CANCELLED))
+        return FALSE;
       auto* self = static_cast<WebKitContentView*>(data);
       self->mLastError.Assign(error->message);
       self->Notify("content-view-state");
@@ -176,17 +192,65 @@ NS_IMETHODIMP WebKitContentView::Focus()
 NS_IMETHODIMP WebKitContentView::Destroy()
 {
   mListener = nullptr;
+  for (auto* download : mDownloads) {
+    g_signal_handlers_disconnect_by_data(download, this);
+    webkit_download_cancel(download);
+    g_object_unref(download);
+  }
+  mDownloads.Clear();
   if (mHost) {
     WPEHost* host = mHost;
     mHost = nullptr;
     mContainer = nullptr;
     g_signal_handlers_disconnect_by_data(host->area, this);
     g_signal_handlers_disconnect_by_data(host->webView, this);
+    g_signal_handlers_disconnect_by_data(webkit_web_view_get_network_session(host->webView), this);
     g_signal_handlers_disconnect_by_data(webkit_web_view_get_find_controller(host->webView), this);
     g_signal_handlers_disconnect_by_data(webkit_web_view_get_back_forward_list(host->webView), this);
     wpe_host_free(host);
   }
   return NS_OK;
+}
+void WebKitContentView::TrackDownload(WebKitDownload* download)
+{
+  mDownloads.AppendElement(static_cast<WebKitDownload*>(g_object_ref(download)));
+  g_signal_connect(download, "decide-destination", G_CALLBACK(+[](WebKitDownload* download,
+    const char* filename, gpointer data) -> gboolean {
+      RefPtr<WebKitContentView> self = static_cast<WebKitContentView*>(data);
+      g_object_ref(download); // A modal XUL picker may destroy the owning tab.
+      RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
+      info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("filename"), nsDependentCString(filename));
+      info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("path"), EmptyCString());
+      self->Notify("content-view-download-request", static_cast<nsIWritablePropertyBag2*>(info));
+      nsAutoCString path;
+      info->GetPropertyAsAUTF8String(NS_LITERAL_STRING("path"), path);
+      if (!self->mHost || path.IsEmpty()) webkit_download_cancel(download);
+      else {
+        // The XUL save picker has already confirmed replacement, if needed.
+        webkit_download_set_allow_overwrite(download, TRUE);
+        webkit_download_set_destination(download, path.get());
+      }
+      g_object_unref(download);
+      return TRUE;
+    }), this);
+  g_signal_connect(download, "failed", G_CALLBACK(+[](WebKitDownload* download,
+    GError* error, gpointer) {
+      g_object_set_data_full(G_OBJECT(download), "basilisk-error", g_strdup(error->message), g_free);
+    }), this);
+  g_signal_connect(download, "finished", G_CALLBACK(+[](WebKitDownload* download, gpointer data) {
+    RefPtr<WebKitContentView> self = static_cast<WebKitContentView*>(data);
+    self->mDownloads.RemoveElement(download);
+    g_signal_handlers_disconnect_by_data(download, self.get());
+    RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
+    const char* path = webkit_download_get_destination(download);
+    const char* error = static_cast<const char*>(g_object_get_data(G_OBJECT(download), "basilisk-error"));
+    const char* uri = webkit_uri_request_get_uri(webkit_download_get_request(download));
+    info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("uri"), nsDependentCString(uri ? uri : ""));
+    info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("path"), nsDependentCString(path ? path : ""));
+    info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("error"), nsDependentCString(error ? error : ""));
+    self->Notify("content-view-download-finished", static_cast<nsIWritablePropertyBag2*>(info));
+    g_object_unref(download);
+  }), this);
 }
 NS_IMETHODIMP WebKitContentView::Blur()
 {

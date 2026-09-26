@@ -17,7 +17,7 @@ struct WPEHost {
   void (*chromeCommand)(const char*, void*);
   void* chromeData;
 };
-WPEHost* wpe_host_new();
+WPEHost* wpe_host_new(WebKitNetworkSession* session = nullptr);
 void wpe_host_free(WPEHost* host);
 void wpe_host_resize(WPEHost* host, int width, int height);
 #endif

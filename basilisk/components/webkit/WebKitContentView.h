@@ -8,9 +8,11 @@
 #include "nsCOMPtr.h"
 #include "nsIObserver.h"
 #include "nsString.h"
+#include "nsTArray.h"
 
 struct WPEHost;
 struct _MozContainer;
+struct _WebKitDownload;
 
 class WebKitContentView final : public nsIWebContentView
 {
@@ -19,6 +21,7 @@ public:
   NS_DECL_NSIWEBCONTENTVIEW
   WebKitContentView() = default;
   void Notify(const char* topic, nsISupports* subject = nullptr);
+  void TrackDownload(_WebKitDownload* download);
 private:
   ~WebKitContentView();
   WPEHost* mHost = nullptr;
@@ -26,5 +29,6 @@ private:
   nsCOMPtr<nsIObserver> mListener;
   int32_t mBounds[4] = {0, 0, 1, 1};
   nsCString mLastError;
+  nsTArray<_WebKitDownload*> mDownloads;
 };
 #endif

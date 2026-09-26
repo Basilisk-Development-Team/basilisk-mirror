@@ -198,6 +198,7 @@ static gboolean Input(GtkWidget* area, GdkEvent* event, gpointer data)
           case GDK_KEY_l: case GDK_KEY_L: command = "location"; break;
           case GDK_KEY_t: case GDK_KEY_T: command = "new-tab"; break;
           case GDK_KEY_w: case GDK_KEY_W: command = "close-tab"; break;
+          case GDK_KEY_q: case GDK_KEY_Q: command = "quit"; break;
           case GDK_KEY_f: case GDK_KEY_F: command = "find"; break;
           case GDK_KEY_r: case GDK_KEY_R: command = "reload"; break;
           case GDK_KEY_Tab: command = "next-tab"; break;
@@ -253,7 +254,7 @@ static void ImportClipboard(GtkClipboard* systemClipboard, WPEClipboard* clipboa
     }, g_object_ref(clipboard));
 }
 
-WPEHost* wpe_host_new()
+WPEHost* wpe_host_new(WebKitNetworkSession* sharedSession)
 {
   if (!WPEGtk::Get().Available()) return nullptr;
   auto* host = g_new0(WPEHost, 1);
@@ -291,7 +292,8 @@ WPEHost* wpe_host_new()
     }), G_OBJECT(clipboard), G_CONNECT_DEFAULT);
   ImportClipboard(systemClipboard, clipboard);
   // Keep the experiment's cookies/storage separate and ephemeral.
-  auto* session = webkit_network_session_new_ephemeral();
+  auto* session = sharedSession ? WEBKIT_NETWORK_SESSION(g_object_ref(sharedSession)) :
+                                 webkit_network_session_new_ephemeral();
   host->webView = WEBKIT_WEB_VIEW(g_object_new(WEBKIT_TYPE_WEB_VIEW,
     "display", host->display, "network-session", session, nullptr));
   g_object_unref(session);
