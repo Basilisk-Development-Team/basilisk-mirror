@@ -54,3 +54,26 @@ runtime: ship its libraries, helpers and resources beneath the application;
 use relocatable $ORIGIN-relative lookup; remove build-tree runtime paths; copy
 dist/bin elsewhere and launch with no build-tree LD_LIBRARY_PATH; inspect every
 shipped ELF with ldd. This must preserve the disabled build's zero-WPE property.
+
+## Final Phase 3 validation
+
+Enabled and disabled builds pass. The disabled audit again inspected 30 ELF
+files with no WebKit/WPE dependencies, optional interfaces, components or chrome.
+The mechanical boundary audit and non-rendering mock pass. Regression fixtures
+A–F, routing, persistence/private isolation and mixed session restore pass.
+
+Lifecycle results: 100 native create/destroy cycles; 100 WPE→Gecko→WPE cycles;
+100 Gecko→WPE→Gecko cycles with installed extension/scripts/CSS; another 100
+filtered round trips with scripts/CSS; twenty filtered cross-window adoptions;
+twenty simultaneous filtered views; ten Inspector open/close cycles; test-owned
+WebProcess kill/recovery with policy enforcement verified after reload; Inspector
+owner closure; detach/close during navigation; shutdown with twenty active loads,
+filters, Inspector and extension. No test browser helper processes remained.
+No sanitizer was run. RSS was sampled during the native/filtered stress runs;
+this is a bounded smoke check, not proof of leak freedom.
+
+The routing fixture now waits for an HTTP URI before reading its host because
+replacement tabs deliberately begin at about:blank until registrations are ready.
+The destination-host assertion remains unchanged. Unmodified uBlock was retested:
+Gecko blocking/cosmetics pass; WebKit still needs its own portable extension
+adapter. The audit records missing events/policies and late shutdown errors.

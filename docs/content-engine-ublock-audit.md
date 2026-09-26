@@ -138,3 +138,13 @@ not a reason to patch upstream or pretend arbitrary Gecko scripts are portable.
 The permission-origin issue remains unchanged and denied. The Inspector's
 frontend-close notification/private-store configuration limitations are recorded
 separately in the Inspector documentation. No upstream source changes were made.
+
+Final unmodified-extension rerun after the portable policy implementation still
+shows the same Gecko success and WebKit blocking/cosmetic/page-store failures.
+That is expected without an extension adapter; the successful generic filter
+fixture is not presented as uBlock compatibility. The final forced-shutdown log
+also contains `settings.js:250` (null details) and `vapi-background.js:1592`
+(message sender no longer initialized). These late extension storage/message
+callbacks occur during harness shutdown; they were not present in the earlier
+UI sampling and are not evidence of a successful error-free extension lifetime.
+No extension-specific production workaround was introduced for them.

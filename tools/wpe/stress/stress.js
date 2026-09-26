@@ -55,6 +55,14 @@ async function run() {
   for (let n = 0; n < 20; n++) tabs.push(engines.open(base + (n % 2 ? "a" : "b"), false));
   await waitFor(() => tabs.every(tab => tab.linkedBrowser.contentTitle.startsWith("Page") && !tab.hasAttribute("busy")), "twenty loaded WPE tabs");
   check(engines.views.size == 20 && g.tabs.length == 21, "mixed tab counts");
+  for (let tab of tabs) await tab.linkedBrowser.contentAPI.setRequestRules("stress", [{
+    urlPrefix:base + "blocked-probe", resourceTypes:["fetch"]
+  }]);
+  async function checkPolicy(tab) {
+    check(await tab.linkedBrowser.contentAPI.executeScript("try { await fetch('" + base +
+      "blocked-probe'); return false; } catch (error) { return true; }") === true, "request policy lost");
+  }
+  for (let tab of tabs) await checkPolicy(tab);
   for (let tab of tabs) { g.selectedTab = tab; engines.layout(); }
   check(g.tabs[0].linkedBrowser.contentDocument.nodeType == 9, "Gecko remains live");
   dump("WPE-STRESS PASS twenty simultaneous WPE tabs and mixed tab switching\n");
@@ -94,6 +102,7 @@ async function run() {
     !tab.hasAttribute("busy"), "reload after process termination");
   await win.contentBridgeFixture.run(tab.linkedBrowser);
   dump("WPE-STRESS PASS process termination with Inspector, pending script rejection, reload and extension recovery\n");
+  await checkPolicy(tab);
   let other = win.OpenBrowserWindow();
   await waitFor(() => other.gBrowser && other.gBrowserInit.delayedStartupFinished, "other window");
   for (let n = 0; n < 10; n++) {
@@ -101,6 +110,7 @@ async function run() {
     await waitFor(() => tab.linkedBrowser.contentTitle.startsWith("Page") && !tab.hasAttribute("busy"), "adopt out");
     tab = g.adoptTab(tab, 1, true);
     await waitFor(() => tab.linkedBrowser.contentTitle.startsWith("Page") && !tab.hasAttribute("busy"), "adopt back");
+    await checkPolicy(tab);
   }
   other.close();
   let detached = g.replaceTabWithWindow(tab);
