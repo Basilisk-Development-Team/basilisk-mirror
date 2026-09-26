@@ -8,10 +8,10 @@ interface nsIObserver;
 /** Experimental chrome-only content view. No Gecko DOM/docshell contract.
  * All calls and callbacks occur on the main thread. The owner must destroy()
  * on window unload. Coordinates are device pixels, relative to
- * the chrome window's client area. Only an unobscured rectangular host in a
- * dedicated chrome window is supported initially.
+ * the chrome window's client area. The chrome owner manages tab visibility
+ * and must keep the native host inside its content rectangle.
  */
-[scriptable, uuid(bf78b1c3-787d-48bb-810c-9d5d98eac5ce)]
+[scriptable, uuid(c7a5b598-2819-4e3d-b82d-64d81f29430b)]
 interface nsIWebContentView : nsISupports
 {
   /** listener topics: content-view-state (read state getters) and
@@ -37,4 +37,15 @@ interface nsIWebContentView : nsISupports
   readonly attribute boolean canGoForward;
   readonly attribute AUTF8String currentURI;
   readonly attribute AUTF8String title;
+  readonly attribute AUTF8String engineId;
+  readonly attribute boolean loading;
+  readonly attribute boolean focused;
+  readonly attribute AUTF8String lastError;
+  attribute double zoom;
+  attribute boolean muted;
+  readonly attribute boolean audioPlaying;
+  /** Plain-text editing commands: copy, cut, paste, selectAll. */
+  void edit(in AUTF8String command);
+  void find(in AUTF8String text, in boolean backwards, in boolean caseSensitive);
+  void clearFind();
 };

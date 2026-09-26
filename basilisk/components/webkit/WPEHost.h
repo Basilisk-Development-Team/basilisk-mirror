@@ -14,6 +14,8 @@ struct WPEHost {
   WPEToplevel* toplevel;
   WebKitWebView* webView;
   WPEView* view; // borrowed from webView
+  void (*chromeCommand)(const char*, void*);
+  void* chromeData;
 };
 WPEHost* wpe_host_new();
 void wpe_host_free(WPEHost* host);

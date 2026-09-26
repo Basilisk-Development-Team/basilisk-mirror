@@ -39,6 +39,35 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
   NS_ENSURE_TRUE(mHost, NS_ERROR_FAILURE);
   mContainer = MOZ_CONTAINER(container);
   mListener = listener;
+  mHost->chromeData = this;
+  mHost->chromeCommand = [](const char* command, void* data) {
+    RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
+    info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("command"), nsDependentCString(command));
+    static_cast<WebKitContentView*>(data)->Notify("content-view-command",
+      static_cast<nsIWritablePropertyBag2*>(info));
+  };
+  mLastError.Truncate();
+  for (const char* signal : {"notify::is-loading", "notify::is-playing-audio", "notify::is-muted"})
+    g_signal_connect(mHost->webView, signal, G_CALLBACK(+[](GObject*, GParamSpec*, gpointer data) {
+      static_cast<WebKitContentView*>(data)->Notify("content-view-state");
+    }), this);
+  g_signal_connect(mHost->webView, "load-failed",
+    G_CALLBACK(+[](WebKitWebView*, WebKitLoadEvent, const char*, GError* error, gpointer data) -> gboolean {
+      auto* self = static_cast<WebKitContentView*>(data);
+      self->mLastError.Assign(error->message);
+      self->Notify("content-view-state");
+      return FALSE;
+    }), this);
+  g_signal_connect(mHost->webView, "create",
+    G_CALLBACK(+[](WebKitWebView*, WebKitNavigationAction* action, gpointer data) -> WebKitWebView* {
+      RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
+      const char* uri = webkit_uri_request_get_uri(webkit_navigation_action_get_request(action));
+      info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("uri"), nsDependentCString(uri ? uri : ""));
+      info->SetPropertyAsBool(NS_LITERAL_STRING("userGesture"), webkit_navigation_action_is_user_gesture(action));
+      static_cast<WebKitContentView*>(data)->Notify("content-view-new-window",
+        static_cast<nsIWritablePropertyBag2*>(info));
+      return nullptr; // Only XUL may create tabs/windows; no unmanaged WPE views.
+    }), this);
   g_signal_connect(mHost->webView, "notify::uri", G_CALLBACK(+[](GObject*, GParamSpec*, gpointer data) {
     static_cast<WebKitContentView*>(data)->Notify("content-view-state");
   }), this);
@@ -54,7 +83,9 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
     }), this);
   g_signal_connect(mHost->webView, "web-process-terminated",
     G_CALLBACK(+[](WebKitWebView*, WebKitWebProcessTerminationReason, gpointer data) {
-      static_cast<WebKitContentView*>(data)->Notify("content-view-process-terminated");
+      auto* self = static_cast<WebKitContentView*>(data);
+      self->mLastError.AssignLiteral("The web content process terminated. Reload to retry.");
+      self->Notify("content-view-process-terminated");
     }), this);
   g_signal_connect(mHost->webView, "context-menu",
     G_CALLBACK(+[](WebKitWebView* view, WebKitContextMenu* menu,
@@ -173,12 +204,14 @@ NS_IMETHODIMP WebKitContentView::LoadURI(const nsACString& value)
   NS_ENSURE_TRUE(http || https || value.EqualsLiteral("about:blank"), NS_ERROR_DOM_BAD_URI);
   nsAutoCString spec;
   uri->GetSpec(spec);
+  mLastError.Truncate();
   webkit_web_view_load_uri(mHost->webView, spec.get());
   return NS_OK;
 }
 NS_IMETHODIMP WebKitContentView::Reload()
 {
   NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
+  mLastError.Truncate();
   webkit_web_view_reload(mHost->webView);
   return NS_OK;
 }
@@ -214,6 +247,60 @@ NS_IMETHODIMP WebKitContentView::GetTitle(nsACString& value)
 {
   const char* title = mHost ? webkit_web_view_get_title(mHost->webView) : nullptr;
   value.Assign(title ? title : "");
+  return NS_OK;
+}
+
+NS_IMETHODIMP WebKitContentView::GetEngineId(nsACString& value)
+{ value.AssignLiteral("webkit"); return NS_OK; }
+NS_IMETHODIMP WebKitContentView::GetLoading(bool* value)
+{ *value = mHost && webkit_web_view_is_loading(mHost->webView); return NS_OK; }
+NS_IMETHODIMP WebKitContentView::GetFocused(bool* value)
+{ *value = mHost && gtk_widget_has_focus(mHost->area); return NS_OK; }
+NS_IMETHODIMP WebKitContentView::GetLastError(nsACString& value)
+{ value = mLastError; return NS_OK; }
+NS_IMETHODIMP WebKitContentView::GetZoom(double* value)
+{ *value = mHost ? webkit_web_view_get_zoom_level(mHost->webView) : 1; return NS_OK; }
+NS_IMETHODIMP WebKitContentView::SetZoom(double value)
+{
+  NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
+  NS_ENSURE_TRUE(value >= 0.1 && value <= 10, NS_ERROR_INVALID_ARG);
+  webkit_web_view_set_zoom_level(mHost->webView, value);
+  return NS_OK;
+}
+NS_IMETHODIMP WebKitContentView::GetMuted(bool* value)
+{ *value = mHost && webkit_web_view_get_is_muted(mHost->webView); return NS_OK; }
+NS_IMETHODIMP WebKitContentView::SetMuted(bool value)
+{
+  NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
+  webkit_web_view_set_is_muted(mHost->webView, value);
+  return NS_OK;
+}
+NS_IMETHODIMP WebKitContentView::GetAudioPlaying(bool* value)
+{ *value = mHost && webkit_web_view_is_playing_audio(mHost->webView); return NS_OK; }
+NS_IMETHODIMP WebKitContentView::Edit(const nsACString& command)
+{
+  NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
+  const char* native = command.EqualsLiteral("copy") ? "Copy" :
+    command.EqualsLiteral("cut") ? "Cut" : command.EqualsLiteral("paste") ? "Paste" :
+    command.EqualsLiteral("selectAll") ? "SelectAll" : nullptr;
+  NS_ENSURE_TRUE(native, NS_ERROR_INVALID_ARG);
+  webkit_web_view_execute_editing_command(mHost->webView, native);
+  return NS_OK;
+}
+NS_IMETHODIMP WebKitContentView::Find(const nsACString& text, bool backwards, bool caseSensitive)
+{
+  NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
+  guint options = WEBKIT_FIND_OPTIONS_WRAP_AROUND;
+  if (backwards) options |= WEBKIT_FIND_OPTIONS_BACKWARDS;
+  if (!caseSensitive) options |= WEBKIT_FIND_OPTIONS_CASE_INSENSITIVE;
+  webkit_find_controller_search(webkit_web_view_get_find_controller(mHost->webView),
+    PromiseFlatCString(text).get(), options, G_MAXUINT);
+  return NS_OK;
+}
+NS_IMETHODIMP WebKitContentView::ClearFind()
+{
+  NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
+  webkit_find_controller_search_finish(webkit_web_view_get_find_controller(mHost->webView));
   return NS_OK;
 }
 

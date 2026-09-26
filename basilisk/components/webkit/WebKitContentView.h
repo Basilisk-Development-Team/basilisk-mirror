@@ -7,6 +7,7 @@
 #include "nsIWebContentView.h"
 #include "nsCOMPtr.h"
 #include "nsIObserver.h"
+#include "nsString.h"
 
 struct WPEHost;
 struct _MozContainer;
@@ -24,5 +25,6 @@ private:
   _MozContainer* mContainer = nullptr;
   nsCOMPtr<nsIObserver> mListener;
   int32_t mBounds[4] = {0, 0, 1, 1};
+  nsCString mLastError;
 };
 #endif
