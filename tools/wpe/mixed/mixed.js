@@ -3,6 +3,14 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 "use strict";
 Components.utils.import("resource://gre/modules/Services.jsm");
+let chromeErrors = [];
+let consoleListener = { observe(message) {
+  if (!(message instanceof Components.interfaces.nsIScriptError)) return;
+  if (message.flags & Components.interfaces.nsIScriptError.warningFlag) return;
+  if (message.sourceName.startsWith("chrome://browser/content/"))
+    chromeErrors.push(message.message);
+} };
+Services.console.registerListener(consoleListener);
 window.addEventListener("load", function() {
   let base = "http://127.0.0.1:" + Services.prefs.getIntPref("wpe.test.port") + "/";
   let browserWindow = window.openDialog("chrome://browser/content/browser.xul", "_blank",
@@ -19,6 +27,7 @@ window.addEventListener("load", function() {
         win.ContentEngines.open(base + "b", false);
         Services.scriptloader.loadSubScript("chrome://browser/content/webkit/wpe-mixed-operations.js", win);
         win.testMixedTabs().then(result => {
+          if (chromeErrors.length) { fail(new Error(chromeErrors.join("\n"))); return; }
           dump("WPE-MIXED PASS " + JSON.stringify(result) + "\n");
           Services.startup.quit(Components.interfaces.nsIAppStartup.eForceQuit);
         }, fail);

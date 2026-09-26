@@ -279,6 +279,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
           // Strike out the "https" part if mixed active content is loaded.
           if (this.getAttribute("pageproxystate") == "valid" &&
               value.startsWith("https:") &&
+              gBrowser.securityUI &&
               gBrowser.securityUI.state &
                 Ci.nsIWebProgressListener.STATE_LOADED_MIXED_ACTIVE_CONTENT) {
             let range = document.createRange();

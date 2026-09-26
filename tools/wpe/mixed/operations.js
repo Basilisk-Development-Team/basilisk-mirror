@@ -17,6 +17,10 @@ function testMixedTabs() { return new Promise(function(resolve, reject) {
         case 0:
           if (!view || view.native.loading || !title.startsWith('Page A')) return;
           check(browser.contentDocument === null && browser.contentWindow === null, 'foreign DOM exposed');
+          // Exercise HTTPS formatting without depending on an external server.
+          URLBarSetURI(Services.io.newURI('https://example.com/', null, null));
+          gURLBar.formatValue();
+          ContentEngines.refresh();
           gBrowser.loadURI(base + 'b'); phase++; break;
         case 1:
           if (view.native.loading || !title.startsWith('Page B')) return;
