@@ -1,5 +1,9 @@
 # Phase 4: legacy extension compatibility boundary
 
+See the [service-semantics reassessment](service-semantics.md) for a correction to
+the overly broad Sandbox/window conclusion below. It separates representable
+service purposes from unchanged-callsite constraints, and timing from metadata.
+
 This investigation starts from commit 09efebd. WebRTC, permissions, Gecko/UXP and
 upstream WebKit are outside its modification scope. The target is the clean
 installed uBlock Origin 1.16.6.1 XPI with SHA-256

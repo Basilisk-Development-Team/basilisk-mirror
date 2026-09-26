@@ -500,5 +500,6 @@
       "status": "existing-native",
       "generic_equivalent": "Existing native chrome lifetime/interface handling stays unchanged; alternate DOM/request callback subjects are not fabricated."
     }
-  ]
+  ],
+  "service_semantics_reassessment": "service-semantics.md: original object-callsite classifications must not be read as intrinsic impossibility of service purposes; see A-F reassessment, including no evalInSandbox callers."
 }
