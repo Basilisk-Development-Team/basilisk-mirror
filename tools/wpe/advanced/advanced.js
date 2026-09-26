@@ -73,7 +73,8 @@ async function run() {
   tab.linkedBrowser.loadURI(base + "b");
   await waitFor(() => engines.get() && g.selectedBrowser.contentTitle.startsWith("Page B"), "cleared override");
   engines.get().loadURI(base + "redirect-host");
-  await waitFor(() => !engines.get() && g.selectedBrowser.currentURI.host == "localhost" &&
+  await waitFor(() => !engines.get() && g.selectedBrowser.currentURI.schemeIs("http") &&
+    g.selectedBrowser.currentURI.host == "localhost" &&
     g.selectedBrowser.contentTitle.startsWith("Page B"), "redirect to Gecko host");
   await g.selectedBrowser.contentAPI.executeScript("let f=document.createElement('iframe');f.src=" + JSON.stringify(base + "a") + ";document.body.appendChild(f);");
   await new Promise(resolve => setTimeout(resolve, 1000));
