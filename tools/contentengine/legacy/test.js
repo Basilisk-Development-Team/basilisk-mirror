@@ -32,6 +32,7 @@ async function run(){
  await waitFor(()=>echo.length==1,'incoming message');check(echo[0].data.data.ok,'message payload');
  await rejects(a.loadSubScript(win.legacyFixture.uri('privileged.js'),one),'privileged source accepted');
  await rejects(a.executeScript(one,"throw Error('labelled failure')"),'script failure ignored');
+ await rejects(a.executeScript(one,"legacyContent.sendAsyncMessage('oversize','漢'.repeat(200000));"),'UTF-8 queue limit missing');
  check(await a.executeScript(one,'return fixtureOrder.length')==2,'queue stopped after error');
  let frames=await api.getFrames(), child=await a.createTarget(frames.find(f=>!f.isTopFrame).frameId);
  await api.executeScript('document.querySelectorAll("iframe").forEach(f=>f.remove());');
@@ -74,6 +75,16 @@ async function run(){
  phaseMessages.length=0;browser.reload();
  await waitFor(()=>phaseMessages.length==3,'registrations after process recovery');
  check(await a.executeScript(phaseMessages[0].target,"return phaseOrder.join(',')")=='start,end','recovered registration world differs from execution world');
+ await a.setDefaultData({value:'registered',revision:2});
+ check(await a.executeScript(phaseMessages[0].target,"return legacyContent.getData('revision')")==2,'live snapshot update');
+ browser.loadURI(base+'/legacy-slow');
+ await waitFor(async()=> (await api.getFrames()).some(frame=>frame.documentURI.includes('/legacy-slow')),'slow document');
+ let duringLoad=await a.createTarget();
+ check(await a.executeScript(duringLoad,"return legacyContent.getData('revision')")==2,'future snapshot update');
+ check(await a.executeScript(duringLoad,'return document.readyState')=='loading','slow fixture already finished');
+ await a.executeScript(duringLoad,"document.title='Progress while loading';");await delay(100);
+ check(await a.executeScript(duringLoad,"return phaseOrder[0]")=='start','title progress invalidated same document target');
+ await waitFor(()=>!tab.hasAttribute('busy'),'slow completion');
  await a.removeCSS(css);
  for(let token of registrations)await a.removeDelayedFrameScript(token);
  browser.loadURI(base+'/child?removed');
@@ -81,6 +92,19 @@ async function run(){
  fresh=await a.createTarget();
  check(await a.executeScript(fresh,'return typeof phaseOrder')=='undefined','registration leaked');
  check(await a.executeScript(fresh,"return getComputedStyle(document.getElementById('target')).color")!='rgb(4, 5, 6)','CSS leaked');
+ let privateWindow=win.OpenBrowserWindow({private:true});
+ await waitFor(()=>privateWindow.legacyFixture&&privateWindow.ContentEngines,'private window');
+ let privateTab=privateWindow.ContentEngines.open(base+'/child');
+ await waitFor(()=>privateTab.linkedBrowser.contentTitle=='Content fixture'&&!privateTab.hasAttribute('busy'),'private content');
+ let privateContext=await privateWindow.legacyFixture.open(privateTab.linkedBrowser),privateTarget=await privateContext.createTarget();
+ await privateContext.setData(privateTarget,{value:'private snapshot'});
+ check(await a.executeScript(fresh,"return legacyContent.getData('value')")=='registered','private snapshot crossed context');
+ await rejects(privateContext.executeScript(fresh,'return 1'),'cross-window target accepted');
+ privateWindow.close();await waitFor(()=>privateWindow.closed,'private close');
+ // Services belong to their chrome window; test the retained opaque handle
+ // through a live service, not a Promise created in a discarded JS global.
+ await rejects(a.executeScript(privateTarget,'return 1'),'closed window target accepted');
+ dump('LEGACY PASS in-flight progress preserves targets; private/cross-window ownership and window teardown\n');
  let cycleStart=Date.now();
  for(let cycle=0;cycle<100;cycle++){
   let context=await win.legacyFixture.open(browser),target=await context.createTarget();

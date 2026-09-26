@@ -52,7 +52,12 @@ class Handler(BaseHTTPRequestHandler):
    try:self.wfile.write(data)
    except (BrokenPipeError,ConnectionResetError):pass
    return
+  if self.path.startswith('/legacy-slow-script'):
+   import time
+   time.sleep(2)
+   self.send_response(200);self.send_header('Content-Type','application/javascript');self.end_headers();return
   body='<!doctype html><title>Content fixture</title><body><div id="target">Target</div><script src="/page-script"></script>'
+  if self.path.startswith('/legacy-slow'):body+='<script src="/legacy-slow-script"></script>'
   if self.path.startswith('/page-script'): body="document.body.dataset.pageStart=String(document.documentElement.getAttribute('data-start'));"
   elif self.path.startswith('/frames'):
    body += '<iframe src="/child"></iframe><iframe src="http://localhost:%d/child"></iframe>'%self.server.server_port
@@ -95,7 +100,7 @@ try:
    for name in ['install.rdf','bootstrap.js']:
     path=second/name
     path.write_text(path.read_text().replace('legacy-runtime-test','legacy-other-test').replace('legacyFixture','legacyOtherFixture'))
-  prefs={'extensions.autoDisableScopes':0,'extensions.enabledScopes':15,'browser.shell.checkDefaultBrowser':False,'browser.dom.window.dump.enabled':True,'content.test.port':server.server_port,'content.test.cycles':a.cycles,'content.test.external':a.external}
+  prefs={'browser.tabs.warnOnClose':False,'extensions.autoDisableScopes':0,'extensions.enabledScopes':15,'browser.shell.checkDefaultBrowser':False,'browser.dom.window.dump.enabled':True,'content.test.port':server.server_port,'content.test.cycles':a.cycles,'content.test.external':a.external}
   (profile/'user.js').write_text('\n'.join('user_pref(%s,%s);'%(json.dumps(k),json.dumps(v)) for k,v in prefs.items()))
   env={k:v for k,v in os.environ.items() if not k.startswith(('LD_','WEBKIT_','WPE_','GST_'))}
   env['GST_REGISTRY_1_0']=str(root/'gst-registry.bin')

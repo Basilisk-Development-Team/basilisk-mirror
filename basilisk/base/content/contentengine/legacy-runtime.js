@@ -27,7 +27,7 @@ var LegacyXULContentRuntime = (() => {
         if (typeof name != 'string' || name.length > 128 || outgoing.length >= 256) throw Error('Invalid message or full queue');
         const serialized = JSON.stringify(data);
         if (typeof serialized != 'string') throw Error('Invalid message');
-        const size=serialized.length+name.length+128;
+        const size=(serialized.length+name.length+128)*3; // Conservative UTF-8 bound.
         if(outgoingBytes+size>524288)throw Error('Message queue byte limit');
         outgoingBytes+=size;outgoing.push({name, data:JSON.parse(serialized), size});
       },
@@ -48,19 +48,22 @@ var LegacyXULContentRuntime = (() => {
       this.browser = browser; this.addonId = addonId; this.closed = false; this.suspended=false;
       this.owned = new Set(); this.listeners = new Map(); this.progress = new Set();
       this.client=browser.contentAPI; this.view=ContentEngines.get(browser); this.world=uuid();
+      this.loading=!!this.view.native.loading;
       this.registrations=new Map(); this.styles=new Set(); this.counter=1;
       this.defaults="{}"; this.defaultVersion=1; this.registrationQueue=Promise.resolve();
       this.discovering=false; this.discoveryTimer=setInterval(()=>this.discover(),500);
       this.ready=this.client.prepareWorld(this.world);
       this.state = event => {
         if (event.target != this.browser) return;
-        if(event.detail.loading)this.suspended=false;
+        const started=event.detail.loading&&!this.loading;
+        this.loading=event.detail.loading;
+        if(this.loading)this.suspended=false;
         for (let listener of this.progress) {
           try {listener(Object.freeze(Object.assign({}, event.detail)));} catch (error) {Cu.reportError(error);}
         }
         if (ContentEngines.get(browser) !== this.view) {this.close();return;}
         for (let target of this.owned) {
-          if (ContentEngines.get(browser) !== target.view || event.detail.loading) this.invalidate(target);
+          if (ContentEngines.get(browser) !== target.view || started) this.invalidate(target);
         }
       };
       this.failure=()=>{this.suspended=true;for(let target of Array.from(this.owned))this.invalidate(target);};
