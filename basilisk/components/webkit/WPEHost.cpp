@@ -192,6 +192,30 @@ static gboolean Input(GtkWidget* area, GdkEvent* event, gpointer data)
     case GDK_KEY_PRESS:
     case GDK_KEY_RELEASE: {
       auto& e = event->key;
+      const char* command = nullptr;
+      if (e.state & GDK_CONTROL_MASK) {
+        switch (e.keyval) {
+          case GDK_KEY_l: case GDK_KEY_L: command = "location"; break;
+          case GDK_KEY_t: case GDK_KEY_T: command = "new-tab"; break;
+          case GDK_KEY_w: case GDK_KEY_W: command = "close-tab"; break;
+          case GDK_KEY_f: case GDK_KEY_F: command = "find"; break;
+          case GDK_KEY_r: case GDK_KEY_R: command = "reload"; break;
+          case GDK_KEY_Tab: command = "next-tab"; break;
+          case GDK_KEY_ISO_Left_Tab: command = "previous-tab"; break;
+          case GDK_KEY_plus: case GDK_KEY_equal: command = "zoom-in"; break;
+          case GDK_KEY_minus: command = "zoom-out"; break;
+          case GDK_KEY_0: command = "zoom-reset"; break;
+        }
+        if (e.keyval == GDK_KEY_Tab && (e.state & GDK_SHIFT_MASK)) command = "previous-tab";
+      } else if (e.state & GDK_MOD1_MASK) {
+        if (e.keyval == GDK_KEY_Left) command = "back";
+        if (e.keyval == GDK_KEY_Right) command = "forward";
+      } else if (e.keyval == GDK_KEY_F5) command = "reload";
+      if (command && host->chromeCommand) {
+        // The command may close the tab and free host. Do not touch it again.
+        if (e.type == GDK_KEY_PRESS) host->chromeCommand(command, host->chromeData);
+        return TRUE;
+      }
       input = wpe_event_keyboard_new(e.type == GDK_KEY_PRESS ?
         WPE_EVENT_KEYBOARD_KEY_DOWN : WPE_EVENT_KEYBOARD_KEY_UP, host->view,
         WPE_INPUT_SOURCE_KEYBOARD, e.time, Modifiers(e.state), e.hardware_keycode, e.keyval);
@@ -214,6 +238,21 @@ static gboolean Input(GtkWidget* area, GdkEvent* event, gpointer data)
   return TRUE;
 }
 
+static void ImportClipboard(GtkClipboard* systemClipboard, WPEClipboard* clipboard)
+{
+  gtk_clipboard_request_text(systemClipboard,
+    +[](GtkClipboard*, const gchar* text, gpointer data) {
+      auto* clipboard = WPE_CLIPBOARD(data);
+      auto* content = wpe_clipboard_content_new();
+      if (text) wpe_clipboard_content_set_text(content, text);
+      g_object_set_data(G_OBJECT(clipboard), "basilisk-importing", GINT_TO_POINTER(1));
+      wpe_clipboard_set_content(clipboard, content);
+      g_object_set_data(G_OBJECT(clipboard), "basilisk-importing", nullptr);
+      wpe_clipboard_content_unref(content);
+      g_object_unref(clipboard);
+    }, g_object_ref(clipboard));
+}
+
 WPEHost* wpe_host_new()
 {
   if (!WPEGtk::Get().Available()) return nullptr;
@@ -234,6 +273,23 @@ WPEHost* wpe_host_new()
   wpe_display_set_available_input_devices(host->display,
     static_cast<WPEAvailableInputDevices>(WPE_AVAILABLE_INPUT_DEVICE_MOUSE |
                                          WPE_AVAILABLE_INPUT_DEVICE_KEYBOARD));
+  // WPE's default platform clipboard is local-only. Mirror plain text through
+  // GTK's system clipboard, with asynchronous imports and no host raw pointer
+  // in callbacks. Rich clipboard formats can be added at this boundary later.
+  auto* clipboard = wpe_display_get_clipboard(host->display);
+  auto* systemClipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
+  g_signal_connect(clipboard, "notify::change-count",
+    G_CALLBACK(+[](WPEClipboard* clipboard, GParamSpec*, gpointer) {
+      if (g_object_get_data(G_OBJECT(clipboard), "basilisk-importing")) return;
+      auto* content = wpe_clipboard_get_content(clipboard);
+      const char* text = content ? wpe_clipboard_content_get_text(content) : nullptr;
+      if (text) WPEGtk::Get().clipboardSetText(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), text, -1);
+    }), nullptr);
+  g_signal_connect_object(systemClipboard, "owner-change",
+    G_CALLBACK(+[](GtkClipboard* systemClipboard, GdkEventOwnerChange*, WPEClipboard* clipboard) {
+      ImportClipboard(systemClipboard, clipboard);
+    }), G_OBJECT(clipboard), G_CONNECT_DEFAULT);
+  ImportClipboard(systemClipboard, clipboard);
   // Keep the experiment's cookies/storage separate and ephemeral.
   auto* session = webkit_network_session_new_ephemeral();
   host->webView = WEBKIT_WEB_VIEW(g_object_new(WEBKIT_TYPE_WEB_VIEW,
