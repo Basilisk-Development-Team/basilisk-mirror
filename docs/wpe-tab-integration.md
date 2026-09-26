@@ -1,5 +1,10 @@
 # WPE tab integration
 
+This records the first mixed-tab milestone. For the subsequent persistent
+storage, session restoration and adoption work, see
+[Persistent WPE integration](wpe-persistent-integration.md). Its implemented
+features supersede the ephemeral-storage and adoption limitations below.
+
 ## Inspected boundary and incremental plan
 
 The working native host remains authoritative: WPEPlatform owns its display,
