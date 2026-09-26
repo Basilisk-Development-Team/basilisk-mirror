@@ -154,6 +154,7 @@ browser.jar:
         content/browser/contentengine/engine-routing.js      (content/contentengine/engine-routing.js)
         content/browser/contentengine/engine-devtools.js     (content/contentengine/engine-devtools.js)
         content/browser/contentengine/engine-fullscreen.js   (content/contentengine/engine-fullscreen.js)
+        content/browser/contentengine/legacy-runtime.js      (content/contentengine/legacy-runtime.js)
         content/browser/contentengine/engine-scripts.js      (content/contentengine/engine-scripts.js)
         content/browser/contentengine/gecko-content.js       (content/contentengine/gecko-content.js)
         content/browser/contentengine/inspector.xul          (content/contentengine/inspector.xul)

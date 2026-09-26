@@ -300,6 +300,7 @@ class ExternalContentBrowser {
       return;
     }
     if (topic == "content-view-process-terminated") {
+      this.browser.dispatchEvent(new CustomEvent("ContentEngineProcessTerminated", {bubbles:true}));
       if (ContentEngineFullscreen.view == this) ContentEngineFullscreen.exit();
       let client = ContentEngineScripts.clients.get(this.browser);
       if (client) for (let id of Array.from(client.pending.keys()))
