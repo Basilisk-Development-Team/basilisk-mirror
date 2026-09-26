@@ -22,6 +22,31 @@ var ContentEngines = {
     window.controllers.insertControllerAt(0, ContentEngineEditController);
     gBrowser.tabContainer.addEventListener("TabSelect", this);
     gBrowser.tabContainer.addEventListener("TabClose", this);
+    // Native children belong to their chrome window. Until adoption can
+    // recreate a backend safely, do not let the Gecko frame-loader swap path
+    // move just the empty shell and strand a live WPE view.
+    gBrowser.tabContainer.addEventListener("dragstart", event => {
+      let tab = event.target.closest("tab");
+      if (tab && this.get(tab.linkedBrowser)) event.preventDefault();
+    }, true);
+    document.getElementById("tabContextMenu").addEventListener("popupshowing", () => {
+      if (!this.get(TabContextMenu.contextTab.linkedBrowser)) return;
+      let saved = ["context_duplicateTab", "context_openTabInWindow"].map(id => {
+        let item = document.getElementById(id);
+        let disabled = item.getAttribute("disabled");
+        item.setAttribute("disabled", "true");
+        return [item, disabled];
+      });
+      let menu = document.getElementById("tabContextMenu");
+      let restore = () => {
+        for (let [item, disabled] of saved) {
+          if (disabled) item.setAttribute("disabled", disabled);
+          else item.removeAttribute("disabled");
+        }
+        menu.removeEventListener("popuphidden", restore);
+      };
+      menu.addEventListener("popuphidden", restore);
+    });
     window.addEventListener("resize", this);
     window.addEventListener("MozAfterPaint", this);
     window.addEventListener("unload", this);
@@ -61,11 +86,20 @@ var ContentEngines = {
     }
   },
   switchEngine(tab, engine) {
+    if (!["gecko", "webkit"].includes(engine)) throw new Error("Unknown content engine");
     if (this.engineFor(tab.linkedBrowser) == engine) {
       tab.linkedBrowser.reload();
       return tab;
     }
     let uri = tab.linkedBrowser.currentURI.spec;
+    if (tab.closing || tab._pendingPermitUnload) return tab;
+    if (this.engineFor(tab.linkedBrowser) == "gecko") {
+      tab._pendingPermitUnload = true;
+      let result;
+      try { result = tab.linkedBrowser.permitUnload(); }
+      finally { delete tab._pendingPermitUnload; }
+      if (tab.closing || (!result.timedOut && !result.permitUnload)) return tab;
+    }
     // Replace the old content/frame-loader lifetime as a unit. Preserve tab
     // position, selection and pinning, but never transfer live page state.
     let selected = tab == gBrowser.selectedTab;
@@ -74,7 +108,7 @@ var ContentEngines = {
     gBrowser.moveTabTo(replacement, tab._tPos);
     if (tab.pinned) gBrowser.pinTab(replacement);
     if (selected) gBrowser.selectedTab = replacement;
-    gBrowser.removeTab(tab, {animate: false});
+    gBrowser.removeTab(tab, {animate: false, skipPermitUnload: true});
     this.layout();
     return replacement;
   },
@@ -184,6 +218,10 @@ class ExternalContentBrowser {
   }
   observe(subject, topic) {
     if (this.destroyed) return;
+    if (topic.startsWith("content-view-download-")) {
+      ContentEngineDownloads.observe(this, topic, subject.QueryInterface(Ci.nsIWritablePropertyBag2));
+      return;
+    }
     if (topic.startsWith("content-view-find-")) {
       this.finder.result(topic == "content-view-find-found");
       return;
@@ -195,6 +233,7 @@ class ExternalContentBrowser {
         case "location": gURLBar.focus(); focusAndSelectUrlBar(); break;
         case "new-tab": BrowserOpenTab(); break;
         case "close-tab": gBrowser.removeCurrentTab(); break;
+        case "quit": goQuitApplication(); break;
         case "next-tab": gBrowser.tabContainer.advanceSelectedTab(1, true); break;
         case "previous-tab": gBrowser.tabContainer.advanceSelectedTab(-1, true); break;
         case "find": gFindBar.onFindCommand(); break;
@@ -258,4 +297,3 @@ class ExternalContentBrowser {
 }
 
 window.addEventListener("load", function() { ContentEngines.init(); });
-

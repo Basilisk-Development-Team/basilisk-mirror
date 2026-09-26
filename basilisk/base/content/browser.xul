@@ -93,7 +93,7 @@
       <menuitem id="context_reloadWebKit" label="Reload with WPE WebKit"
                 oncommand="ContentEngines.switchEngine(TabContextMenu.contextTab, 'webkit');"/>
       <menuitem id="context_newWebKit" label="New WPE WebKit Tab"
-                oncommand="ContentEngines.open('https://example.com/');"/>
+                oncommand="ContentEngines.open(); ContentEngines.get().native.blur(); focusAndSelectUrlBar();"/>
 #endif
       <menuitem id="context_toggleMuteTab" oncommand="TabContextMenu.contextTab.toggleMuteAudio();"/>
       <menuseparator/>

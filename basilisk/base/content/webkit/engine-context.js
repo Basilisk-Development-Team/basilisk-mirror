@@ -2,7 +2,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 "use strict";
-"use strict";
 
 // Reuse the existing contentAreaContextMenu markup and command identities.
 // This adapter consumes primitive hit-test data; it never calls Gecko DOM menu
@@ -37,7 +36,9 @@ var ContentEngineContext = {
       saved.push([item, item.hidden]);
       item.hidden = !visible.has(item.id);
     }
-    document.getElementById("context-bookmarkpage").hidden = true;
+    let bookmark = document.getElementById("context-bookmarkpage");
+    saved.push([bookmark, bookmark.hidden]);
+    bookmark.hidden = true;
     return {
       shouldDisplay: true,
       browser: view.browser,
@@ -61,7 +62,6 @@ var ContentEngineContext = {
       },
       hiding() {
         for (let [item, hidden] of saved) item.hidden = hidden;
-        document.getElementById("context-bookmarkpage").hidden = false;
         ContentEngineContext.active = null;
       }
     };
@@ -80,4 +80,3 @@ var ContentEngineEditController = {
   onEvent() {},
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIController])
 };
-
