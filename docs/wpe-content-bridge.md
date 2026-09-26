@@ -21,8 +21,8 @@ Opening/closing through Basilisk's command or the XUL window is supported.
 Upstream's WPE `platformCloseFrontendPageAndWindow()` releases its internal view
 without a public frontend-closed notification to the embedding host; its own
 frontend close control can therefore leave the XUL host window behind. The XUL
-window close remains available. Docking and frontend-close notification need
-upstream embedding support, not a private frontend patch.
+window close remains available. Frontend-close notification needs an upstream
+embedding API; no private frontend patch was introduced. Docking is not implemented.
 
 Private-mode Inspector is disabled: upstream's WPE inspector creates a persistent
 website data store outside the browser profile and provides no public way to
