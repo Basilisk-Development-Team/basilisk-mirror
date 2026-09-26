@@ -12,9 +12,9 @@ var ContentEngineSession = {
     gBrowser.tabContainer.addEventListener("SSTabRestoring", event => {
       let tab = event.target;
       tab._contentRestoring = true;
-      tab._contentRestoreURI = this.engine(tab) == "webkit" ?
+      tab._contentRestoreURI = this.engine(tab) != "gecko" ?
         SessionStore.getTabValue(tab, "basilisk.contentURI") : tab.linkedBrowser.currentURI.spec;
-      if (this.engine(tab) == "webkit")
+      if (this.engine(tab) != "gecko")
         tab.label = SessionStore.getTabValue(tab, "basilisk.contentTitle") ||
                     SessionStore.getTabValue(tab, "basilisk.contentURI") || "alternate content";
     });
@@ -23,17 +23,19 @@ var ContentEngineSession = {
   engine(tab) { return SessionStore.getTabValue(tab, "basilisk.contentEngine") || "gecko"; },
   identify(tab) {
     let browser = tab.linkedBrowser;
+    if (!Object.getOwnPropertyDescriptor(browser, "contentCapabilities"))
+      Object.defineProperty(browser, "contentCapabilities", {get: () => ContentEngines.capabilitiesFor(browser)});
     if (!Object.getOwnPropertyDescriptor(browser, "contentAPI"))
       Object.defineProperty(browser, "contentAPI", {get: () => ContentEngineScripts.forBrowser(browser)});
     if (!Object.getOwnPropertyDescriptor(browser, "contentEngine"))
       Object.defineProperty(browser, "contentEngine", {get: () =>
-        ContentEngines.get(browser) ? "webkit" : this.engine(tab)});
+        ContentEngines.get(browser) ? ContentEngines.get(browser).engineId : this.engine(tab)});
     if (!SessionStore.getTabValue(tab, "basilisk.contentEngine"))
       SessionStore.setTabValue(tab, "basilisk.contentEngine", "gecko");
   },
   save(view) {
     let state = {
-      contentEngine: "webkit",
+      contentEngine: view.engineId,
       contentURI: view.native.currentURI || view.requestedURI || "about:blank",
       contentTitle: view.native.title || "",
       contentZoom: String(view.native.zoom),
@@ -48,7 +50,7 @@ var ContentEngineSession = {
   restore(tab) {
     delete tab._contentRestoring;
     if (tab.closing) return;
-    if (this.engine(tab) != "webkit") {
+    if (this.engine(tab) == "gecko") {
       delete tab._contentRestoreURI;
       return;
     }
@@ -56,7 +58,7 @@ var ContentEngineSession = {
     let zoom = Number(SessionStore.getTabValue(tab, "basilisk.contentZoom")) || 1;
     let muted = SessionStore.getTabValue(tab, "basilisk.contentMuted") == "true";
     try {
-      let view = ContentEngines.attach(tab);
+      let view = ContentEngines.attach(tab, this.engine(tab));
       view.native.zoom = Math.max(0.1, Math.min(10, zoom));
       view.native.muted = muted;
       view.loadURI(uri);

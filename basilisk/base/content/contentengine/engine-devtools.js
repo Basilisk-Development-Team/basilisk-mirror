@@ -6,11 +6,11 @@ var ContentEngineDevTools = {
   open(browser = gBrowser.selectedBrowser) {
     let view = ContentEngines.get(browser);
     if (!view) return gDevToolsBrowser.toggleToolboxCommand(gBrowser);
-    if (PrivateBrowsingUtils.isWindowPrivate(window)) {
+    if (!ContentEngines.supports(browser, Ci.nsIWebContentView.CAP_DEVTOOLS)) {
       let box = gBrowser.getNotificationBox(browser);
-      if (!box.getNotificationWithValue("wpe-private-inspector"))
-        box.appendNotification("WebKit Inspector is unavailable in private windows because upstream Inspector storage is persistent.",
-          "wpe-private-inspector", null, box.PRIORITY_INFO_MEDIUM, []);
+      if (!box.getNotificationWithValue("content-devtools-unavailable"))
+        box.appendNotification("Developer tools are unavailable for this content view.",
+          "content-devtools-unavailable", null, box.PRIORITY_INFO_MEDIUM, []);
       return;
     }
     view.native.openDeveloperTools();

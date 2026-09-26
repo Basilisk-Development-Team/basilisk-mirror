@@ -11,9 +11,25 @@ interface nsIContentViewObserver;
  * the chrome window's client area. The chrome owner manages tab visibility
  * and must keep the native host inside its content rectangle.
  */
-[scriptable, uuid(ff4c172c-4c93-46ba-9f42-cb20d9a73e96)]
+[scriptable, uuid(6bd9efcc-35cd-41b3-a541-bf9d55a0c253)]
 interface nsIWebContentView : nsISupports
 {
+  const unsigned long CAP_DEVTOOLS = 0x0001;
+  const unsigned long CAP_INSPECT_ELEMENT = 0x0002;
+  const unsigned long CAP_FULLSCREEN = 0x0004;
+  const unsigned long CAP_DOWNLOADS = 0x0008;
+  const unsigned long CAP_CONTENT_SCRIPTS = 0x0010;
+  const unsigned long CAP_ISOLATED_CONTENT_WORLD = 0x0020;
+  const unsigned long CAP_PERSISTENT_STORAGE = 0x0040;
+  const unsigned long CAP_PRIVATE_STORAGE = 0x0080;
+  const unsigned long CAP_AUDIO_CONTROL = 0x0100;
+  const unsigned long CAP_CSS = 0x0200;
+  const unsigned long CAP_SCRIPT_REGISTRATION = 0x0400;
+  const unsigned long CAP_MESSAGING = 0x0800;
+  const unsigned long CAP_FIND = 0x1000;
+  const unsigned long CAP_REQUEST_FILTERING = 0x2000;
+  /** Available in this view's configuration, not an OS/version guess. */
+  readonly attribute unsigned long capabilities;
   /** listener topics: content-view-state (read state getters) and
    * content-view-process-terminated. Subject is this view.
    * content-view-context-menu carries an nsIPropertyBag2 subject with UTF-8

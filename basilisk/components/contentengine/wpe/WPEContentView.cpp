@@ -527,3 +527,14 @@ NS_IMETHODIMP WPEContentView::SetFullscreen(bool active)
     active ? state | WPE_TOPLEVEL_STATE_FULLSCREEN : state & ~WPE_TOPLEVEL_STATE_FULLSCREEN));
   return NS_OK;
 }
+
+NS_IMETHODIMP WPEContentView::GetCapabilities(uint32_t* result)
+{
+  NS_ENSURE_ARG_POINTER(result);
+  if (mInspectorView || mDestroyed) { *result = 0; return NS_OK; }
+  *result = CAP_FULLSCREEN | CAP_DOWNLOADS | CAP_CONTENT_SCRIPTS |
+    CAP_ISOLATED_CONTENT_WORLD | CAP_PRIVATE_STORAGE | CAP_AUDIO_CONTROL |
+    CAP_CSS | CAP_SCRIPT_REGISTRATION | CAP_MESSAGING | CAP_FIND;
+  if (!mPrivate) *result |= CAP_PERSISTENT_STORAGE | CAP_DEVTOOLS | CAP_INSPECT_ELEMENT;
+  return NS_OK;
+}

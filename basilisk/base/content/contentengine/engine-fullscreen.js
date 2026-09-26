@@ -5,6 +5,7 @@
 var ContentEngineFullscreen = {
   view: null,
   enter(view) {
+    if (!ContentEngines.supports(view.browser, Ci.nsIWebContentView.CAP_FULLSCREEN)) return;
     if (this.view == view) return;
     this.exit();
     if (view.browser != gBrowser.selectedBrowser) {

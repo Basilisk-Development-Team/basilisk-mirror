@@ -8,7 +8,7 @@
 // chrome-facing navigation/state properties; Gecko instances are untouched.
 var ContentEngines = {
   views: new Map(),
-  engineFor(browser) { return this.views.has(browser) ? "webkit" : browser.contentEngine || "gecko"; },
+  engineFor(browser) { return this.views.has(browser) ? this.views.get(browser).engineId : browser.contentEngine || "gecko"; },
   get(browser = gBrowser.selectedBrowser) { return this.views.get(browser); },
   forBrowser(browser) {
     return this.get(browser) || {
@@ -17,6 +17,20 @@ var ContentEngines = {
       reload() { browser.reload(); }, stop() { browser.stop(); },
       goBack() { browser.goBack(); }, goForward() { browser.goForward(); }
     };
+  },
+  capabilitiesFor(browser) {
+    let view = this.get(browser);
+    if (view) return view.native.capabilities;
+    if (this.engineFor(browser) != "gecko") return 0;
+    let c = Ci.nsIWebContentView;
+    return c.CAP_DEVTOOLS | c.CAP_INSPECT_ELEMENT | c.CAP_FULLSCREEN | c.CAP_DOWNLOADS |
+      c.CAP_CONTENT_SCRIPTS | c.CAP_ISOLATED_CONTENT_WORLD | c.CAP_PRIVATE_STORAGE |
+      c.CAP_AUDIO_CONTROL | c.CAP_CSS | c.CAP_SCRIPT_REGISTRATION | c.CAP_MESSAGING | c.CAP_FIND |
+      (PrivateBrowsingUtils.isBrowserPrivate(browser) ? 0 : c.CAP_PERSISTENT_STORAGE);
+  },
+  supports(browser, capability) { return !!(this.capabilitiesFor(browser) & capability); },
+  createView(engine) {
+    return Cc["@basilisk-browser.org/content-view;1?engine=" + engine].createInstance(Ci.nsIWebContentView);
   },
   init() {
     ContentEngineSession.init();
@@ -49,11 +63,11 @@ var ContentEngines = {
       if (event.type == "TabSelect") this.refresh();
     }
   },
-  open(uri = "about:blank", selected = true, manual = true) {
+  open(uri = "about:blank", selected = true, manual = true, engine = "webkit") {
     let tab = gBrowser.addTab("about:blank", {skipAnimation: true});
     try {
-      if (manual) SessionStore.setTabValue(tab, "basilisk.engineOverride", "webkit");
-      let view = this.attach(tab);
+      if (manual) SessionStore.setTabValue(tab, "basilisk.engineOverride", engine);
+      let view = this.attach(tab, engine);
       if (selected) gBrowser.selectedTab = tab;
       view.loadURI(uri);
       this.layout();
@@ -66,10 +80,10 @@ var ContentEngines = {
       throw error;
     }
   },
-  attach(tab) {
+  attach(tab, engine = "webkit") {
     let existing = this.get(tab.linkedBrowser);
     if (existing) return existing;
-    let view = new ExternalContentBrowser(tab);
+    let view = new ExternalContentBrowser(tab, engine);
     this.views.set(tab.linkedBrowser, view);
     try { view.attach(); }
     catch (error) { view.destroy(); throw error; }
@@ -77,7 +91,7 @@ var ContentEngines = {
     return view;
   },
   switchEngine(tab, engine, options = {}) {
-    if (!["gecko", "webkit"].includes(engine)) throw new Error("Unknown content engine");
+    if (engine != "gecko" && !("@basilisk-browser.org/content-view;1?engine=" + engine in Cc)) throw new Error("Unknown content engine");
     let manual = options.manual !== false;
     if (this.engineFor(tab.linkedBrowser) == engine) {
       if (manual) {
@@ -100,7 +114,7 @@ var ContentEngines = {
     // Replace the old content/frame-loader lifetime as a unit. Preserve tab
     // position, selection and pinning, but never transfer live page state.
     let selected = tab == gBrowser.selectedTab;
-    let replacement = engine == "webkit" ? this.open(uri, false, false) :
+    let replacement = engine != "gecko" ? this.open(uri, false, false, engine) :
       gBrowser.addTab(uri, {skipAnimation: true});
     let override = manual ? engine : SessionStore.getTabValue(tab, "basilisk.engineOverride");
     if (override) SessionStore.setTabValue(replacement, "basilisk.engineOverride", override);
@@ -157,15 +171,14 @@ var ContentEngines = {
 };
 
 class ExternalContentBrowser {
-  constructor(tab) {
+  constructor(tab, engine) {
     this.tab = tab;
     this.browser = tab.linkedBrowser;
-    this.engineId = "webkit";
+    this.engineId = engine;
     this.saved = new Map();
     this.visible = false;
     this.bounds = "";
-    this.native = Cc["@basilisk-browser.org/content-view;1?engine=webkit"]
-                    .createInstance(Ci.nsIWebContentView);
+    this.native = ContentEngines.createView(engine);
     this.principal = Services.scriptSecurityManager.createNullPrincipal({});
     this.finder = new ContentEngineFinder(this);
   }
@@ -210,7 +223,7 @@ class ExternalContentBrowser {
     for (let name of Object.keys(methods)) this.define(name, {value: methods[name]});
     this.define("fullZoom", {get: () => this.native.zoom, set: value => { this.native.zoom = value; }});
     this.native.attach(window, this);
-    this.tab.setAttribute("contentengine", "webkit");
+    this.tab.setAttribute("contentengine", this.engineId);
   }
   QueryInterface(iid) {
     if (iid.equals(Ci.nsIContentViewObserver) || iid.equals(Ci.nsISupports)) return this;

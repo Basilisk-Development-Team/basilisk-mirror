@@ -40,6 +40,7 @@ class ContentScriptClient {
     this.receive = message => this.result(message.data.id, message.data.json, message.data.error);
     this.receiveContent = message => this.message(message.data.json);
   }
+  get capabilities() { return ContentEngines.capabilitiesFor(this.browser); }
   executeScript(source) {
     if (this.closed || typeof source != "string" || source.length > 1024 * 1024)
       return Promise.reject(new Error("Invalid script or closed content view"));
@@ -47,6 +48,9 @@ class ContentScriptClient {
   }
   request(operation, arguments_) {
     if (this.closed) return Promise.reject(new Error("Content view closed"));
+    let c = Ci.nsIWebContentView;
+    let required = {Execute: c.CAP_CONTENT_SCRIPTS, CSS: c.CAP_CSS, Register: c.CAP_SCRIPT_REGISTRATION}[operation];
+    if (!required || !(this.capabilities & required)) return Promise.reject(new Error("Unsupported content operation: " + operation));
     return new Promise((resolve, reject) => {
       let id = ContentEngineScripts.nextId++;
       let timer = setTimeout(() => this.result(id, "null", "Content operation timed out"), 30000);
@@ -67,7 +71,7 @@ class ContentScriptClient {
           }
         }
         else {
-          if (this.browser.contentEngine == "webkit") throw new Error("alternate content view is pending restoration");
+          if (this.browser.contentEngine != "gecko") throw new Error("alternate content view is pending restoration");
           if (!this.manager) {
             this.manager = this.browser.messageManager;
             this.manager.addMessageListener("Basilisk:ContentResult", this.receive);

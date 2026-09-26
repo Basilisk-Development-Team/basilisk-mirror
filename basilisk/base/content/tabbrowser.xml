@@ -2793,7 +2793,7 @@
             // That's gBrowser for the other window, not the tab's browser!
             var remoteBrowser = aOtherTab.ownerDocument.defaultView.gBrowser;
 #ifdef MOZ_WEBKIT
-            if (otherBrowser.contentEngine == "webkit") {
+            if (otherBrowser.contentEngine && otherBrowser.contentEngine != "gecko") {
               // Native alternate content views belong to their chrome window. Transfer only
               // serialized tab metadata, then restore a fresh destination view.
               let state = SessionStore.getTabState(aOtherTab);
@@ -6115,7 +6115,7 @@
         // sync. No need for xul magic, the native dnd will
         // be fine, so let's use the canvas for setDragImage.
 #ifdef MOZ_WEBKIT
-        if (browser.contentEngine == "webkit") {
+        if (browser.contentEngine && browser.contentEngine != "gecko") {
           // A Gecko canvas capture cannot read a foreign native surface.
           toDrag = tab;
         } else

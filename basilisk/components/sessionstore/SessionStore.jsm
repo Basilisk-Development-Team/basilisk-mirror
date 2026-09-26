@@ -4077,7 +4077,7 @@ var SessionStoreInternal = {
   _shouldSaveTabState: function(aTabState) {
 #ifdef MOZ_WEBKIT
     let external = aTabState.extData;
-    if (external && external["basilisk.contentEngine"] == "webkit" &&
+    if (external && external["basilisk.contentEngine"] && external["basilisk.contentEngine"] != "gecko" &&
         external["basilisk.contentURI"] && external["basilisk.contentURI"] != "about:blank")
       return true;
 #endif
