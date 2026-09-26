@@ -87,6 +87,14 @@
                onpopuphidden="if (event.target == this) TabContextMenu.contextTab = null;">
       <menuitem id="context_reloadTab" label="&reloadTab.label;" accesskey="&reloadTab.accesskey;"
                 oncommand="gBrowser.reloadTab(TabContextMenu.contextTab);"/>
+#ifdef MOZ_WEBKIT
+      <menuitem id="context_reloadGecko" label="Reload with Gecko"
+                oncommand="ContentEngines.switchEngine(TabContextMenu.contextTab, 'gecko');"/>
+      <menuitem id="context_reloadWebKit" label="Reload with WPE WebKit"
+                oncommand="ContentEngines.switchEngine(TabContextMenu.contextTab, 'webkit');"/>
+      <menuitem id="context_newWebKit" label="New WPE WebKit Tab"
+                oncommand="ContentEngines.open('https://example.com/');"/>
+#endif
       <menuitem id="context_toggleMuteTab" oncommand="TabContextMenu.contextTab.toggleMuteAudio();"/>
       <menuseparator/>
       <menuitem id="context_pinTab" label="&pinTab.label;"
