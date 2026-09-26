@@ -19,6 +19,7 @@ function finish(error) {
 window.addEventListener("load", () => run().then(() => finish(), finish));
 async function run() {
   let errors = [];
+  dump('UBLOCK-AUDIT platform '+Services.appinfo.platformVersion+'\n');
   Services.console.registerListener({observe(message) {
     if (message instanceof Ci.nsIScriptError && /ublock/i.test(message.sourceName)) errors.push(message.message);
   }});
@@ -49,12 +50,14 @@ async function run() {
   mm.addMessageListener('ublock0:shouldLoad', message => policy.push(message.data.url));
   mm.addMessageListener('ublock0:locationChanged', message => locations.push(message.data.url));
   bg.µBlock.logger.readAll('content-audit');
+  let acceptanceFailures = [];
+  const probes = ['.js','-third-script','-image','-style','-frame','-fetch','-xhr','-socket','-redirect'];
   for (let engine of ['gecko', 'webkit']) {
     let tab = engine == 'gecko' ? g.addTab(base+'/page?engine=gecko') : win.ContentEngines.open(base+'/page?engine=webkit');
     g.selectedTab = tab;
     await waitFor(() => tab.linkedBrowser.contentTitle == 'Audit page' && !tab.hasAttribute('busy'), engine+' load');
     await new Promise(resolve => setTimeout(resolve, 1500));
-    let result = await tab.linkedBrowser.contentAPI.executeScript("return {external:document.body.getAttribute('data-external'),display:getComputedStyle(document.querySelector('.audit-ad')).display,dynamic:getComputedStyle(document.querySelector('.dynamic')).display,load:document.body.dataset.load,frames:document.querySelectorAll('iframe').length};");
+    let result = await tab.linkedBrowser.contentAPI.executeScript("return {allowed:document.body.getAttribute('data-allowed'),external:document.body.getAttribute('data-external'),display:getComputedStyle(document.querySelector('.audit-ad')).display,dynamic:getComputedStyle(document.querySelector('.dynamic')).display,load:document.body.dataset.load,frames:document.querySelectorAll('iframe').length};");
     let info = await new Promise(resolve => bg.vAPI.tabs.get(null, resolve));
     let store = bg.µBlock.pageStoreFromTabId(info.id);
     result.engine = engine; result.tabURI = info.url; result.tabTitle = info.title;
@@ -75,14 +78,21 @@ async function run() {
     result.logger = bg.µBlock.logger.readAll('content-audit').filter(entry => JSON.stringify(entry).includes('audit-blocked') && JSON.stringify(entry).includes('engine='+engine)).length;
     bg.µBlock.elementPickerExec(info.id);
     await new Promise(resolve=>setTimeout(resolve,1000));
-    result.pickerFrames = await tab.linkedBrowser.contentAPI.executeScript("return document.querySelectorAll('iframe').length;");
+    result.pickerFrames = (await tab.linkedBrowser.contentAPI.executeScript("return document.querySelectorAll('iframe').length;")) - result.frames;
     bg.vAPI.tabs.reload(info.id);
     await new Promise(resolve=>setTimeout(resolve,1500));
     result.extensionReloadLoad = await tab.linkedBrowser.contentAPI.executeScript("return document.body.dataset.load;");
     result.server = await new Promise(resolve=> {let xhr=new XMLHttpRequest();xhr.open('GET',base+'/counts');xhr.onload=()=>resolve(JSON.parse(xhr.responseText));xhr.send();});
-    for(let path of ['.js','-image','-fetch','-xhr']) {
+    result.blockedRequests = {};
+    for(let path of probes) {
       let requests=result.server['/audit-blocked'+path+'?engine='+engine]||0;
+      result.blockedRequests[path] = requests;
       if(engine=='gecko' && requests)throw Error('Gecko network block reached server '+path);
+      if(engine=='webkit' && requests)acceptanceFailures.push('WebKit request reached server: '+path);
+    }
+    if(result.allowed!='loaded')throw Error(engine+' allowed script missing');
+    for(let path of probes.filter(p=>p!='-redirect')) {
+      if(!result.server['/audit-allowed'+path+'?engine='+engine])throw Error(engine+' allowed control missing '+path);
     }
     bg.µBlock.toggleNetFilteringSwitch(base+'/page?engine='+engine, 'site', false);
     tab.linkedBrowser.reload();await new Promise(resolve=>setTimeout(resolve,1500));
@@ -90,6 +100,15 @@ async function run() {
     bg.µBlock.toggleNetFilteringSwitch(base+'/page?engine='+engine, 'site', true);
     tab.linkedBrowser.reload();await new Promise(resolve=>setTimeout(resolve,1500));
     result.reenabled = await tab.linkedBrowser.contentAPI.executeScript("return {external:document.body.getAttribute('data-external'),display:getComputedStyle(document.querySelector('.audit-ad')).display};");
+    if(engine=='webkit') {
+      if(result.display!='none'||result.dynamic!='none')acceptanceFailures.push('WebKit static/dynamic cosmetics absent');
+      if(result.pageStoreURI!=result.tabURI)acceptanceFailures.push('WebKit page store missing');
+      if(!result.logger)acceptanceFailures.push('WebKit request logger empty');
+      if(result.pickerFrames!=1)acceptanceFailures.push('WebKit picker not injected');
+      if(+result.extensionReloadLoad<=+result.load)acceptanceFailures.push('WebKit extension reload did not navigate');
+      if(result.disabled.external!='loaded'||result.reenabled.external||result.reenabled.display!='none')acceptanceFailures.push('WebKit per-site toggle ineffective');
+    }
+    if(engine=='gecko' && (result.disabled.external!='loaded'||result.reenabled.external||result.reenabled.display!='none'))throw Error('Gecko per-site toggle regression');
     dump('UBLOCK-AUDIT RESULT '+JSON.stringify(result)+'\n');
     if (engine == 'gecko' && (result.external || result.display != 'none')) throw new Error('Gecko control filters failed');
   }
@@ -98,4 +117,6 @@ async function run() {
     dashboard.linkedBrowser.currentURI.spec.includes('dashboard.html'), 'dashboard');
   dump('UBLOCK-AUDIT dashboard '+dashboard.linkedBrowser.contentDocument.title+'\n');
   dump('UBLOCK-AUDIT extension errors '+JSON.stringify(errors)+'\n');
+  dump('UBLOCK-AUDIT ACCEPTANCE '+(acceptanceFailures.length?'FAIL ':'PASS ')+JSON.stringify(acceptanceFailures)+'\n');
+  if(Services.prefs.getBoolPref('content.audit.requireWebKit') && acceptanceFailures.length)throw Error(acceptanceFailures.join('; '));
 }
