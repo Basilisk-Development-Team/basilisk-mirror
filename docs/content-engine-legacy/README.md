@@ -1,5 +1,11 @@
 # Phase 4: legacy extension compatibility boundary
 
+Phase 5 adds [opt-in Basilisk legacy content services](runtime.md), with a
+[separate deferred-request API proposal](request-broker-proposal.md).
+The [Phase 5 results](phase5-results.md) distinguish runtime tests from unchanged
+uBlock acceptance. The older stop analysis below is qualified by the later
+service-semantics reassessment, not silently treated as a blanket DOM impossibility.
+
 See the [service-semantics reassessment](service-semantics.md) for a correction to
 the overly broad Sandbox/window conclusion below. It separates representable
 service purposes from unchanged-callsite constraints, and timing from metadata.

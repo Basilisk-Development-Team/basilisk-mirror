@@ -90,7 +90,8 @@ actual resource callsite, using existing AddonManager mapping. Source loading is
 restricted to that add-on's chrome/resource/file/jar URLs. Returned facades expose
 no world key or mutable owner state. A target is recognized by WeakMap membership,
 owner, original view/client, backend-issued document epoch and native frame lifetime.
-Stale and cross-context handles fail. Message delivery carries the validated frame
+Stale and cross-context handles fail. Context facades belong to their chrome
+window; do not retain and invoke a discarded window's JS globals after it closes. Message delivery carries the validated frame
 from the operation, not a frame ID supplied in message data.
 
 Legacy XUL extensions already have system-principal powers. Callsite provenance
