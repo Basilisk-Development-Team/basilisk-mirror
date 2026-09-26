@@ -21,6 +21,8 @@
           sendAsyncMessage("Basilisk:ContentMessage", {json});
       }, sandbox, {defineAs: "__basiliskPost"});
       Components.utils.evalInSandbox(`(function() {
+        // Hide the legacy content-window Components shim in this opt-in world.
+        Object.defineProperty(this, 'Components', {value: undefined});
         const listeners = new Set();
         Object.defineProperty(this, 'browserContent', {value: Object.freeze({
           sendMessage(value) {

@@ -20,6 +20,7 @@ var ContentEngines = {
   },
   init() {
     ContentEngineSession.init();
+    ContentEngineEvents.init();
     window.controllers.insertControllerAt(0, ContentEngineEditController);
     gBrowser.tabContainer.addEventListener("TabSelect", this);
     gBrowser.tabContainer.addEventListener("TabClose", this);
