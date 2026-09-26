@@ -583,7 +583,7 @@ NS_IMETHODIMP WPEContentView::GetCapabilities(uint32_t* result)
   if (mInspectorView || mDestroyed) { *result = 0; return NS_OK; }
   *result = CAP_FULLSCREEN | CAP_DOWNLOADS | CAP_CONTENT_SCRIPTS |
     CAP_ISOLATED_CONTENT_WORLD | CAP_PRIVATE_STORAGE | CAP_AUDIO_CONTROL |
-    CAP_CSS | CAP_SCRIPT_REGISTRATION | CAP_MESSAGING | CAP_FIND | CAP_SCRIPT_TIMING | CAP_FRAMES;
+    CAP_CSS | CAP_SCRIPT_REGISTRATION | CAP_MESSAGING | CAP_FIND | CAP_SCRIPT_TIMING | CAP_FRAMES | CAP_EXECUTION_WORLDS;
   if (!mPrivate) *result |= CAP_PERSISTENT_STORAGE | CAP_DEVTOOLS | CAP_INSPECT_ELEMENT | CAP_REQUEST_FILTERING;
   if (mHost && webkit_settings_get_enable_webrtc(webkit_web_view_get_settings(mHost->webView)) &&
       WPEWebRTCPluginsAvailable()) *result |= CAP_WEBRTC;

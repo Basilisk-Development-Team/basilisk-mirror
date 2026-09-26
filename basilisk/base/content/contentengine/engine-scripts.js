@@ -64,10 +64,17 @@ class ContentScriptClient {
     return this.request("Execute", {source, frameId:options.frameId});
   }
   getFrames() { return this.request("Frames", {}); }
+  executeWorldScript(frameId, worldId, source, globalScope = false) {
+    if (typeof frameId != "string" || !frameId || frameId.length > 128 ||
+        typeof worldId != "string" || !worldId || worldId.length > 128 ||
+        typeof source != "string" || source.length > 1024 * 1024)
+      return Promise.reject(new TypeError("Invalid execution target or script"));
+    return this.request("World", {frameId, worldId, source, globalScope});
+  }
   request(operation, arguments_) {
     if (this.closed) return Promise.reject(new Error("Content view closed"));
     let c = Ci.nsIWebContentView;
-    let required = {Frames:c.CAP_FRAMES, Execute: c.CAP_CONTENT_SCRIPTS, CSS: c.CAP_CSS, Register: c.CAP_SCRIPT_REGISTRATION, Policy: c.CAP_REQUEST_FILTERING}[operation];
+    let required = {World:c.CAP_EXECUTION_WORLDS, Frames:c.CAP_FRAMES, Execute: c.CAP_CONTENT_SCRIPTS, CSS: c.CAP_CSS, Register: c.CAP_SCRIPT_REGISTRATION, Policy: c.CAP_REQUEST_FILTERING}[operation];
     if (!required || !(this.capabilities & required)) return Promise.reject(new Error("Unsupported content operation: " + operation));
     if ((arguments_.frameId !== undefined || arguments_.allFrames) && !(this.capabilities & c.CAP_FRAMES))
       return Promise.reject(new Error("Frame addressing unsupported"));
@@ -80,7 +87,8 @@ class ContentScriptClient {
       try {
         let view = ContentEngines.get(this.browser);
         if (view) {
-          if (operation == "Frames") view.native.getFrames(id);
+          if (operation == "World") view.native.executeWorldScript(id, arguments_.frameId, arguments_.worldId, arguments_.source, !!arguments_.globalScope);
+          else if (operation == "Frames") view.native.getFrames(id);
           else if (operation == "Execute") {
             if (arguments_.frameId !== undefined) view.native.executeFrameScript(id, arguments_.frameId, arguments_.source);
             else view.native.executeScript(id, arguments_.source);

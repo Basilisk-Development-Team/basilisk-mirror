@@ -9,7 +9,7 @@
 
 namespace {
 WebKitScriptWorld* world;
-struct Pending { WebKitUserMessage* message; guint timeout; };
+struct Pending { WebKitUserMessage* message; guint timeout; WebKitScriptWorld* world; bool globalScope; };
 struct Frame {
   gint references = 1;
   GWeakRef native, page;
@@ -17,6 +17,7 @@ struct Frame {
   char* token;
   bool valid = true;
   GHashTable* pending;
+  GHashTable* worlds;
 };
 Frame* Ref(Frame* frame) { ++frame->references; return frame; }
 void FreePending(gpointer data) {
@@ -29,7 +30,7 @@ void Unref(gpointer data) {
   auto* frame = static_cast<Frame*>(data);
   if (--frame->references) return;
   g_weak_ref_clear(&frame->native); g_weak_ref_clear(&frame->page);
-  g_hash_table_destroy(frame->pending); g_free(frame->token); delete frame;
+  g_hash_table_destroy(frame->pending); g_hash_table_destroy(frame->worlds); g_free(frame->token); delete frame;
 }
 void Reply(WebKitUserMessage* request, const char* json, const char* error) {
   webkit_user_message_send_reply(request, webkit_user_message_new("basilisk:result",
@@ -42,6 +43,7 @@ void Invalidate(Frame* frame) {
       g_variant_new("(s)", frame->token)), nullptr, nullptr, nullptr);
   g_clear_object(&page);
   frame->valid = false;
+  g_hash_table_remove_all(frame->worlds);
   GHashTableIter it; gpointer key, value;
   g_hash_table_iter_init(&it, frame->pending);
   while (g_hash_table_iter_next(&it, &key, &value)) {
@@ -93,7 +95,7 @@ void Bridge(const char* kind, const char* json, const char* error, guint id, gpo
   if (!frame->valid || !json || strlen(json) > 1024 * 1024) return;
   if (!strcmp(kind, "reply")) {
     auto* pending = static_cast<Pending*>(g_hash_table_lookup(frame->pending, GUINT_TO_POINTER(id)));
-    if (pending) { Reply(pending->message, json, error ? error : ""); g_hash_table_remove(frame->pending, GUINT_TO_POINTER(id)); }
+    if (pending && (!pending->world || pending->world == world)) { Reply(pending->message, json, error ? error : ""); g_hash_table_remove(frame->pending, GUINT_TO_POINTER(id)); }
     return;
   }
   if (strcmp(kind, "message")) return;
@@ -122,6 +124,7 @@ void WindowCleared(WebKitScriptWorld*, WebKitWebPage* page, WebKitFrame* native,
   g_weak_ref_init(&frame->native, native); g_weak_ref_init(&frame->page, page);
   frame->nativeId = webkit_frame_get_id(native); frame->token = g_uuid_string_random();
   frame->pending = g_hash_table_new_full(g_direct_hash, g_direct_equal, nullptr, FreePending);
+  frame->worlds = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_object_unref);
   g_hash_table_insert(frames, g_strdup(frame->token), frame);
   Announce(frame);
   auto* context = webkit_frame_get_js_context_for_script_world(native, world);
@@ -153,8 +156,17 @@ void WindowCleared(WebKitScriptWorld*, WebKitWebPage* page, WebKitFrame* native,
   auto* result = jsc_context_evaluate(context, bootstrap, -1);
   g_clear_object(&result); g_object_unref(context);
 }
+struct WorldBinding { Frame* frame; WebKitScriptWorld* world; };
+void WorldReply(const char* json, const char* error, guint id, gpointer data) {
+  auto* binding = static_cast<WorldBinding*>(data);
+  auto* pending = static_cast<Pending*>(g_hash_table_lookup(binding->frame->pending, GUINT_TO_POINTER(id)));
+  if (!binding->frame->valid || !pending || pending->globalScope || pending->world != binding->world ||
+      !json || strlen(json) > 1024 * 1024) return;
+  Reply(pending->message, json, error ? error : "");
+  g_hash_table_remove(binding->frame->pending, GUINT_TO_POINTER(id));
+}
 struct Timeout { Frame* frame; guint id; };
-void Execute(Frame* frame, guint id, const char* source, WebKitUserMessage* request) {
+void Execute(Frame* frame, guint id, const char* source, WebKitUserMessage* request, const char* worldId = nullptr, bool globalScope = false) {
   auto* native = WEBKIT_FRAME(g_weak_ref_get(&frame->native));
   if (!frame->valid || !native) { Reply(request, "null", "Unknown or expired frame"); g_clear_object(&native); return; }
   if (g_hash_table_contains(frame->pending, GUINT_TO_POINTER(id))) { Reply(request, "null", "Duplicate request"); g_object_unref(native); return; }
@@ -170,8 +182,43 @@ void Execute(Frame* frame, guint id, const char* source, WebKitUserMessage* requ
     return G_SOURCE_REMOVE;
   }, timeout, +[](gpointer data) {auto* timeout=static_cast<Timeout*>(data);Unref(timeout->frame);delete timeout;});
   g_hash_table_insert(frame->pending, GUINT_TO_POINTER(id), pending);
-  auto* context = webkit_frame_get_js_context_for_script_world(native, world);
+  WebKitScriptWorld* selectedWorld = world;
+  if (worldId) {
+    selectedWorld = static_cast<WebKitScriptWorld*>(g_hash_table_lookup(frame->worlds, worldId));
+    if (!selectedWorld) {
+      if (g_hash_table_size(frame->worlds) >= 64) {
+        Reply(request, "null", "Document execution-world limit reached");
+        g_hash_table_remove(frame->pending, GUINT_TO_POINTER(id)); g_object_unref(native); return;
+      }
+      selectedWorld = webkit_script_world_new();
+      g_hash_table_insert(frame->worlds, g_strdup(worldId), selectedWorld);
+      auto* target = webkit_frame_get_js_context_for_script_world(native, selectedWorld);
+      // Only serialized execution completion is exposed, never native invocation.
+      auto* binding = new WorldBinding{Ref(frame), selectedWorld};
+      auto* bridge = jsc_value_new_function(target, "reply", G_CALLBACK(WorldReply), binding,
+        +[](gpointer value) {auto* binding=static_cast<WorldBinding*>(value); Unref(binding->frame); delete binding;},
+        G_TYPE_NONE, 3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_UINT);
+      jsc_context_set_value(target, "__basiliskWorldBridge", bridge); g_object_unref(bridge);
+      auto* initialized = jsc_context_evaluate(target, R"JS((function(bridge) {
+        delete globalThis.__basiliskWorldBridge;
+        Object.defineProperty(globalThis, '__basiliskReply', {value: function(id, value, error) {
+          bridge(JSON.stringify(value === undefined ? null : value), error, id);
+        }});
+      })(globalThis.__basiliskWorldBridge);)JS", -1);
+      g_clear_object(&initialized); g_object_unref(target);
+    }
+  }
+  pending->world = selectedWorld;
+  pending->globalScope = globalScope;
+  auto* context = webkit_frame_get_js_context_for_script_world(native, selectedWorld);
   jsc_context_clear_exception(context);
+  if (globalScope) {
+    auto* value = jsc_context_evaluate_with_source_uri(context, source, -1, "basilisk-legacy-script", 1);
+    auto* exception = jsc_context_get_exception(context);
+    Reply(request, "null", exception ? jsc_exception_get_message(exception) : "");
+    g_hash_table_remove(frame->pending, GUINT_TO_POINTER(id));
+    jsc_context_clear_exception(context); g_clear_object(&value); g_object_unref(context); g_object_unref(native); return;
+  }
   char* code = g_strdup_printf("(async function(){\n%s\n})().then(value => __basiliskReply(%u, value, '')).catch(error => __basiliskReply(%u, null, String(error)));", source, id, id);
   auto* result = jsc_context_evaluate_with_source_uri(context, code, -1, "basilisk-frame-script", 1);
   g_free(code);
@@ -200,6 +247,21 @@ gboolean Message(WebKitWebPage* page, WebKitUserMessage* request, gpointer) {
     }
     char* json = jsc_value_to_json(list, 0); Reply(request, json ? json : "[]", "");
     g_free(json); g_object_unref(list); g_object_unref(context); return TRUE;
+  }
+  if (!strcmp(name, "basilisk:world-execute")) {
+    auto* parameters = webkit_user_message_get_parameters(request);
+    if (!parameters || !g_variant_is_of_type(parameters, G_VARIANT_TYPE("(usssb)"))) {
+      Reply(request, "null", "Invalid world operation"); return TRUE;
+    }
+    guint id; const char *token, *key, *source; gboolean globalScope;
+    g_variant_get(parameters, "(u&s&s&sb)", &id, &token, &key, &source, &globalScope);
+    if (!*key || strlen(key) > 128 || strlen(source) > 1024 * 1024) {
+      Reply(request, "null", "Invalid world or script"); return TRUE;
+    }
+    auto* frame = static_cast<Frame*>(g_hash_table_lookup(Frames(page), token));
+    if (!frame) Reply(request, "null", "Unknown or expired frame");
+    else Execute(frame, id, source, request, key, globalScope);
+    return TRUE;
   }
   if (strcmp(name, "basilisk:execute")) return FALSE;
   auto* parameters = webkit_user_message_get_parameters(request);

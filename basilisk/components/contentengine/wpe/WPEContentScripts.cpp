@@ -175,6 +175,15 @@ NS_IMETHODIMP WPEContentView::ExecuteFrameScript(uint32_t id, const nsACString& 
   nsAutoCString token(frame), script(source);
   return SendFrameOperation(id, "basilisk:execute", g_variant_new("(uss)", id, token.get(), script.get()));
 }
+NS_IMETHODIMP WPEContentView::ExecuteWorldScript(uint32_t id, const nsACString& frame,
+  const nsACString& world, const nsACString& source, bool globalScope)
+{
+  NS_ENSURE_TRUE(!frame.IsEmpty() && frame.Length() <= 128 && !world.IsEmpty() &&
+    world.Length() <= 128 && source.Length() <= 1024 * 1024, NS_ERROR_INVALID_ARG);
+  nsAutoCString token(frame), key(world), script(source);
+  return SendFrameOperation(id, "basilisk:world-execute",
+    g_variant_new("(usssb)", id, token.get(), key.get(), script.get(), globalScope));
+}
 NS_IMETHODIMP WPEContentView::UnregisterScript(const nsACString& identifier)
 {
   NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed, NS_ERROR_NOT_AVAILABLE);
