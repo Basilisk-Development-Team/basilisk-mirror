@@ -152,6 +152,8 @@ browser.jar:
         content/browser/webkit/engine-session.js      (content/webkit/engine-session.js)
         content/browser/webkit/engine-devtools.js     (content/webkit/engine-devtools.js)
         content/browser/webkit/engine-fullscreen.js   (content/webkit/engine-fullscreen.js)
+        content/browser/webkit/engine-scripts.js      (content/webkit/engine-scripts.js)
+        content/browser/webkit/gecko-content.js       (content/webkit/gecko-content.js)
         content/browser/webkit/inspector.xul          (content/webkit/inspector.xul)
         content/browser/webkit/inspector.js           (content/webkit/inspector.js)
         content/browser/webkit/engine-context.js      (content/webkit/engine-context.js)

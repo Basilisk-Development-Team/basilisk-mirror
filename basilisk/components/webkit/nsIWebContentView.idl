@@ -56,4 +56,6 @@ interface nsIWebContentView : nsISupports
   void inspectElement();
   /** Acknowledge XUL-controlled fullscreen state to the WPE platform. */
   void setFullscreen(in boolean active);
+  /** Async function body in the isolated Basilisk world. Replies are JSON. */
+  void executeScript(in unsigned long requestId, in AUTF8String source);
 };

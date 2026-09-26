@@ -16,6 +16,7 @@ struct _WebKitDownload;
 struct _WPEView;
 struct _GAction;
 struct _GdkWindow;
+struct _GCancellable;
 
 class WebKitContentView final : public nsIWebContentView
 {
@@ -28,6 +29,7 @@ public:
 private:
   ~WebKitContentView();
   nsresult Mount(_GdkWindow* native);
+  void CancelScripts();
   WPEHost* mHost = nullptr;
   _MozContainer* mContainer = nullptr;
   nsCOMPtr<nsIObserver> mListener;
@@ -39,5 +41,6 @@ private:
   _GAction* mInspectAction = nullptr;
   bool mDestroyed = false;
   bool mPrivate = false;
+  _GCancellable* mScriptCancellation = nullptr;
 };
 #endif

@@ -4,7 +4,7 @@
 
 XPIDL_SOURCES += ['nsIWebContentView.idl']
 XPIDL_MODULE = 'webcontentview'
-SOURCES += ['WebKitContentView.cpp', 'WPEHost.cpp', 'WPEStorage.cpp']
+SOURCES += ['WebKitContentView.cpp', 'WPEContentScripts.cpp', 'WPEHost.cpp', 'WPEStorage.cpp']
 FINAL_LIBRARY = 'xul'
 LOCAL_INCLUDES += ['/platform/dom/base', '/platform/widget/gtk']
 CXXFLAGS += CONFIG['WPE_WEBKIT_CFLAGS']

@@ -20,6 +20,8 @@ var ContentEngineSession = {
   engine(tab) { return SessionStore.getTabValue(tab, "basilisk.contentEngine") || "gecko"; },
   identify(tab) {
     let browser = tab.linkedBrowser;
+    if (!Object.getOwnPropertyDescriptor(browser, "contentAPI"))
+      Object.defineProperty(browser, "contentAPI", {get: () => ContentEngineScripts.forBrowser(browser)});
     if (!Object.getOwnPropertyDescriptor(browser, "contentEngine"))
       Object.defineProperty(browser, "contentEngine", {get: () =>
         ContentEngines.get(browser) ? "webkit" : this.engine(tab)});

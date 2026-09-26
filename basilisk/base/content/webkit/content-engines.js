@@ -34,6 +34,7 @@ var ContentEngines = {
         (event.type == "TabSelect" || event.type == "TabClose" || event.type == "unload"))
       ContentEngineFullscreen.exit();
     if (event.type == "TabClose") {
+      ContentEngineScripts.close(event.target.linkedBrowser);
       let view = this.get(event.target.linkedBrowser);
       if (view) view.destroy();
     } else if (event.type == "unload") {
@@ -204,6 +205,10 @@ class ExternalContentBrowser {
   }
   observe(subject, topic) {
     if (this.destroyed) return;
+    if (topic == "content-view-script-result") {
+      ContentEngineScripts.result(this.browser, subject.QueryInterface(Ci.nsIPropertyBag2));
+      return;
+    }
     if (topic == "content-view-inspector") {
       window.openDialog("chrome://browser/content/webkit/inspector.xul", "_blank", "chrome,all,dialog=no", subject);
       return;

@@ -127,8 +127,10 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
   g_signal_connect(mHost->webView, "notify::title", G_CALLBACK(+[](GObject*, GParamSpec*, gpointer data) {
     static_cast<WebKitContentView*>(data)->Notify("content-view-state");
   }), this);
-  g_signal_connect(mHost->webView, "load-changed", G_CALLBACK(+[](WebKitWebView*, WebKitLoadEvent, gpointer data) {
-    static_cast<WebKitContentView*>(data)->Notify("content-view-state");
+  g_signal_connect(mHost->webView, "load-changed", G_CALLBACK(+[](WebKitWebView*, WebKitLoadEvent event, gpointer data) {
+    auto* self = static_cast<WebKitContentView*>(data);
+    if (event == WEBKIT_LOAD_STARTED) self->CancelScripts();
+    self->Notify("content-view-state");
   }), this);
   g_signal_connect(webkit_web_view_get_back_forward_list(mHost->webView), "changed",
     G_CALLBACK(+[](WebKitBackForwardList*, WebKitBackForwardListItem*, GList*, gpointer data) {
@@ -235,6 +237,7 @@ NS_IMETHODIMP WebKitContentView::Destroy()
 {
   if (mDestroyed) return NS_OK;
   mDestroyed = true;
+  CancelScripts();
   for (auto& inspector : mInspectors) inspector->Destroy();
   mInspectors.Clear();
   if (mInspectorView) Notify("content-view-closed");
