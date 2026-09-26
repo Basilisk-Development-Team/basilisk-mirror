@@ -80,7 +80,7 @@ def kill_webprocesses(parent):
    try:os.kill(pid,signal.SIGKILL)
    except ProcessLookupError:pass
 
-p=argparse.ArgumentParser(description=__doc__);p.add_argument('objdir',type=Path);p.add_argument('suite',choices=['webrtc','frames','network']);p.add_argument('--cycles',type=int,default=3);p.add_argument('--gst-debug');p.add_argument('--external',action='store_true');a=p.parse_args()
+p=argparse.ArgumentParser(description=__doc__);p.add_argument('objdir',type=Path);p.add_argument('suite',choices=['webrtc','frames','network','legacy']);p.add_argument('--cycles',type=int,default=3);p.add_argument('--gst-debug');p.add_argument('--external',action='store_true');a=p.parse_args()
 server=ThreadingHTTPServer(('127.0.0.1',0),Handler);threading.Thread(target=server.serve_forever,daemon=True).start()
 try:
  with tempfile.TemporaryDirectory(prefix='basilisk-content-test-') as temporary:
@@ -88,7 +88,14 @@ try:
   fixture=Path(__file__).resolve().parent/a.suite;shutil.copytree(fixture,app/'content-test')
   with (app/'chrome.manifest').open('a') as f:f.write('\ncontent content-test content-test/\n')
   profile=root/'profile';profile.mkdir()
-  prefs={'browser.shell.checkDefaultBrowser':False,'browser.dom.window.dump.enabled':True,'content.test.port':server.server_port,'content.test.cycles':a.cycles,'content.test.external':a.external}
+  if a.suite=='legacy':
+   shutil.copytree(fixture/'extension',profile/'extensions/legacy-runtime-test@basilisk-browser.org')
+   second=profile/'extensions/legacy-other-test@basilisk-browser.org'
+   shutil.copytree(fixture/'extension',second)
+   for name in ['install.rdf','bootstrap.js']:
+    path=second/name
+    path.write_text(path.read_text().replace('legacy-runtime-test','legacy-other-test').replace('legacyFixture','legacyOtherFixture'))
+  prefs={'extensions.autoDisableScopes':0,'extensions.enabledScopes':15,'browser.shell.checkDefaultBrowser':False,'browser.dom.window.dump.enabled':True,'content.test.port':server.server_port,'content.test.cycles':a.cycles,'content.test.external':a.external}
   (profile/'user.js').write_text('\n'.join('user_pref(%s,%s);'%(json.dumps(k),json.dumps(v)) for k,v in prefs.items()))
   env={k:v for k,v in os.environ.items() if not k.startswith(('LD_','WEBKIT_','WPE_','GST_'))}
   env['GST_REGISTRY_1_0']=str(root/'gst-registry.bin')
