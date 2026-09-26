@@ -22,11 +22,23 @@ var ContentEngineScripts = {
       for (let listener of destination.listeners) client.listeners.add(listener);
       for (let [token, source] of destination.styles) client.styles.set(token, source);
       for (let [token, source] of destination.scripts) client.scripts.set(token, source);
+      for (let [token, rules] of destination.policies) client.policies.set(token, rules);
       destination.destroy();
     }
     this.clients.delete(from);
     this.clients.set(to, client);
-    client.rebind(to);
+    return client.rebind(to);
+  },
+  exportDefinitions(browser) {
+    let client = this.clients.get(browser);
+    return client ? JSON.stringify({styles:Array.from(client.styles), scripts:Array.from(client.scripts),
+      policies:Array.from(client.policies)}) : null;
+  },
+  importDefinitions(browser, serialized) {
+    if (!serialized) return;
+    let data = JSON.parse(serialized), client = this.forBrowser(browser);
+    for (let name of ["styles", "scripts", "policies"])
+      for (let [token, value] of data[name]) client[name].set(token, value);
   },
   close(browser) { let client = this.clients.get(browser); if (client) client.destroy(); }
 };
@@ -37,6 +49,7 @@ class ContentScriptClient {
     this.listeners = new Set();
     this.styles = new Map();
     this.scripts = new Map();
+    this.policies = new Map();
     this.receive = message => this.result(message.data.id, message.data.json, message.data.error);
     this.receiveContent = message => this.message(message.data.json);
   }
@@ -49,7 +62,7 @@ class ContentScriptClient {
   request(operation, arguments_) {
     if (this.closed) return Promise.reject(new Error("Content view closed"));
     let c = Ci.nsIWebContentView;
-    let required = {Execute: c.CAP_CONTENT_SCRIPTS, CSS: c.CAP_CSS, Register: c.CAP_SCRIPT_REGISTRATION}[operation];
+    let required = {Execute: c.CAP_CONTENT_SCRIPTS, CSS: c.CAP_CSS, Register: c.CAP_SCRIPT_REGISTRATION, Policy: c.CAP_REQUEST_FILTERING}[operation];
     if (!required || !(this.capabilities & required)) return Promise.reject(new Error("Unsupported content operation: " + operation));
     return new Promise((resolve, reject) => {
       let id = ContentEngineScripts.nextId++;
@@ -59,11 +72,14 @@ class ContentScriptClient {
         let view = ContentEngines.get(this.browser);
         if (view) {
           if (operation == "Execute") view.native.executeScript(id, arguments_.source);
+          else if (operation == "Policy" && !arguments_.remove)
+            view.native.setRequestRules(id, arguments_.token, arguments_.rules.length, arguments_.rules);
           else {
             if (operation == "CSS") {
               if (arguments_.remove) view.native.removeCSS(arguments_.token);
               else view.native.insertCSS(arguments_.token, arguments_.source);
-            } else if (operation == "Register") {
+            } else if (operation == "Policy") view.native.removeRequestRules(arguments_.token);
+            else if (operation == "Register") {
               if (arguments_.remove) view.native.unregisterScript(arguments_.token);
               else view.native.registerScript(arguments_.token, arguments_.source);
             }
@@ -126,8 +142,42 @@ class ContentScriptClient {
   rebind(browser) {
     this.disconnect();
     this.browser = browser;
-    for (let [token, source] of this.styles) this.request("CSS", {token, source}).catch(Cu.reportError);
-    for (let [token, source] of this.scripts) this.request("Register", {token, source}).catch(Cu.reportError);
+    let operations = [];
+    for (let [token, source] of this.styles) operations.push(this.request("CSS", {token, source}));
+    for (let [token, source] of this.scripts) operations.push(this.request("Register", {token, source}));
+    if (this.capabilities & Ci.nsIWebContentView.CAP_REQUEST_FILTERING)
+      for (let [token, rules] of this.policies) operations.push(this.request("Policy", {token, rules}));
+    this.ready = Promise.all(operations);
+    return this.ready;
+  }
+  setRequestRules(token, rules) {
+    try {
+      if (typeof token != "string" || !token || token.length > 256 || !Array.isArray(rules) || !rules.length || rules.length > 1024)
+        throw new TypeError("Invalid request rules");
+      const types = {image:1, stylesheet:2, script:4, font:8, media:16, document:32, fetch:64};
+      let normalized = rules.map(rule => {
+        if (!rule || Object.keys(rule).some(key => !["urlPrefix", "resourceTypes"].includes(key)))
+          throw new TypeError("Unknown request-rule field");
+        if (typeof rule.urlPrefix != "string" || rule.urlPrefix.length > 8192)
+          throw new TypeError("Invalid URL prefix");
+        let uri = Services.io.newURI(rule.urlPrefix, null, null);
+        if (!uri.schemeIs("http") && !uri.schemeIs("https")) throw new TypeError("Expected HTTP(S) prefix");
+        if (rule.resourceTypes !== undefined && (!Array.isArray(rule.resourceTypes) || !rule.resourceTypes.length))
+          throw new TypeError("Expected resource types");
+        let mask = 0;
+        for (let type of rule.resourceTypes || []) {
+          if (!Object.prototype.hasOwnProperty.call(types, type)) throw new TypeError("Unsupported resource type");
+          mask |= types[type];
+        }
+        return {urlPrefix:uri.asciiSpec, resourceTypes:mask};
+      });
+      return this.request("Policy", {token, rules:normalized}).then(() => { this.policies.set(token, normalized); });
+    } catch (error) { return Promise.reject(error); }
+  }
+  removeRequestRules(token) {
+    let remove = this.capabilities & Ci.nsIWebContentView.CAP_REQUEST_FILTERING ?
+      this.request("Policy", {token, remove:true}) : Promise.resolve();
+    return remove.then(() => this.policies.delete(token));
   }
   sendMessage(value) {
     let json;
@@ -157,6 +207,6 @@ class ContentScriptClient {
     if (this.manager) this.manager.removeMessageListener("Basilisk:ContentResult", this.receive);
     if (this.manager) this.manager.removeMessageListener("Basilisk:ContentMessage", this.receiveContent);
     this.listeners.clear();
-    this.styles.clear(); this.scripts.clear();
+    this.styles.clear(); this.scripts.clear(); this.policies.clear();
   }
 }

@@ -69,7 +69,7 @@ var ContentEngines = {
       if (manual) SessionStore.setTabValue(tab, "basilisk.engineOverride", engine);
       let view = this.attach(tab, engine);
       if (selected) gBrowser.selectedTab = tab;
-      view.loadURI(uri);
+      this.loadWhenReady(view, uri);
       this.layout();
       if (selected) view.focus();
       return tab;
@@ -87,8 +87,22 @@ var ContentEngines = {
     this.views.set(tab.linkedBrowser, view);
     try { view.attach(); }
     catch (error) { view.destroy(); throw error; }
-    ContentEngineScripts.transfer(tab.linkedBrowser, tab.linkedBrowser);
+    view.ready = ContentEngineScripts.transfer(tab.linkedBrowser, tab.linkedBrowser);
     return view;
+  },
+  loadWhenReady(view, uri) {
+    if (!view.ready) { view.loadURI(uri); return; }
+    view.pendingURI = uri;
+    ContentEngineSession.save(view);
+    Promise.resolve(view.ready).then(() => {
+      if (view.destroyed || view.pendingURI !== uri) return;
+      delete view.pendingURI;
+      delete view.ready;
+      view.loadURI(uri);
+    }, error => {
+      Cu.reportError(error);
+      if (!view.destroyed) view.tab.label = "Content setup failed";
+    });
   },
   switchEngine(tab, engine, options = {}) {
     if (engine != "gecko" && !("@basilisk-browser.org/content-view;1?engine=" + engine in Cc)) throw new Error("Unknown content engine");
@@ -114,14 +128,26 @@ var ContentEngines = {
     // Replace the old content/frame-loader lifetime as a unit. Preserve tab
     // position, selection and pinning, but never transfer live page state.
     let selected = tab == gBrowser.selectedTab;
-    let replacement = engine != "gecko" ? this.open(uri, false, false, engine) :
-      gBrowser.addTab(uri, {skipAnimation: true});
+    let replacement = engine != "gecko" ? this.open("about:blank", false, false, engine) :
+      gBrowser.addTab("about:blank", {skipAnimation: true});
     let override = manual ? engine : SessionStore.getTabValue(tab, "basilisk.engineOverride");
     if (override) SessionStore.setTabValue(replacement, "basilisk.engineOverride", override);
     gBrowser.moveTabTo(replacement, tab._tPos);
     if (tab.pinned) gBrowser.pinTab(replacement);
     if (selected) gBrowser.selectedTab = replacement;
-    ContentEngineScripts.transfer(tab.linkedBrowser, replacement.linkedBrowser);
+    let ready = ContentEngineScripts.transfer(tab.linkedBrowser, replacement.linkedBrowser);
+    let view = this.get(replacement.linkedBrowser);
+    if (view) {
+      view.ready = ready;
+      this.loadWhenReady(view, uri);
+    } else {
+      Promise.resolve(ready).then(() => {
+        if (!replacement.closing) replacement.linkedBrowser.loadURI(uri);
+      }, error => {
+        Cu.reportError(error);
+        if (!replacement.closing) replacement.label = "Content setup failed";
+      });
+    }
     gBrowser.removeTab(tab, {animate: false, skipPermitUnload: true});
     this.layout();
     return replacement;
@@ -217,7 +243,7 @@ class ExternalContentBrowser {
       },
       goBack: () => this.native.goBack(), goForward: () => this.native.goForward(),
       reload: () => this.native.reload(), reloadWithFlags: () => this.native.reload(),
-      stop: () => this.native.stop(), focus: () => this.focus(),
+      stop: () => { delete this.pendingURI; this.native.stop(); }, focus: () => this.focus(),
       mute: () => { this.native.muted = true; }, unmute: () => { this.native.muted = false; }
     };
     for (let name of Object.keys(methods)) this.define(name, {value: methods[name]});
@@ -246,7 +272,7 @@ class ExternalContentBrowser {
       ContentEngineScripts.message(this.browser, subject.QueryInterface(Ci.nsIPropertyBag2).getPropertyAsAUTF8String("json"));
       return;
     }
-    if (topic == "content-view-script-result") {
+    if (topic == "content-view-script-result" || topic == "content-view-policy-result") {
       ContentEngineScripts.result(this.browser, subject.QueryInterface(Ci.nsIPropertyBag2));
       return;
     }
@@ -310,6 +336,7 @@ class ExternalContentBrowser {
     if (this.browser == gBrowser.selectedBrowser) ContentEngines.refresh();
   }
   loadURI(uri) {
+    if (this.ready) { ContentEngines.loadWhenReady(this, uri); return; }
     this.browser.userTypedValue = null;
     this.requestedURI = uri || "about:blank";
     this.native.loadURI(uri || "about:blank");

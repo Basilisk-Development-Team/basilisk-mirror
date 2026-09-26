@@ -36,7 +36,7 @@ var ContentEngineSession = {
   save(view) {
     let state = {
       contentEngine: view.engineId,
-      contentURI: view.native.currentURI || view.requestedURI || "about:blank",
+      contentURI: view.pendingURI || view.native.currentURI || view.requestedURI || "about:blank",
       contentTitle: view.native.title || "",
       contentZoom: String(view.native.zoom),
       contentMuted: String(view.native.muted)
@@ -61,7 +61,7 @@ var ContentEngineSession = {
       let view = ContentEngines.attach(tab, this.engine(tab));
       view.native.zoom = Math.max(0.1, Math.min(10, zoom));
       view.native.muted = muted;
-      view.loadURI(uri);
+      ContentEngines.loadWhenReady(view, uri);
       ContentEngines.layout();
       if (tab == gBrowser.selectedTab) ContentEngines.refresh();
     } catch (error) {

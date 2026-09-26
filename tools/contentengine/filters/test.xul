@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<window xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul" title="Content policy tests">
+<script type="application/javascript" src="content-filter-test.js"/>
+</window>
