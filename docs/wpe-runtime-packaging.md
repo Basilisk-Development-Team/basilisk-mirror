@@ -20,7 +20,8 @@ application/
 
 Every dynamic ELF in the distribution receives an `$ORIGIN`-relative RUNPATH to
 its own directory, the application library directory and `webkit/lib`. Staging
-copies external object-directory symlinks before modifying ELF metadata. It never
+copies external object-directory symlinks and breaks hardlinks before modifying ELF metadata.
+Existing application-local `$ORIGIN` entries are preserved; external loader paths are discarded. It never
 patches the installed dependency libraries or upstream sources. Shared libraries
 are shipped once under their runtime SONAME. Normal UXP development chrome symlinks are resolved when
 copying `dist/bin` (`cp -aL`, or the test runner) and by the ordinary packager.
@@ -77,6 +78,9 @@ explicitly stamped developer-mode identity. No source patch is needed.
 DISPLAY=:93 python3 tools/wpe/check-runtime.py obj-webkit-enabled \
   --log /tmp/basilisk-relocated.log
 python3 tools/wpe/check-disabled.py obj-webkit-disabled
+# Also test an extracted installer archive:
+DISPLAY=:93 python3 tools/wpe/check-runtime.py /path/to/extracted/basilisk \
+  --packaged --log /tmp/basilisk-packaged.log
 ```
 
 The enabled test copies the distribution into a fresh temporary directory,
@@ -89,3 +93,37 @@ execution. The smoke test covers Gecko, WPE HTTP/HTTPS, isolated script/messages
 upstream Inspector opening/closing and view destruction. An Inspector screenshot
 and file trace accompany the requested log. This is not a sanitizer test or a
 claim of portability to an OS with missing system dependencies.
+
+## Recorded relocation results (LoongArch64)
+
+The enabled build stages 35 ELF files. All passed `ldd` without LD_LIBRARY_PATH;
+every dynamic loader path is application-relative. A copied `dist/bin` launched
+with the complete checkout masked, using a fresh profile/minimal environment.
+Gecko and WPE HTTP pages, WPE HTTPS, real-DOM script execution, isolated JSON
+messaging, CSS, upstream Inspector and clean view destruction passed. The file
+trace recorded application-local WebProcess/NetworkProcess execution and no
+checkout access. The Inspector screenshot showed the real page DOM, injected CSS
+and computed styles, not merely an empty host window. The interpreter frontend
+needs several seconds to initialize; the test allows that time.
+
+The disabled full build and audit passed (30 development ELF files). Its installer
+archive also built; the installer stage's 22 ELF files resolved with no WPE
+libraries or optional content-engine chrome. Upstream source comparison covered
+38,842 archive files with zero modifications. JSC CLoop remains enabled and
+JIT/DFG/FTL remain disabled. No sanitizer was run.
+
+The enabled installer stage passed the same isolated launch test, including
+all 27 shipped ELF files. This caught a missing `webcontentview.xpt` manifest entry
+that the unpackaged build could not expose; the manifest now includes it only
+under MOZ_WEBKIT. The disabled installer stage was regenerated successfully after
+that correction. `--packaged` uses a separate test-only chrome registration in
+the temporary copy, so it can exercise the real packaged `omni.ja` resources.
+
+Finally, `make package` completed for both configurations. The final enabled
+`.tar.xz` was extracted into a fresh temporary directory, checked for the required
+runtime files and absence of staged test resources, and tested again with
+`check-runtime.py --packaged`. All 27 ELF dependencies resolved; Gecko, WPE HTTPS,
+scripts/messages and the upstream Inspector passed with the checkout hidden and
+no LD_LIBRARY_PATH. No test-owned helper processes remained afterward. The
+archive is self-contained for the bundled WPE build; the system dependencies
+listed above remain required.

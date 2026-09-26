@@ -77,3 +77,18 @@ replacement tabs deliberately begin at about:blank until registrations are ready
 The destination-host assertion remains unchanged. Unmodified uBlock was retested:
 Gecko blocking/cosmetics pass; WebKit still needs its own portable extension
 adapter. The audit records missing events/policies and late shutdown errors.
+
+## Bundled-runtime regression rerun
+
+After rebuilding pristine upstream WPE with relocatable helper lookup, the full
+enabled/disabled builds and the complete Phase 3 matrix above passed again with
+LD_LIBRARY_PATH unset. This includes 100 native cycles (4,800 notifications),
+100 round trips in each engine direction, another 100 filtered round trips,
+resource-type distinction, exactly-once script registration after transfer,
+20 filtered adoptions, 20 simultaneous views, Inspector/process recovery, active
+shutdown, fixtures A–F, routing, persistence/private isolation, mixed restore,
+the mock and unmodified uBlock audit. No test-owned helper processes remained.
+Native-cycle RSS samples ranged from 314,760 to 323,296 KiB (about 307–316 MiB);
+no sanitizer was run. uBlock's expected portable-adapter gap remains unchanged.
+See [runtime packaging](wpe-runtime-packaging.md) for copied-distribution and
+installer validation.
