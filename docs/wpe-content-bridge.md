@@ -163,7 +163,7 @@ Run against a finished unpackaged enabled build, never while rebuilding it:
 
 ```sh
 export DISPLAY=:91
-export LD_LIBRARY_PATH="$PWD/build-wpe-deps/prefix/lib64"
+unset LD_LIBRARY_PATH
 python3 tools/wpe/run-advanced.py obj-webkit-enabled
 python3 tools/wpe/run-lifecycle.py obj-webkit-enabled --cycles 100
 python3 tools/wpe/run-lifecycle.py obj-webkit-enabled --mixed --cycles 100

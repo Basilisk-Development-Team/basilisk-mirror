@@ -112,7 +112,7 @@ In an enabled build, use a separate test profile and launch:
 
 ```
 basilisk -no-remote -profile /path/to/test-profile \
-  -chrome chrome://browser/content/webkit/prototype.xul
+  -chrome chrome://browser/content/contentengine/prototype.xul
 ```
 
 Alternatively privileged chrome can call `window.openDialog` on that URI.
@@ -128,18 +128,13 @@ basic view checks below do not establish complete browser compatibility.
 ## Dependency build and disabled-build audit
 
 `tools/wpe/fetch-source.sh` explicitly downloads and verifies the pinned upstream
-source. Nothing invokes it automatically. For a local WPE build, use upstream's
-CMake/Ninja support in `build-wpe-deps/wpe-build`, with `PORT=WPE`,
-`ENABLE_WPE_PLATFORM=ON`, `ENABLE_WPE_LEGACY_API=OFF`, and an install prefix of
-`build-wpe-deps/prefix`. This prototype needs neither the DRM nor Wayland host
-backends. This machine also needed `USE_SYSTEM_SYSPROF_CAPTURE=OFF` to use the
-upstream bundled dependency. Install build prerequisites or supply private
-copies; WPE's upstream build reports missing dependencies. Keep all dependency
-source/build/install products in the already-ignored `build-wpe-deps/` directory.
-Set `PKG_CONFIG_PATH` to the installed WPE pkgconfig directory when configuring
-Basilisk with `--enable-webkit`. The source-build pkgconfig directory can also
-be used for development, but its shared library must exist before linking or
-running Basilisk.
+source. Nothing invokes it automatically. See [runtime packaging](wpe-runtime-packaging.md)
+for the current upstream CMake settings and staged dependency build. Enabled
+builds require an installed runtime, including helpers/resources, and bundle it
+in the application. Source-build pkg-config metadata alone is insufficient.
+All dependency products remain in the ignored `build-wpe-deps/` directory.
+Set `PKG_CONFIG_PATH` to the staged WPE pkgconfig directory when configuring
+Basilisk with `--enable-webkit`.
 
 Keep your normal compiler/application settings in a separate experimental
 mozconfig, adding:
@@ -165,16 +160,14 @@ For this checkout's private dependency installation, the launch command is:
 
 ```sh
 mkdir -p build-wpe-deps/my-test-profile
-LD_LIBRARY_PATH="$PWD/build-wpe-deps/prefix/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+env -u LD_LIBRARY_PATH \
   obj-webkit-enabled/dist/bin/basilisk -no-remote \
   -profile "$PWD/build-wpe-deps/my-test-profile" \
-  -chrome chrome://browser/content/webkit/prototype.xul
+  -chrome chrome://browser/content/contentengine/prototype.xul
 ```
 
-Use `lib` instead of `lib64` if that is where your WPE installation places its
-libraries. Install WPE's helper executables and resources with the library;
-copying only its shared object is insufficient. No runtime sandbox was disabled
-for the validation here. WPE web processes ran through upstream's bubblewrap
+The completed build stages the runtime into `dist/bin/webkit`. No development
+library path is needed at launch. WPE web processes use upstream's bubblewrap
 sandbox, alongside Gecko's existing process setup.
 
 After a completed disabled build:
@@ -206,7 +199,7 @@ history, or absence of leaks. Those remain separate runtime gates.
 The XUL lifecycle test additionally exercises the actual XPCOM component:
 
 ```sh
-DISPLAY=:91 LD_LIBRARY_PATH="$PWD/build-wpe-deps/prefix/lib64" \
+DISPLAY=:91 env -u LD_LIBRARY_PATH \
   python3 tools/wpe/run-lifecycle.py obj-webkit-enabled
 ```
 

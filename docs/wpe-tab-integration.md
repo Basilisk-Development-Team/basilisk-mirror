@@ -131,13 +131,12 @@ or origins; it is intentionally not part of this integration milestone.
 
 ## Reproducible checks
 
-After completing an enabled build, with a disposable X display and WPE loader
-path available (never concurrently with a build in that object directory):
+After completing an enabled build, with a disposable X display and the staged WPE runtime (never concurrently with a build in that object directory):
 
 ```
-DISPLAY=:91 LD_LIBRARY_PATH="$PWD/build-wpe-deps/prefix/lib64" \
+DISPLAY=:91 env -u LD_LIBRARY_PATH \
   python3 tools/wpe/run-lifecycle.py obj-webkit-enabled --mixed
-DISPLAY=:91 LD_LIBRARY_PATH="$PWD/build-wpe-deps/prefix/lib64" \
+DISPLAY=:91 env -u LD_LIBRARY_PATH \
   python3 tools/wpe/run-lifecycle.py obj-webkit-enabled
 python3 tools/wpe/check-disabled.py obj-webkit-disabled
 ```

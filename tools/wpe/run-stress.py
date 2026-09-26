@@ -4,7 +4,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 """Run isolated WPE multi-tab, Inspector, crash and shutdown stress fixtures.
 
-Requires DISPLAY and a runtime loader path that finds the installed WPE library.
+Requires DISPLAY and a completed enabled build with its staged WPE runtime.
 Uses a fresh profile, a loopback HTTP server, and temporary build-only chrome.
 Never run concurrently with a build in the same object directory.
 """

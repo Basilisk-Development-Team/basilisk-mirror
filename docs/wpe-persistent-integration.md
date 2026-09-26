@@ -102,7 +102,7 @@ upstream patch has been introduced.
 Run the restart/private/adoption fixture with an isolated X display:
 
 ```
-DISPLAY=:91 LD_LIBRARY_PATH="$PWD/build-wpe-deps/prefix/lib64" \
+DISPLAY=:91 env -u LD_LIBRARY_PATH \
   python3 tools/wpe/run-persistence.py obj-webkit-enabled
 ```
 
