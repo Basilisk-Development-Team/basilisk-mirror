@@ -58,7 +58,8 @@ def audit(dist, env):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('objdir', type=Path)
+    parser.add_argument('location', type=Path, help='Object directory, or extracted application with --packaged')
+    parser.add_argument('--packaged', action='store_true', help='Test an extracted installer application')
     parser.add_argument('--log', type=Path, required=True)
     args = parser.parse_args()
     checkout = Path(__file__).resolve().parents[2]
@@ -68,7 +69,8 @@ def main():
         with tempfile.TemporaryDirectory(prefix='basilisk-relocated-') as temporary:
             root = Path(temporary)
             dist = root / 'application'
-            shutil.copytree(args.objdir.resolve() / 'dist/bin', dist, symlinks=False)
+            source = args.location.resolve() if args.packaged else args.location.resolve() / 'dist/bin'
+            shutil.copytree(source, dist, symlinks=False)
             for name in ('tmp', 'runtime'):
                 (root / name).mkdir(mode=0o700)
             env = {'PATH':'/usr/bin:/bin', 'HOME':str(root), 'LANG':'C.UTF-8',
@@ -77,7 +79,11 @@ def main():
                    'TMPDIR':str(root / 'tmp'), 'XDG_RUNTIME_DIR':str(root / 'runtime')}
             if os.environ.get('XAUTHORITY'): env['XAUTHORITY'] = os.environ['XAUTHORITY']
             audit(dist, env)
-            chrome = dist / 'browser/chrome/browser/content/browser/contentengine'
+            # A separate test-only chrome package also works with packaged omni.ja.
+            chrome = dist / 'runtime-test'
+            chrome.mkdir()
+            with (dist / 'chrome.manifest').open('a') as manifest:
+                manifest.write('\ncontent basilisk-runtime-test runtime-test/\n')
             for suffix in ('js', 'xul'):
                 shutil.copy2(Path(__file__).parent / 'runtime' / ('runtime.' + suffix),
                              chrome / ('runtime-test.' + suffix))
@@ -94,7 +100,7 @@ def main():
                        '--proc', '/proc', '--tmpfs', str(checkout),
                        'strace', '-f', '-qq', '-e', 'trace=file', '-o', str(trace),
                        str(dist / 'basilisk'), '-no-remote', '-profile', str(profile),
-                       '-chrome', 'chrome://browser/content/contentengine/runtime-test.xul']
+                       '-chrome', 'chrome://basilisk-runtime-test/content/runtime-test.xul']
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                        text=True, env=env, cwd=temporary, start_new_session=True)
             output = []
