@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<window xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul" title="WPE stress tests">
+<script type="application/javascript" src="wpe-stress-test.js"/>
+</window>

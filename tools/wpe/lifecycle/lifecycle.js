@@ -4,6 +4,7 @@
 "use strict";
 const Cc = Components.classes, Ci = Components.interfaces, Cu = Components.utils;
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
+Cu.import("resource://gre/modules/Services.jsm");
 let view, cycle = 0, phase = 0, ticks = 0, messages = 0;
 let timer, previousTitle, stoppedAt;
 const base = "http://127.0.0.1:" +
@@ -36,7 +37,7 @@ window.addEventListener("load", function() {
     create();
     timer = setInterval(function() {
       try {
-        if (++ticks > 720) return finish(false, "timeout at cycle " + cycle + " phase " + phase);
+        if (++ticks > Math.max(720, Services.prefs.getIntPref("wpe.test.cycles") * 60)) return finish(false, "timeout at cycle " + cycle + " phase " + phase);
         let title = view.title, uri = view.currentURI;
         switch (phase) {
           case 0:
@@ -62,7 +63,7 @@ window.addEventListener("load", function() {
             view.focus(); view.setVisible(false); view.setVisible(true);
             view.destroy(); view.destroy(); view = null;
             dump("WPE-LIFECYCLE cycle " + (++cycle) + " notifications " + messages + "\n");
-            if (cycle == 10) return finish(true, "navigation/title/URI and ten attach/destroy cycles");
+            if (cycle == Services.prefs.getIntPref("wpe.test.cycles")) return finish(true, "navigation/title/URI and " + cycle + " attach/destroy cycles");
             create(); break;
         }
       } catch (e) { finish(false, String(e)); }

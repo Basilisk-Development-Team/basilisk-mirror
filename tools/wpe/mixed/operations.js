@@ -9,7 +9,7 @@ function testMixedTabs() { return new Promise(function(resolve, reject) {
   ContentEngines.get().loadURI(base + 'a');
   let timer = setInterval(function() {
     try {
-      if (++ticks > 720) throw new Error('timeout in phase ' + phase);
+      if (++ticks > Math.max(720, Services.prefs.getIntPref("wpe.test.cycles") * 30)) throw new Error('timeout in phase ' + phase);
       let browser = gBrowser.selectedBrowser;
       let view = ContentEngines.get(browser);
       let title = browser.contentTitle;
@@ -53,7 +53,7 @@ function testMixedTabs() { return new Promise(function(resolve, reject) {
           if (!view || view.native.loading || !title.startsWith('Page B')) return;
           check(gBrowser.tabs.length == initialCount, 'switch changed tab count');
           check(ContentEngines.views.size == 2, 'view leaked across switching');
-          if (++cycles < 10) { phase = 7; return; }
+          if (++cycles < Services.prefs.getIntPref("wpe.test.cycles")) { phase = 7; return; }
           let extra = ContentEngines.open(base + 'a');
           phase++; break;
         case 10:
