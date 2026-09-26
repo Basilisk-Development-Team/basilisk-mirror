@@ -42,7 +42,7 @@ class ContentEngineFinder {
       if (bar.getElement(name)) bar.getElement(name).style.display = "none";
     ContentEngines.layout();
   }
-  // Presentation-only callbacks from findbar; WPE owns match painting.
+  // Presentation-only callbacks from findbar; alternate content owns match painting.
   enableSelection() {}
   onModalHighlightChange() {}
   onHighlightAllChange() {}

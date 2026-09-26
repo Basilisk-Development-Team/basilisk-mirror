@@ -25,7 +25,7 @@ window.addEventListener("load", function() {
           throw new Error("Gecko is not the default");
         win.ContentEngines.open(base + "a");
         win.ContentEngines.open(base + "b", false);
-        Services.scriptloader.loadSubScript("chrome://browser/content/webkit/wpe-mixed-operations.js", win);
+        Services.scriptloader.loadSubScript("chrome://browser/content/contentengine/wpe-mixed-operations.js", win);
         win.testMixedTabs().then(result => {
           if (chromeErrors.length) { fail(new Error(chromeErrors.join("\n"))); return; }
           dump("WPE-MIXED PASS " + JSON.stringify(result) + "\n");

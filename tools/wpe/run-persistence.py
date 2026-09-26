@@ -63,7 +63,7 @@ def main():
     parser.add_argument("objdir", type=Path)
     args = parser.parse_args()
     binary = args.objdir.resolve() / "dist/bin/basilisk"
-    chrome = binary.parent / "browser/chrome/browser/content/browser/webkit"
+    chrome = binary.parent / "browser/chrome/browser/content/browser/contentengine"
     if not (chrome / "engine-session.js").is_file():
         parser.error("requires an unpackaged enabled build with session integration")
     fixtures = Path(__file__).resolve().parent / "persistence"
@@ -85,7 +85,7 @@ def main():
                 Path(profile, "user.js").write_text("\n".join(
                     "user_pref(%s, %s);" % (json.dumps(k), json.dumps(v)) for k, v in prefs.items()))
                 result = subprocess.run([str(binary), "-no-remote", "-profile", profile,
-                    "-chrome", "chrome://browser/content/webkit/wpe-persistence-test.xul"],
+                    "-chrome", "chrome://browser/content/contentengine/wpe-persistence-test.xul"],
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=150)
                 print(result.stdout, end="", flush=True)
                 if result.returncode or "WPE-PERSISTENCE PASS " + phase not in result.stdout or "WPE-PERSISTENCE FAIL" in result.stdout:

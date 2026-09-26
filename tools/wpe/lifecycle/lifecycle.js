@@ -25,7 +25,7 @@ const listener = {
   }
 };
 function create() {
-  view = Cc["@basilisk-browser.org/web-content-view/wpe;1"].createInstance(Ci.nsIWebContentView);
+  view = Cc["@basilisk-browser.org/content-view;1?engine=webkit"].createInstance(Ci.nsIWebContentView);
   view.attach(window, listener);
   view.setBounds(0, 35, 640, 450);
   view.setVisible(true);

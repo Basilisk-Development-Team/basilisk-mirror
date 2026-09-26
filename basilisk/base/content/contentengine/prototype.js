@@ -11,7 +11,7 @@ let contextLink = "";
 const element = id => document.getElementById(id);
 
 function reportError(error) {
-  element("status").value = "WPE error: " + error;
+  element("status").value = "alternate content error: " + error;
   Cu.reportError(error);
 }
 function invoke(method) {
@@ -40,7 +40,7 @@ const listener = {
   observe(subject, topic, data) {
     if (closing || !contentView) return;
     if (topic == "content-view-process-terminated") {
-      element("status").value = "The WPE web process terminated. Reload to retry.";
+      element("status").value = "The alternate content web process terminated. Reload to retry.";
       return;
     }
     if (topic == "content-view-context-menu") {
@@ -57,14 +57,14 @@ const listener = {
     }
     if (topic != "content-view-state") return;
     element("location").value = contentView.currentURI;
-    document.title = (contentView.title || "WPE content view") + " — WPE experiment";
+    document.title = (contentView.title || "alternate content content view") + " — alternate content experiment";
     element("back").disabled = !contentView.canGoBack;
     element("forward").disabled = !contentView.canGoForward;
   }
 };
 window.addEventListener("load", function() {
   try {
-    contentView = Cc["@basilisk-browser.org/web-content-view/wpe;1"]
+    contentView = Cc["@basilisk-browser.org/content-view;1?engine=webkit"]
                     .createInstance(Ci.nsIWebContentView);
     contentView.attach(window, listener);
     for (let [id, method] of [["back", "goBack"], ["forward", "goForward"],

@@ -23,7 +23,7 @@ header = (obj / 'mozilla-config.h').read_text()
 require(not re.search(r'^\s*#\s*define\s+MOZ_WEBKIT\b', header, re.M),
         'MOZ_WEBKIT is defined')
 backend = (obj / 'backend.RecursiveMakeBackend.in').read_text()
-require('components/webkit/moz.build' not in backend,
+require('components/contentengine/moz.build' not in backend,
         'WPE directory participated in the build')
 root = obj / 'dist/bin'
 # Auxiliary executables/components rely on the application's library directory
@@ -37,7 +37,7 @@ count = 0
 for path in root.rglob('*'):
     if not path.is_file():
         continue
-    require('/chrome/' not in path.as_posix() or '/webkit/' not in path.as_posix(),
+    require('/chrome/' not in path.as_posix() or '/contentengine/' not in path.as_posix(),
             'WPE chrome resource installed: ' + str(path))
     require(path.name != 'webcontentview.xpt', 'WPE interfaces installed')
     with path.open('rb') as stream:
@@ -58,11 +58,11 @@ for path in root.rglob('*'):
             require(not re.search(r'^\s*\S*(?:webkit|wpe)\S*\s+=>', closure.stdout, re.I | re.M),
                     'WPE transitive dependency: ' + str(path))
         # Registration strings cannot be present, even if linkage is indirect.
-        require(b'@basilisk-browser.org/web-content-view/wpe;1' not in path.read_bytes(),
+        require(b'@basilisk-browser.org/content-view;1?engine=webkit' not in path.read_bytes(),
                 'WPE component registered in ' + str(path))
     elif zipfile.is_zipfile(path):
         with zipfile.ZipFile(path) as archive:
-            require(not any('/webkit/' in '/' + name for name in archive.namelist()),
+            require(not any('/contentengine/' in '/' + name for name in archive.namelist()),
                     'WPE resources packaged in ' + str(path))
     elif path.suffix == '.xpt':
         require(b'nsIWebContentView' not in path.read_bytes(),

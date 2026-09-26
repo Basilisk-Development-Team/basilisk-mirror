@@ -67,13 +67,13 @@ class ContentScriptClient {
           }
         }
         else {
-          if (this.browser.contentEngine == "webkit") throw new Error("WPE view is pending restoration");
+          if (this.browser.contentEngine == "webkit") throw new Error("alternate content view is pending restoration");
           if (!this.manager) {
             this.manager = this.browser.messageManager;
             this.manager.addMessageListener("Basilisk:ContentResult", this.receive);
             this.manager.addMessageListener("Basilisk:ContentMessage", this.receiveContent);
             if (ContentEngineScripts.managers.get(this.browser) != this.manager) {
-              this.manager.loadFrameScript("chrome://browser/content/webkit/gecko-content.js", true);
+              this.manager.loadFrameScript("chrome://browser/content/contentengine/gecko-content.js", true);
               ContentEngineScripts.managers.set(this.browser, this.manager);
             }
           }

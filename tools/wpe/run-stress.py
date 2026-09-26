@@ -53,7 +53,7 @@ def main():
     args = parser.parse_args()
     objdir = args.objdir.resolve()
     binary = objdir / "dist/bin/basilisk"
-    chrome = objdir / "dist/bin/browser/chrome/browser/content/browser/webkit"
+    chrome = objdir / "dist/bin/browser/chrome/browser/content/browser/contentengine"
     if not binary.is_file() or not (chrome / "prototype.xul").is_file():
         parser.error("requires a completed, unpackaged --enable-webkit build")
     name = "stress"
@@ -87,7 +87,7 @@ def main():
                 for key, value in prefs.items()))
             process = subprocess.Popen([
                 str(binary), "-no-remote", "-profile", profile, "-chrome",
-                "chrome://browser/content/webkit/wpe-stress-test.xul",
+                "chrome://browser/content/contentengine/wpe-stress-test.xul",
             ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
             output = []
             watchdog = threading.Timer(600, process.kill)

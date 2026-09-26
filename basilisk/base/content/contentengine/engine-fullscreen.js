@@ -8,7 +8,7 @@ var ContentEngineFullscreen = {
     if (this.view == view) return;
     this.exit();
     if (view.browser != gBrowser.selectedBrowser) {
-      // Complete then exit WPE's entering transition without changing chrome.
+      // Complete then exit alternate content's entering transition without changing chrome.
       view.native.setFullscreen(true);
       view.native.setFullscreen(false);
       return;

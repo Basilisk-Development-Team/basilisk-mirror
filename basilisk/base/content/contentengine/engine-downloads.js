@@ -3,7 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 "use strict";
 
-// WPE owns the transfer. XUL chooses the destination and records completion in
+// alternate content owns the transfer. XUL chooses the destination and records completion in
 // the existing download list; never restart the request through Gecko.
 var ContentEngineDownloads = {
   observe(view, topic, info) {

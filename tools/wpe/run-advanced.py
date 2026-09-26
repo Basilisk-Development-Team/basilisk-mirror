@@ -52,7 +52,7 @@ def main():
     args = parser.parse_args()
     objdir = args.objdir.resolve()
     binary = objdir / "dist/bin/basilisk"
-    chrome = objdir / "dist/bin/browser/chrome/browser/content/browser/webkit"
+    chrome = objdir / "dist/bin/browser/chrome/browser/content/browser/contentengine"
     if not binary.is_file() or not (chrome / "prototype.xul").is_file():
         parser.error("requires a completed, unpackaged --enable-webkit build")
     name = "advanced"
@@ -85,7 +85,7 @@ def main():
                 for key, value in prefs.items()))
             result = subprocess.run([
                 str(binary), "-no-remote", "-profile", profile, "-chrome",
-                "chrome://browser/content/webkit/wpe-" + name + "-test.xul",
+                "chrome://browser/content/contentengine/wpe-" + name + "-test.xul",
             ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, timeout=600)
             print(result.stdout, end="")

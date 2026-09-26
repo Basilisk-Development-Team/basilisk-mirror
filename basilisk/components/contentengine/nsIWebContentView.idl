@@ -54,7 +54,7 @@ interface nsIWebContentView : nsISupports
   /** Upstream inspector. Context inspection requires a retained menu action. */
   void openDeveloperTools();
   void inspectElement();
-  /** Acknowledge XUL-controlled fullscreen state to the WPE platform. */
+  /** Acknowledge XUL-controlled fullscreen state to the content backend. */
   void setFullscreen(in boolean active);
   /** Async function body in the isolated Basilisk world. Replies are JSON. */
   void executeScript(in unsigned long requestId, in AUTF8String source);

@@ -1,7 +1,7 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-#include "WebKitContentView.h"
+#include "WPEContentView.h"
 #include "WPEHost.h"
 #include "nsHashPropertyBag.h"
 #include <jsc/jsc.h>
@@ -24,12 +24,12 @@ if (!globalThis.browserContent) {
 }
 )JS";
 struct ScriptReply {
-  RefPtr<WebKitContentView> owner;
+  RefPtr<WPEContentView> owner;
   uint32_t id;
 };
 }
 
-void WebKitContentView::EnsureMessaging()
+void WPEContentView::EnsureMessaging()
 {
   if (mMessaging) return;
   auto* manager = webkit_web_view_get_user_content_manager(mHost->webView);
@@ -40,7 +40,7 @@ void WebKitContentView::EnsureMessaging()
       if (json && strlen(json) <= 1024 * 1024) {
         RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
         info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("json"), nsDependentCString(json));
-        static_cast<WebKitContentView*>(data)->Notify("content-view-message", static_cast<nsIWritablePropertyBag2*>(info));
+        static_cast<WPEContentView*>(data)->Notify("content-view-message", static_cast<nsIWritablePropertyBag2*>(info));
       }
       g_free(json);
     }), this);
@@ -48,7 +48,7 @@ void WebKitContentView::EnsureMessaging()
   mMessaging = true;
 }
 
-void WebKitContentView::CancelScripts()
+void WPEContentView::CancelScripts()
 {
   if (mScriptCancellation) {
     g_cancellable_cancel(mScriptCancellation);
@@ -56,7 +56,7 @@ void WebKitContentView::CancelScripts()
   }
 }
 
-NS_IMETHODIMP WebKitContentView::ExecuteScript(uint32_t id, const nsACString& source)
+NS_IMETHODIMP WPEContentView::ExecuteScript(uint32_t id, const nsACString& source)
 {
   NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed, NS_ERROR_NOT_AVAILABLE);
   NS_ENSURE_TRUE(source.Length() <= 1024 * 1024, NS_ERROR_INVALID_ARG);
@@ -86,7 +86,7 @@ NS_IMETHODIMP WebKitContentView::ExecuteScript(uint32_t id, const nsACString& so
   return NS_OK;
 }
 
-NS_IMETHODIMP WebKitContentView::InsertCSS(const nsACString& identifier, const nsACString& source)
+NS_IMETHODIMP WPEContentView::InsertCSS(const nsACString& identifier, const nsACString& source)
 {
   NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed, NS_ERROR_NOT_AVAILABLE);
   NS_ENSURE_TRUE(!identifier.IsEmpty() && identifier.Length() <= 256 && source.Length() <= 1024 * 1024,
@@ -102,7 +102,7 @@ NS_IMETHODIMP WebKitContentView::InsertCSS(const nsACString& identifier, const n
   g_hash_table_insert(mStyleSheets, g_strdup(id.get()), sheet);
   return NS_OK;
 }
-NS_IMETHODIMP WebKitContentView::RemoveCSS(const nsACString& identifier)
+NS_IMETHODIMP WPEContentView::RemoveCSS(const nsACString& identifier)
 {
   NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed, NS_ERROR_NOT_AVAILABLE);
   nsAutoCString id(identifier);
@@ -113,7 +113,7 @@ NS_IMETHODIMP WebKitContentView::RemoveCSS(const nsACString& identifier)
   }
   return NS_OK;
 }
-NS_IMETHODIMP WebKitContentView::RegisterScript(const nsACString& identifier, const nsACString& source)
+NS_IMETHODIMP WPEContentView::RegisterScript(const nsACString& identifier, const nsACString& source)
 {
   NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed, NS_ERROR_NOT_AVAILABLE);
   NS_ENSURE_TRUE(!identifier.IsEmpty() && identifier.Length() <= 256 && source.Length() <= 1024 * 1024,
@@ -133,7 +133,7 @@ NS_IMETHODIMP WebKitContentView::RegisterScript(const nsACString& identifier, co
   g_hash_table_insert(mUserScripts, g_strdup(id.get()), script);
   return NS_OK;
 }
-NS_IMETHODIMP WebKitContentView::UnregisterScript(const nsACString& identifier)
+NS_IMETHODIMP WPEContentView::UnregisterScript(const nsACString& identifier)
 {
   NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed, NS_ERROR_NOT_AVAILABLE);
   nsAutoCString id(identifier);

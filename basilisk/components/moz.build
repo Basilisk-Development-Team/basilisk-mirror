@@ -25,7 +25,7 @@ if CONFIG['MOZ_SERVICES_SYNC']:
     DIRS += ['sync']
 
 if CONFIG['MOZ_WEBKIT']:
-    DIRS += ['webkit']
+    DIRS += ['contentengine']
 
 DIRS += ['build']
 

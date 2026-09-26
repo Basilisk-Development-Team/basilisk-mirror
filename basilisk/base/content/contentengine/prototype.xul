@@ -4,16 +4,16 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
 <window xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
-        id="wpe-prototype" title="WPE content view experiment"
+        id="wpe-prototype" title="alternate content content view experiment"
         width="1000" height="760" windowtype="basilisk:wpe-prototype">
-  <script type="application/javascript" src="chrome://browser/content/webkit/prototype.js"/>
+  <script type="application/javascript" src="chrome://browser/content/contentengine/prototype.js"/>
   <popupset>
     <menupopup id="content-menu">
       <menuitem id="context-back" label="Back"/>
       <menuitem id="context-forward" label="Forward"/>
       <menuitem id="context-reload" label="Reload"/>
       <menuseparator/>
-      <menuitem id="context-link" label="Open link in this WPE view"/>
+      <menuitem id="context-link" label="Open link in this alternate content view"/>
     </menupopup>
   </popupset>
   <hbox align="center">
@@ -24,6 +24,6 @@
     <textbox id="location" flex="1" value="https://example.com/"/>
     <button id="go" label="Go"/>
   </hbox>
-  <description id="status" crop="end" value="Experimental WPE view — separate, temporary storage"/>
+  <description id="status" crop="end" value="Experimental alternate content view — separate, temporary storage"/>
   <vbox id="content-host" flex="1"/>
 </window>

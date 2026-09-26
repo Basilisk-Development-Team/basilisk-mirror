@@ -2794,7 +2794,7 @@
             var remoteBrowser = aOtherTab.ownerDocument.defaultView.gBrowser;
 #ifdef MOZ_WEBKIT
             if (otherBrowser.contentEngine == "webkit") {
-              // Native WPE views belong to their chrome window. Transfer only
+              // Native alternate content views belong to their chrome window. Transfer only
               // serialized tab metadata, then restore a fresh destination view.
               let state = SessionStore.getTabState(aOtherTab);
               SessionStore.setTabState(aOurTab, state);

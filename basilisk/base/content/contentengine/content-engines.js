@@ -164,7 +164,7 @@ class ExternalContentBrowser {
     this.saved = new Map();
     this.visible = false;
     this.bounds = "";
-    this.native = Cc["@basilisk-browser.org/web-content-view/wpe;1"]
+    this.native = Cc["@basilisk-browser.org/content-view;1?engine=webkit"]
                     .createInstance(Ci.nsIWebContentView);
     this.principal = Services.scriptSecurityManager.createNullPrincipal({});
     this.finder = new ContentEngineFinder(this);
@@ -179,11 +179,11 @@ class ExternalContentBrowser {
     this.filter = gBrowser._tabFilters.get(this.tab);
     b.webProgress.removeProgressListener(this.filter);
     // An inert Gecko frame loader remains for tab/session bookkeeping only.
-    // Its DOM must never be exposed as the document rendered by WPE.
+    // Its DOM must never be exposed as the document rendered by alternate content.
     let getters = {
       currentURI: () => Services.io.newURI(this.native.currentURI || "about:blank", null, null),
       documentURI: () => b.currentURI,
-      contentTitle: () => this.native.title || this.native.currentURI || "WPE",
+      contentTitle: () => this.native.title || this.native.currentURI || "alternate content",
       contentDocument: () => null, contentWindow: () => null,
       contentDocumentAsCPOW: () => null, contentWindowAsCPOW: () => null,
       contentPrincipal: () => this.principal,
@@ -199,7 +199,7 @@ class ExternalContentBrowser {
     let methods = {
       loadURI: uri => this.loadURI(uri),
       loadURIWithFlags: (uri, flags, referrer, charset, postData) => {
-        if (postData || (flags && flags.postData)) throw new Error("WPE chrome POST loading is not supported");
+        if (postData || (flags && flags.postData)) throw new Error("alternate content chrome POST loading is not supported");
         this.loadURI(uri);
       },
       goBack: () => this.native.goBack(), goForward: () => this.native.goForward(),
@@ -238,7 +238,7 @@ class ExternalContentBrowser {
       return;
     }
     if (topic == "content-view-inspector") {
-      window.openDialog("chrome://browser/content/webkit/inspector.xul", "_blank", "chrome,all,dialog=no", subject);
+      window.openDialog("chrome://browser/content/contentengine/inspector.xul", "_blank", "chrome,all,dialog=no", subject);
       return;
     }
     if (topic.startsWith("content-view-download-")) {

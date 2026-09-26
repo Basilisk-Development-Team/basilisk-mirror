@@ -16,7 +16,7 @@ var ContentEngineSession = {
         SessionStore.getTabValue(tab, "basilisk.contentURI") : tab.linkedBrowser.currentURI.spec;
       if (this.engine(tab) == "webkit")
         tab.label = SessionStore.getTabValue(tab, "basilisk.contentTitle") ||
-                    SessionStore.getTabValue(tab, "basilisk.contentURI") || "WPE";
+                    SessionStore.getTabValue(tab, "basilisk.contentURI") || "alternate content";
     });
     gBrowser.tabContainer.addEventListener("SSTabRestored", event => this.restore(event.target));
   },
@@ -64,9 +64,9 @@ var ContentEngineSession = {
       if (tab == gBrowser.selectedTab) ContentEngines.refresh();
     } catch (error) {
       // Keep the engine marker so a failed external restore never silently
-      // loads the user's authenticated WPE URI in Gecko instead.
+      // loads the user's authenticated alternate content URI in Gecko instead.
       Cu.reportError(error);
-      tab.label = "WPE restore failed";
+      tab.label = "alternate content restore failed";
     }
   }
 };
