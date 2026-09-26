@@ -136,6 +136,23 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
     G_CALLBACK(+[](WebKitBackForwardList*, WebKitBackForwardListItem*, GList*, gpointer data) {
       static_cast<WebKitContentView*>(data)->Notify("content-view-state");
     }), this);
+  g_signal_connect(mHost->webView, "decide-policy",
+    G_CALLBACK(+[](WebKitWebView*, WebKitPolicyDecision* decision, WebKitPolicyDecisionType type, gpointer data) -> gboolean {
+      if (type != WEBKIT_POLICY_DECISION_TYPE_RESPONSE) return FALSE;
+      auto* response = WEBKIT_RESPONSE_POLICY_DECISION(decision);
+      if (!webkit_response_policy_decision_is_main_frame_main_resource(response) ||
+          !webkit_response_policy_decision_is_mime_type_supported(response)) return FALSE;
+      auto* request = webkit_response_policy_decision_get_request(response);
+      if (g_strcmp0(webkit_uri_request_get_http_method(request), "GET")) return FALSE;
+      RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
+      info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("uri"), nsDependentCString(webkit_uri_request_get_uri(request)));
+      info->SetPropertyAsBool(NS_LITERAL_STRING("handled"), false);
+      static_cast<WebKitContentView*>(data)->Notify("content-view-route", static_cast<nsIWritablePropertyBag2*>(info));
+      bool handled = false;
+      info->GetPropertyAsBool(NS_LITERAL_STRING("handled"), &handled);
+      if (handled) webkit_policy_decision_ignore(decision);
+      return handled;
+    }), this);
   g_signal_connect(mHost->webView, "web-process-terminated",
     G_CALLBACK(+[](WebKitWebView*, WebKitWebProcessTerminationReason, gpointer data) {
       auto* self = static_cast<WebKitContentView*>(data);

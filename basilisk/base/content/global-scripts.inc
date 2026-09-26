@@ -11,6 +11,7 @@
 <script type="application/javascript" src="chrome://browser/content/webkit/content-engines.js"/>
 <script type="application/javascript" src="chrome://browser/content/webkit/engine-session.js"/>
 <script type="application/javascript" src="chrome://browser/content/webkit/engine-events.js"/>
+<script type="application/javascript" src="chrome://browser/content/webkit/engine-routing.js"/>
 <script type="application/javascript" src="chrome://browser/content/webkit/engine-devtools.js"/>
 <script type="application/javascript" src="chrome://browser/content/webkit/engine-fullscreen.js"/>
 <script type="application/javascript" src="chrome://browser/content/webkit/engine-scripts.js"/>

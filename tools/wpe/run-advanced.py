@@ -2,7 +2,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-"""Run the XUL component lifecycle test in an unpackaged enabled build.
+"""Run the installed XUL extension and optional-engine integration fixtures.
 
 Requires DISPLAY and a runtime loader path that finds the installed WPE library.
 Uses a fresh profile, a loopback HTTP server, and temporary build-only chrome.
@@ -23,6 +23,11 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
+        if self.path == "/redirect-host":
+            self.send_response(302)
+            self.send_header("Location", "http://localhost:%d/b" % self.server.server_port)
+            self.end_headers()
+            return
         title = "Page B" if self.path == "/b" else "Page A"
         if self.path == "/slow":
             time.sleep(2)
@@ -62,10 +67,6 @@ def main():
             destination = chrome / ("wpe-" + name + "-test." + suffix)
             # Refuse to overwrite an existing test or product resource.
             destination.symlink_to(fixture / (name + "." + suffix))
-            staged.append(destination)
-        if False:
-            destination = chrome / "wpe-mixed-operations.js"
-            destination.symlink_to(fixture / "operations.js")
             staged.append(destination)
         with tempfile.TemporaryDirectory(prefix="basilisk-wpe-test-") as profile:
             import shutil

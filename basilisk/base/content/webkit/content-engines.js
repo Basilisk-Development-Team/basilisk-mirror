@@ -21,6 +21,7 @@ var ContentEngines = {
   init() {
     ContentEngineSession.init();
     ContentEngineEvents.init();
+    ContentEngineRouting.init();
     window.controllers.insertControllerAt(0, ContentEngineEditController);
     gBrowser.tabContainer.addEventListener("TabSelect", this);
     gBrowser.tabContainer.addEventListener("TabClose", this);
@@ -48,9 +49,10 @@ var ContentEngines = {
       if (event.type == "TabSelect") this.refresh();
     }
   },
-  open(uri = "about:blank", selected = true) {
+  open(uri = "about:blank", selected = true, manual = true) {
     let tab = gBrowser.addTab("about:blank", {skipAnimation: true});
     try {
+      if (manual) SessionStore.setTabValue(tab, "basilisk.engineOverride", "webkit");
       let view = this.attach(tab);
       if (selected) gBrowser.selectedTab = tab;
       view.loadURI(uri);
@@ -74,13 +76,19 @@ var ContentEngines = {
     ContentEngineScripts.transfer(tab.linkedBrowser, tab.linkedBrowser);
     return view;
   },
-  switchEngine(tab, engine) {
+  switchEngine(tab, engine, options = {}) {
     if (!["gecko", "webkit"].includes(engine)) throw new Error("Unknown content engine");
+    let manual = options.manual !== false;
+    if (manual) {
+      SessionStore.setTabValue(tab, "basilisk.engineOverride", engine);
+      delete tab._contentRouteChain;
+      tab.removeAttribute("contentroutingblocked");
+    }
     if (this.engineFor(tab.linkedBrowser) == engine) {
       tab.linkedBrowser.reload();
       return tab;
     }
-    let uri = tab.linkedBrowser.currentURI.spec;
+    let uri = options.uri || tab.linkedBrowser.currentURI.spec;
     if (tab.closing || tab._pendingPermitUnload) return tab;
     if (this.engineFor(tab.linkedBrowser) == "gecko") {
       tab._pendingPermitUnload = true;
@@ -92,8 +100,10 @@ var ContentEngines = {
     // Replace the old content/frame-loader lifetime as a unit. Preserve tab
     // position, selection and pinning, but never transfer live page state.
     let selected = tab == gBrowser.selectedTab;
-    let replacement = engine == "webkit" ? this.open(uri, false) :
+    let replacement = engine == "webkit" ? this.open(uri, false, false) :
       gBrowser.addTab(uri, {skipAnimation: true});
+    let override = SessionStore.getTabValue(tab, "basilisk.engineOverride");
+    if (override) SessionStore.setTabValue(replacement, "basilisk.engineOverride", override);
     gBrowser.moveTabTo(replacement, tab._tPos);
     if (tab.pinned) gBrowser.pinTab(replacement);
     if (selected) gBrowser.selectedTab = replacement;
@@ -208,6 +218,11 @@ class ExternalContentBrowser {
   }
   observe(subject, topic) {
     if (this.destroyed) return;
+    if (topic == "content-view-route") {
+      let info = subject.QueryInterface(Ci.nsIWritablePropertyBag2);
+      info.setPropertyAsBool("handled", ContentEngineRouting.route(this.tab, info.getPropertyAsAUTF8String("uri")));
+      return;
+    }
     if (topic == "content-view-message") {
       ContentEngineScripts.message(this.browser, subject.QueryInterface(Ci.nsIPropertyBag2).getPropertyAsAUTF8String("json"));
       return;

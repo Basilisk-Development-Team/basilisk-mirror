@@ -151,6 +151,7 @@ browser.jar:
         content/browser/webkit/content-engines.js     (content/webkit/content-engines.js)
         content/browser/webkit/engine-session.js      (content/webkit/engine-session.js)
         content/browser/webkit/engine-events.js       (content/webkit/engine-events.js)
+        content/browser/webkit/engine-routing.js      (content/webkit/engine-routing.js)
         content/browser/webkit/engine-devtools.js     (content/webkit/engine-devtools.js)
         content/browser/webkit/engine-fullscreen.js   (content/webkit/engine-fullscreen.js)
         content/browser/webkit/engine-scripts.js      (content/webkit/engine-scripts.js)

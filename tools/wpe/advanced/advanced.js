@@ -48,4 +48,26 @@ async function run() {
   await waitFor(() => !tab.hasAttribute("busy") && tab.linkedBrowser.contentTitle.startsWith("Page B"), "reload");
   check(await api.executeScript("return document.body.getAttribute('data-persistent')") === null, "unregistered script ran");
   dump("WPE-ADVANCED PASS extension fixtures A-F and registrations across switches\n");
+  Services.prefs.setCharPref("browser.contentEngine.siteRules", JSON.stringify({"127.0.0.1":"webkit"}));
+  check(win.ContentEngineRouting.target(gecko, "http://127.0.0.10/") == "gecko", "host substring matched");
+  let rules = {"127.0.0.1":"webkit"}; rules[base.slice(0,-1)] = "gecko";
+  Services.prefs.setCharPref("browser.contentEngine.siteRules", JSON.stringify(rules));
+  check(win.ContentEngineRouting.target(gecko, base) == "gecko", "origin precedence");
+  Services.prefs.setCharPref("browser.contentEngine.siteRules", JSON.stringify({"127.0.0.1":"webkit"}));
+  g.selectedTab = g.addTab(base + "a");
+  await waitFor(() => engines.get() && g.selectedBrowser.contentTitle.startsWith("Page A"), "automatic Gecko to WPE");
+  tab = engines.switchEngine(g.selectedTab, "gecko");
+  await waitFor(() => !tab.hasAttribute("busy") && tab.linkedBrowser.contentTitle.startsWith("Page A"), "manual Gecko override");
+  check(win.ContentEngineRouting.target(tab, base) == "gecko", "manual precedence");
+  win.SessionStore.deleteTabValue(tab, "basilisk.engineOverride");
+  tab.linkedBrowser.loadURI(base + "b");
+  await waitFor(() => engines.get() && g.selectedBrowser.contentTitle.startsWith("Page B"), "cleared override");
+  engines.get().loadURI(base + "redirect-host");
+  await waitFor(() => !engines.get() && g.selectedBrowser.currentURI.host == "localhost" &&
+    g.selectedBrowser.contentTitle.startsWith("Page B"), "redirect to Gecko host");
+  await g.selectedBrowser.contentAPI.executeScript("let f=document.createElement('iframe');f.src=" + JSON.stringify(base + "a") + ";document.body.appendChild(f);");
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  check(!engines.get() && g.selectedBrowser.currentURI.host == "localhost", "subframe changed engine");
+  Services.prefs.clearUserPref("browser.contentEngine.siteRules");
+  dump("WPE-ADVANCED PASS exact-host/origin routing, manual override, redirect and subframe isolation\n");
 }

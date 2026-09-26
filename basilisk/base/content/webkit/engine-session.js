@@ -11,6 +11,9 @@ var ContentEngineSession = {
     gBrowser.tabContainer.addEventListener("TabOpen", event => this.identify(event.target));
     gBrowser.tabContainer.addEventListener("SSTabRestoring", event => {
       let tab = event.target;
+      tab._contentRestoring = true;
+      tab._contentRestoreURI = this.engine(tab) == "webkit" ?
+        SessionStore.getTabValue(tab, "basilisk.contentURI") : tab.linkedBrowser.currentURI.spec;
       if (this.engine(tab) == "webkit")
         tab.label = SessionStore.getTabValue(tab, "basilisk.contentTitle") ||
                     SessionStore.getTabValue(tab, "basilisk.contentURI") || "WPE";
@@ -43,6 +46,7 @@ var ContentEngineSession = {
     }
   },
   restore(tab) {
+    delete tab._contentRestoring;
     if (tab.closing || this.engine(tab) != "webkit") return;
     let uri = SessionStore.getTabValue(tab, "basilisk.contentURI") || "about:blank";
     let zoom = Number(SessionStore.getTabValue(tab, "basilisk.contentZoom")) || 1;
