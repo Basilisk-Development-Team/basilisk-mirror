@@ -205,6 +205,10 @@ class ExternalContentBrowser {
   }
   observe(subject, topic) {
     if (this.destroyed) return;
+    if (topic == "content-view-message") {
+      ContentEngineScripts.message(this.browser, subject.QueryInterface(Ci.nsIPropertyBag2).getPropertyAsAUTF8String("json"));
+      return;
+    }
     if (topic == "content-view-script-result") {
       ContentEngineScripts.result(this.browser, subject.QueryInterface(Ci.nsIPropertyBag2));
       return;

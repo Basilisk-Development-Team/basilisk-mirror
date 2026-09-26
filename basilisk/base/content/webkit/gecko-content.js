@@ -14,6 +14,24 @@
         sandboxPrototype: content, wantXrays: true, wantComponents: false,
         sandboxName: "Basilisk content bridge"
       });
+      let currentDocument = document;
+      Components.utils.exportFunction(json => {
+        if (currentDocument == content.document && typeof json == "string" && json.length <= 1024 * 1024)
+          sendAsyncMessage("Basilisk:ContentMessage", {json});
+      }, sandbox, {defineAs: "__basiliskPost"});
+      Components.utils.evalInSandbox(`(function() {
+        const listeners = new Set();
+        Object.defineProperty(this, 'browserContent', {value: Object.freeze({
+          sendMessage(value) {
+            const json = JSON.stringify(value);
+            if (typeof json !== 'string') throw new TypeError('Message must be JSON serializable');
+            __basiliskPost(json);
+          },
+          addMessageListener(fn) { listeners.add(fn); },
+          removeMessageListener(fn) { listeners.delete(fn); },
+          _dispatch(json) { const value = JSON.parse(json); for (const fn of listeners) fn(value); }
+        })});
+      }).call(this);`, sandbox);
     }
     return sandbox;
   }
@@ -31,5 +49,8 @@
         }).catch(error => sendAsyncMessage("Basilisk:ContentResult", {id, error: String(error)}));
     } catch (error) { sendAsyncMessage("Basilisk:ContentResult", {id, error: String(error)}); }
   });
-  addEventListener("unload", () => { if (sandbox) Components.utils.nukeSandbox(sandbox); }, false);
+  addEventListener("unload", () => {
+    if (sandbox) Components.utils.nukeSandbox(sandbox);
+    sandbox = null; document = null;
+  }, false);
 })();

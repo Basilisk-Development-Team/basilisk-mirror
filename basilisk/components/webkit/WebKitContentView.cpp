@@ -257,6 +257,7 @@ NS_IMETHODIMP WebKitContentView::Destroy()
     g_signal_handlers_disconnect_by_data(host->area, this);
     if (host->webView) {
       g_signal_handlers_disconnect_by_data(host->webView, this);
+      g_signal_handlers_disconnect_by_data(webkit_web_view_get_user_content_manager(host->webView), this);
       g_signal_handlers_disconnect_by_data(webkit_web_view_get_network_session(host->webView), this);
       g_signal_handlers_disconnect_by_data(webkit_web_view_get_find_controller(host->webView), this);
       g_signal_handlers_disconnect_by_data(webkit_web_view_get_back_forward_list(host->webView), this);

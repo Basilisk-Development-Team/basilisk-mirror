@@ -30,6 +30,7 @@ private:
   ~WebKitContentView();
   nsresult Mount(_GdkWindow* native);
   void CancelScripts();
+  void EnsureMessaging();
   WPEHost* mHost = nullptr;
   _MozContainer* mContainer = nullptr;
   nsCOMPtr<nsIObserver> mListener;
@@ -42,5 +43,6 @@ private:
   bool mDestroyed = false;
   bool mPrivate = false;
   _GCancellable* mScriptCancellation = nullptr;
+  bool mMessaging = false;
 };
 #endif
