@@ -19,6 +19,7 @@ var ContentEngines = {
     };
   },
   init() {
+    ContentEngineSession.init();
     window.controllers.insertControllerAt(0, ContentEngineEditController);
     gBrowser.tabContainer.addEventListener("TabSelect", this);
     gBrowser.tabContainer.addEventListener("TabClose", this);
@@ -70,9 +71,7 @@ var ContentEngines = {
   open(uri = "about:blank", selected = true) {
     let tab = gBrowser.addTab("about:blank", {skipAnimation: true});
     try {
-      let view = new ExternalContentBrowser(tab);
-      this.views.set(tab.linkedBrowser, view);
-      view.attach();
+      let view = this.attach(tab);
       if (selected) gBrowser.selectedTab = tab;
       view.loadURI(uri);
       this.layout();
@@ -84,6 +83,15 @@ var ContentEngines = {
       gBrowser.removeTab(tab, {animate: false});
       throw error;
     }
+  },
+  attach(tab) {
+    let existing = this.get(tab.linkedBrowser);
+    if (existing) return existing;
+    let view = new ExternalContentBrowser(tab);
+    this.views.set(tab.linkedBrowser, view);
+    try { view.attach(); }
+    catch (error) { view.destroy(); throw error; }
+    return view;
   },
   switchEngine(tab, engine) {
     if (!["gecko", "webkit"].includes(engine)) throw new Error("Unknown content engine");
@@ -267,11 +275,14 @@ class ExternalContentBrowser {
       else this.tab.removeAttribute(name);
     }
     gBrowser._tabAttrModified(this.tab, ["label", "busy", "soundplaying", "muted"]);
+    ContentEngineSession.save(this);
     if (this.browser == gBrowser.selectedBrowser) ContentEngines.refresh();
   }
   loadURI(uri) {
     this.browser.userTypedValue = null;
+    this.requestedURI = uri || "about:blank";
     this.native.loadURI(uri || "about:blank");
+    ContentEngineSession.save(this);
   }
   focus() {
     if (!this.destroyed) {

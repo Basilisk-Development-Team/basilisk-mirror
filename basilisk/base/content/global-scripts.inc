@@ -9,6 +9,7 @@
 <script type="application/javascript" src="chrome://browser/content/browser.js"/>
 #ifdef MOZ_WEBKIT
 <script type="application/javascript" src="chrome://browser/content/webkit/content-engines.js"/>
+<script type="application/javascript" src="chrome://browser/content/webkit/engine-session.js"/>
 <script type="application/javascript" src="chrome://browser/content/webkit/engine-context.js"/>
 <script type="application/javascript" src="chrome://browser/content/webkit/engine-finder.js"/>
 <script type="application/javascript" src="chrome://browser/content/webkit/engine-downloads.js"/>

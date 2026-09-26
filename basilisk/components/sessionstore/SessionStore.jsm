@@ -3379,6 +3379,12 @@ var SessionStoreInternal = {
     let window = tab.ownerGlobal;
     let tabbrowser = window.gBrowser;
     let forceOnDemand = options.forceOnDemand;
+#ifdef MOZ_WEBKIT
+    // Restore the real empty shell before applying SessionStore's Gecko data.
+    // The external engine is restored separately from explicit tab metadata.
+    let externalView = window.ContentEngines && window.ContentEngines.get(browser);
+    if (externalView) externalView.destroy();
+#endif
     let reloadInFreshProcess = options.reloadInFreshProcess;
 
     let willRestoreImmediately = restoreImmediately ||
@@ -4069,6 +4075,12 @@ var SessionStoreInternal = {
    * @returns boolean
    */
   _shouldSaveTabState: function(aTabState) {
+#ifdef MOZ_WEBKIT
+    let external = aTabState.extData;
+    if (external && external["basilisk.contentEngine"] == "webkit" &&
+        external["basilisk.contentURI"] && external["basilisk.contentURI"] != "about:blank")
+      return true;
+#endif
     // If the tab has only a transient about: history entry, no other
     // session history, and no userTypedValue, then we don't actually want to
     // store this tab's data.
