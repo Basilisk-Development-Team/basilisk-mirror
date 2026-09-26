@@ -6,7 +6,7 @@
 
 #include "nsIWebContentView.h"
 #include "nsCOMPtr.h"
-#include "nsIObserver.h"
+#include "nsIContentViewObserver.h"
 #include "nsString.h"
 #include "nsTArray.h"
 
@@ -34,7 +34,7 @@ private:
   void EnsureMessaging();
   WPEHost* mHost = nullptr;
   _MozContainer* mContainer = nullptr;
-  nsCOMPtr<nsIObserver> mListener;
+  nsCOMPtr<nsIContentViewObserver> mListener;
   int32_t mBounds[4] = {0, 0, 1, 1};
   nsCString mLastError;
   nsTArray<_WebKitDownload*> mDownloads;

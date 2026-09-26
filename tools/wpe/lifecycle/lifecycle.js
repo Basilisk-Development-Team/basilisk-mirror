@@ -18,8 +18,8 @@ function finish(ok, reason) {
   Cc["@mozilla.org/toolkit/app-startup;1"].getService(Ci.nsIAppStartup).quit(Ci.nsIAppStartup.eForceQuit);
 }
 const listener = {
-  QueryInterface: XPCOMUtils.generateQI([Ci.nsIObserver]),
-  observe(subject, topic) {
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsIContentViewObserver]),
+  onContentEvent(sender, topic, subject) {
     if (topic == "content-view-state") ++messages;
     if (topic == "content-view-process-terminated") finish(false, "web process terminated");
   }

@@ -10,7 +10,7 @@ function layout() {
   view.setBounds(0, 0, Math.max(1, Math.round(innerWidth * scale)), Math.max(1, Math.round(innerHeight * scale)));
 }
 window.addEventListener("load", () => {
-  view.attach(window, {observe(subject, topic) { if (topic == "content-view-closed") window.close(); }});
+  view.attach(window, {onContentEvent(sender, topic, subject) { if (topic == "content-view-closed") window.close(); }});
   mounted = true;
   layout();
   view.setVisible(true);

@@ -1,7 +1,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-XPIDL_SOURCES += ['nsIWebContentView.idl']
+XPIDL_SOURCES += ['nsIContentViewObserver.idl', 'nsIWebContentView.idl']
 XPIDL_MODULE = 'webcontentview'
 # Platform selection belongs here, never in shared browser chrome.
 if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gtk3':

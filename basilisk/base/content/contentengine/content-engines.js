@@ -213,10 +213,10 @@ class ExternalContentBrowser {
     this.tab.setAttribute("contentengine", "webkit");
   }
   QueryInterface(iid) {
-    if (iid.equals(Ci.nsIObserver) || iid.equals(Ci.nsISupports)) return this;
+    if (iid.equals(Ci.nsIContentViewObserver) || iid.equals(Ci.nsISupports)) return this;
     throw Components.results.NS_ERROR_NO_INTERFACE;
   }
-  observe(subject, topic) {
+  onContentEvent(sender, topic, subject) {
     if (this.destroyed) return;
     if (topic == "content-view-process-terminated") {
       if (ContentEngineFullscreen.view == this) ContentEngineFullscreen.exit();

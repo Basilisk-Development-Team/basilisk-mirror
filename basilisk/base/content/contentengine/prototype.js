@@ -36,8 +36,8 @@ function updateBounds() {
   contentView.setVisible(true);
 }
 const listener = {
-  QueryInterface: XPCOMUtils.generateQI([Ci.nsIObserver]),
-  observe(subject, topic, data) {
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsIContentViewObserver]),
+  onContentEvent(sender, topic, subject) {
     if (closing || !contentView) return;
     if (topic == "content-view-process-terminated") {
       element("status").value = "The alternate content web process terminated. Reload to retry.";

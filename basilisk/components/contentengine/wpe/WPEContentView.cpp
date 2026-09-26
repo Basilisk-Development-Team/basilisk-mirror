@@ -17,7 +17,7 @@
 
 NS_IMPL_ISUPPORTS(WPEContentView, nsIWebContentView)
 WPEContentView::~WPEContentView() { Destroy(); }
-NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIObserver* listener)
+NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewObserver* listener)
 {
   NS_ENSURE_TRUE(NS_IsMainThread(), NS_ERROR_NOT_SAME_THREAD);
   NS_ENSURE_ARG_POINTER(window);
@@ -346,10 +346,10 @@ void WPEContentView::Notify(const char* topic, nsISupports* subject)
   // Listener code can synchronously close the host. Keep the component and
   // emitter alive until the callback returns, and never access mHost afterward.
   RefPtr<WPEContentView> self(this);
-  nsCOMPtr<nsIObserver> listener = mListener;
+  nsCOMPtr<nsIContentViewObserver> listener = mListener;
   auto* view = mHost ? mHost->webView : nullptr;
   if (view) g_object_ref(view);
-  if (listener) listener->Observe(subject ? subject : this, topic, nullptr);
+  if (listener) listener->OnContentEvent(this, nsDependentCString(topic), subject ? subject : this);
   if (view) g_object_unref(view);
 }
 

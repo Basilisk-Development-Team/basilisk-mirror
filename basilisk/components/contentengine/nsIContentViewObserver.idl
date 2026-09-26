@@ -1,0 +1,16 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+#include "nsISupports.idl"
+interface nsIWebContentView;
+/** Privileged main-thread backend-to-chrome boundary. See content-view-events.md.
+ * Data is null, a project-owned nsIWebContentView, or a documented property bag.
+ * Never a third-party object, native pointer, content DOM or fake Gecko channel.
+ * Callbacks may destroy the sender; implementations must tolerate reentrancy.
+ */
+[scriptable, uuid(30c3c8b9-94b0-4dda-93ce-31e52e5dbf20)]
+interface nsIContentViewObserver : nsISupports
+{
+  void onContentEvent(in nsIWebContentView view, in AUTF8String event,
+                      in nsISupports data);
+};

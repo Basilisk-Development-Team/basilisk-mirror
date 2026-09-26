@@ -3,7 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include "nsISupports.idl"
 interface mozIDOMWindowProxy;
-interface nsIObserver;
+interface nsIContentViewObserver;
 
 /** Experimental chrome-only content view. No Gecko DOM/docshell contract.
  * All calls and callbacks occur on the main thread. The owner must destroy()
@@ -11,7 +11,7 @@ interface nsIObserver;
  * the chrome window's client area. The chrome owner manages tab visibility
  * and must keep the native host inside its content rectangle.
  */
-[scriptable, uuid(3ab177a9-123c-4839-b38b-e8d6c1b59e17)]
+[scriptable, uuid(ff4c172c-4c93-46ba-9f42-cb20d9a73e96)]
 interface nsIWebContentView : nsISupports
 {
   /** listener topics: content-view-state (read state getters) and
@@ -21,7 +21,7 @@ interface nsIWebContentView : nsISupports
    * isEditable/hasSelection; and int32 x/y in host device pixels.
    * Selected text is not available in the prototype.
    */
-  void attach(in mozIDOMWindowProxy window, in nsIObserver listener);
+  void attach(in mozIDOMWindowProxy window, in nsIContentViewObserver listener);
   void setBounds(in long x, in long y, in long width, in long height);
   void setVisible(in boolean visible);
   void focus();
