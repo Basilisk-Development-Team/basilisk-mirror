@@ -74,7 +74,7 @@ NS_IMETHODIMP WPEContentView::SetRequestRules(uint32_t request, const nsACString
   NS_ENSURE_TRUE(!identifier.IsEmpty() && identifier.Length() <= 256 && count && count <= 1024 && rules,
                  NS_ERROR_INVALID_ARG);
   nsAutoCString json("[");
-  const char* names[] = {"image", "style-sheet", "script", "font", "media", "document", "fetch"};
+  const char* names[] = {"image", "style-sheet", "script", "font", "media", "document", "fetch", "top-document", "child-document", "websocket", "ping", "other"};
   for (uint32_t i = 0; i < count; ++i) {
     NS_ENSURE_ARG_POINTER(rules[i]);
     nsAutoCString prefix;
@@ -83,13 +83,14 @@ NS_IMETHODIMP WPEContentView::SetRequestRules(uint32_t request, const nsACString
     NS_ENSURE_SUCCESS(rv, rv);
     rv = rules[i]->GetResourceTypes(&types);
     NS_ENSURE_SUCCESS(rv, rv);
-    NS_ENSURE_TRUE(prefix.Length() <= 8192 && !(types & ~127u), NS_ERROR_INVALID_ARG);
+    NS_ENSURE_TRUE(prefix.Length() <= 8192 && !(types & ~4095u), NS_ERROR_INVALID_ARG);
     nsCOMPtr<nsIURI> uri;
     rv = NS_NewURI(getter_AddRefs(uri), prefix);
     NS_ENSURE_SUCCESS(rv, rv);
-    bool http = false, https = false;
+    bool http = false, https = false, ws = false, wss = false;
     uri->SchemeIs("http", &http); uri->SchemeIs("https", &https);
-    NS_ENSURE_TRUE(http || https, NS_ERROR_INVALID_ARG);
+    uri->SchemeIs("ws", &ws); uri->SchemeIs("wss", &wss);
+    NS_ENSURE_TRUE(http || https || ws || wss, NS_ERROR_INVALID_ARG);
     nsAutoCString canonical;
     uri->GetAsciiSpec(canonical);
     NS_ENSURE_TRUE(canonical.Equals(prefix), NS_ERROR_INVALID_ARG);
@@ -100,11 +101,25 @@ NS_IMETHODIMP WPEContentView::SetRequestRules(uint32_t request, const nsACString
     if (types) {
       json.AppendLiteral(",\"resource-type\":[");
       bool first = true;
-      for (uint32_t bit = 0; bit < 7; ++bit) if (types & (1u << bit)) {
+      for (uint32_t bit = 0; bit < 12; ++bit) if (types & (1u << bit)) {
         if (!first) json.Append(','); first = false;
         json.Append('"'); json.Append(names[bit]); json.Append('"');
       }
       json.Append(']');
+    }
+    uint32_t party = 0;
+    nsAutoCString top;
+    rv = rules[i]->GetParty(&party); NS_ENSURE_SUCCESS(rv, rv);
+    rv = rules[i]->GetTopURLPrefix(top); NS_ENSURE_SUCCESS(rv, rv);
+    NS_ENSURE_TRUE(party <= 2 && top.Length() <= 8192, NS_ERROR_INVALID_ARG);
+    if (party) json.Append(party == 1 ? ",\"load-type\":[\"first-party\"]" : ",\"load-type\":[\"third-party\"]");
+    if (!top.IsEmpty()) {
+      rv = NS_NewURI(getter_AddRefs(uri), top); NS_ENSURE_SUCCESS(rv, rv);
+      uri->SchemeIs("http", &http); uri->SchemeIs("https", &https);
+      NS_ENSURE_TRUE(http || https, NS_ERROR_INVALID_ARG);
+      uri->GetAsciiSpec(canonical); NS_ENSURE_TRUE(canonical.Equals(top), NS_ERROR_INVALID_ARG);
+      json.AppendLiteral(",\"top-url-filter-is-case-sensitive\":true,\"if-top-url\":[");
+      AppendPrefix(json, top); json.Append(']');
     }
     json.AppendLiteral("},\"action\":{\"type\":\"block\"}}");
     NS_ENSURE_TRUE(json.Length() <= 1024 * 1024, NS_ERROR_INVALID_ARG);

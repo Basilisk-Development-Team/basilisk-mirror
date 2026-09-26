@@ -2,12 +2,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include "nsISupports.idl"
-/** Version 1 declarative block rule. All unmatched requests are allowed.
- * No origin inference, callback, channel emulation or third-party rule syntax.
- * URL prefix is a canonical ASCII HTTP(S) URI, matched case-sensitively.
+/** Declarative block rule. All unmatched requests are allowed.
+ * Backend performs party classification using its registrable-domain utilities.
+ * No origin inference, callback or channel emulation.
+ * URL prefix is a canonical ASCII HTTP(S)/WS(S) URI, matched case-sensitively.
  * Resource types are project-owned bits; zero matches all resource classes.
  */
-[scriptable, uuid(481890ce-268d-48db-a930-5f992ff13b13)]
+[scriptable, uuid(84d06db8-9073-4474-abbd-d8d49d49eccb)]
 interface nsIContentRequestRule : nsISupports
 {
   const unsigned long IMAGE = 1;
@@ -17,6 +18,17 @@ interface nsIContentRequestRule : nsISupports
   const unsigned long MEDIA = 16;
   const unsigned long DOCUMENT = 32;
   const unsigned long FETCH = 64;
+  const unsigned long TOP_DOCUMENT = 128;
+  const unsigned long SUBDOCUMENT = 256;
+  const unsigned long WEBSOCKET = 512;
+  const unsigned long PING = 1024;
+  const unsigned long OTHER = 2048;
+  const unsigned long ANY_PARTY = 0;
+  const unsigned long FIRST_PARTY = 1;
+  const unsigned long THIRD_PARTY = 2;
+  readonly attribute unsigned long party;
+  /** Empty means any; canonical HTTP(S) top-level document prefix otherwise. */
+  readonly attribute AUTF8String topURLPrefix;
   readonly attribute AUTF8String urlPrefix;
   readonly attribute unsigned long resourceTypes;
 };

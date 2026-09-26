@@ -86,7 +86,7 @@ class ContentScriptClient {
             else view.native.executeScript(id, arguments_.source);
           }
           else if (operation == "Policy" && !arguments_.remove)
-            view.native.setRequestRules(id, arguments_.token, arguments_.rules.length, arguments_.rules);
+            view.native.setRequestRules(id, arguments_.token, arguments_.rules.length, arguments_.rules.map(rule => Object.assign({party:0, topURLPrefix:""}, rule)));
           else {
             if (operation == "CSS") {
               if (arguments_.remove) view.native.removeCSS(arguments_.token);
@@ -175,14 +175,14 @@ class ContentScriptClient {
     try {
       if (typeof token != "string" || !token || token.length > 256 || !Array.isArray(rules) || !rules.length || rules.length > 1024)
         throw new TypeError("Invalid request rules");
-      const types = {image:1, stylesheet:2, script:4, font:8, media:16, document:32, fetch:64};
+      const types = {image:1, stylesheet:2, script:4, font:8, media:16, document:32, fetch:64, topDocument:128, subdocument:256, websocket:512, ping:1024, other:2048};
       let normalized = rules.map(rule => {
-        if (!rule || Object.keys(rule).some(key => !["urlPrefix", "resourceTypes"].includes(key)))
+        if (!rule || Object.keys(rule).some(key => !["urlPrefix", "resourceTypes", "party", "topURLPrefix"].includes(key)))
           throw new TypeError("Unknown request-rule field");
         if (typeof rule.urlPrefix != "string" || rule.urlPrefix.length > 8192)
           throw new TypeError("Invalid URL prefix");
         let uri = Services.io.newURI(rule.urlPrefix, null, null);
-        if (!uri.schemeIs("http") && !uri.schemeIs("https")) throw new TypeError("Expected HTTP(S) prefix");
+        if (!["http", "https", "ws", "wss"].some(scheme => uri.schemeIs(scheme))) throw new TypeError("Expected HTTP(S)/WS(S) prefix");
         if (rule.resourceTypes !== undefined && (!Array.isArray(rule.resourceTypes) || !rule.resourceTypes.length))
           throw new TypeError("Expected resource types");
         let mask = 0;
@@ -190,7 +190,16 @@ class ContentScriptClient {
           if (!Object.prototype.hasOwnProperty.call(types, type)) throw new TypeError("Unsupported resource type");
           mask |= types[type];
         }
-        return {urlPrefix:uri.asciiSpec, resourceTypes:mask};
+        let party = ["any", "first-party", "third-party"].indexOf(rule.party === undefined ? "any" : rule.party);
+        if (party < 0) throw new TypeError("Invalid party constraint");
+        let topURLPrefix = "";
+        if (rule.topURLPrefix !== undefined) {
+          let top = Services.io.newURI(rule.topURLPrefix, null, null);
+          if (typeof rule.topURLPrefix != "string" || rule.topURLPrefix.length > 8192 ||
+              (!top.schemeIs("http") && !top.schemeIs("https"))) throw new TypeError("Invalid top document prefix");
+          topURLPrefix = top.asciiSpec;
+        }
+        return {urlPrefix:uri.asciiSpec, resourceTypes:mask, party, topURLPrefix};
       });
       return this.request("Policy", {token, rules:normalized}).then(() => { this.policies.set(token, normalized); });
     } catch (error) { return Promise.reject(error); }
