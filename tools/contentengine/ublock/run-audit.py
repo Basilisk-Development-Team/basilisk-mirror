@@ -12,12 +12,30 @@ import threading
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args): pass
     def do_GET(self):
-        if self.path.startswith('/audit-blocked.js'):
-            print('SERVER REQUEST '+self.path, flush=True)
-            body=b"document.body.setAttribute('data-external','loaded');"; mime='application/javascript'
+        from urllib.parse import urlparse, parse_qs
+        from collections import Counter
+        if not hasattr(self.server, 'counts'): self.server.counts = Counter()
+        if self.path == '/counts':
+            body = json.dumps(self.server.counts).encode(); mime = 'application/json'
         else:
-            body=b"<!doctype html><meta charset=utf-8><title>Audit page</title><body><div class='audit-ad'>Cosmetic target</div><script src='/audit-blocked.js'></script></body>"; mime='text/html'
-        self.send_response(200); self.send_header('Content-Type',mime); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(body))); self.end_headers(); self.wfile.write(body)
+            self.server.counts[self.path] += 1
+            print('SERVER REQUEST ' + self.path, flush=True)
+            if self.path.startswith('/audit-blocked'):
+                if '/audit-blocked.js' in self.path:
+                    body=b"document.body.setAttribute('data-external','loaded');"; mime='application/javascript'
+                else: body=b'resource'; mime='text/plain'
+            else:
+                engine=parse_qs(urlparse(self.path).query).get('engine',['unknown'])[0]
+                body=("<!doctype html><meta charset=utf-8><title>Audit page</title><body data-load='%d'><div class='audit-ad'>Cosmetic target</div>"
+                      "<script src='/audit-blocked.js?engine=%s'></script><img src='/audit-blocked-image?engine=%s'>"
+                      "<script>fetch('/audit-blocked-fetch?engine=%s').catch(()=>{});let x=new XMLHttpRequest();"
+                      "x.open('GET','/audit-blocked-xhr?engine=%s');x.send();setTimeout(()=>{let e=document.createElement('div');"
+                      "e.className='audit-ad dynamic';document.body.appendChild(e);},0);</script></body>"
+                      % (self.server.counts[self.path],engine,engine,engine,engine)).encode(); mime='text/html'
+        self.send_response(200); self.send_header('Content-Type',mime); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(body))); self.end_headers()
+        try: self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError): pass
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('objdir',type=Path);parser.add_argument('xpi',type=Path);args=parser.parse_args()

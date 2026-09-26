@@ -68,8 +68,9 @@ Existing script, CSS and JSON-message operations already support real-DOM change
 MutationObserver, persistent document-end registration, and in-memory transfer
 across engine replacements. They do not provide a synchronous Gecko sandbox,
 Gecko globals, arbitrary frame-script source compatibility, or native channel
-objects. Scripts needing earlier document timing or all-frame semantics require
-explicit additional contracts rather than blind injection of Gecko frame scripts.
+objects. Document-start/end/idle, all-frame CSS, opaque frame IDs and targeted serialized
+messages are now implemented under explicit generic contracts; they still do not
+make a Gecko frame script automatically portable.
 
 The public WPE user-content-filter store/manager can compile and install declarative
 rules. URL/resource-class matching can be implemented without guessing origins or
@@ -132,8 +133,8 @@ Header modification itself is **not** inherently an upstream blocker: the public
 web-process-extension signal permits it. A separate extension module and a stable
 portable contract would be additional adapter work. What cannot safely be promised
 through that signal today is origin/frame-sensitive policy based on metadata it
-does not expose. Likewise earlier/all-frame scripts are future generic API work,
-not a reason to patch upstream or pretend arbitrary Gecko scripts are portable.
+does not expose. Earlier/all-frame scripts are now implemented through the generic API; arbitrary
+Gecko frame scripts still are not portable.
 
 The permission-origin issue remains unchanged and denied. The Inspector's
 frontend-close notification/private-store configuration limitations are recorded
@@ -148,3 +149,101 @@ also contains `settings.js:250` (null details) and `vapi-background.js:1592`
 callbacks occur during harness shutdown; they were not present in the earlier
 UI sampling and are not evidence of a successful error-free extension lifetime.
 No extension-specific production workaround was introduced for them.
+
+
+## Navigation/WebRTC follow-up: expanded functional audit (2026-09-26)
+
+The unmodified XPI was rerun after the new generic timing/frame/filter primitives.
+The fixture now counts script, image, XHR and fetch requests independently,
+checks a dynamically inserted cosmetic target, page reload, picker injection,
+logger records scoped to the tested engine URI, and per-site disable/re-enable.
+
+| Operation | Gecko control | Unmodified extension on WebKit |
+| --- | --- | --- |
+| Startup, toolbar, dashboard, extension SQLite | Loads/reads/writes | Same chrome implementation works |
+| Current URI/title/selected tab | Correct | Correct through generic browser properties |
+| Network block: script/image/XHR/fetch | Zero server hits while enabled | All four reach server |
+| Static/dynamic cosmetic targets | Both hidden | Both visible |
+| Per-site disable/re-enable | Requests resume, then block again | No filtering change |
+| Page store/location/content-policy messages | Correct document + policy events | No page store or relevant messages |
+| Logger for this engine's test URI | Five entries in sampled window | Zero entries |
+| Element picker | Picker iframe installed | No picker iframe |
+| Extension-triggered reload | Server page-load count 1 to 2 | Remains 1 (bookkeeping docshell reload) |
+| Popup | Automation closed before sampling | Opens, but has no meaningful page counters |
+| Script errors sampled before shutdown | None | None; missing hooks fail silently |
+
+The logger probe excludes previous Gecko activity; attributing those entries to
+WebKit would give a false success. The picker probe proves injection only, not a
+complete interactive filter-creation workflow. Scriptlet/procedural source cannot
+run through the extension's existing Gecko-only loader; the generic DOM and
+MutationObserver facilities are available, but not consumed automatically.
+
+### Generic filtering evidence, separate from uBlock
+
+`run-content-tests.py OBJ network` installs project-owned rules and proves with
+server-side counters that blocked script, image, stylesheet, iframe, XHR, fetch,
+WebSocket handshake and redirected target URLs never reach the server. Allowed
+controls reach it. Disable/re-enable, main-document URL constraints and first-party
+versus third-party matching work. Gecko's requests are unaffected by these foreign
+rules. A method predicate was experimentally incorrect in upstream 2.54 and was
+removed from the proposed contract; unsupported fields explicitly reject.
+Font/media/ping/other map to public content-filter classes but were not separately
+exercised by this local resource matrix. Opaque/data/blob origin policy is not
+provided. Content filters use upstream registrable-domain classification against
+the main document, not a guessed initiating-frame origin or string suffix check.
+
+Small policy compilation/install took approximately 1.4–2 seconds on this
+LoongArch machine. Rules compile once per replacement; native WebKit evaluates
+requests. There is no per-resource JS/XPCOM initialization, synchronous browser
+IPC, disk rule parsing, or huge policy serialization for each request. This is not
+a full performance benchmark or a measurement of a production-size uBlock list.
+
+### Proposed extension adaptation — NOT APPLIED
+
+These are platform-adapter changes, not identity-based browser exceptions:
+
+1. Retain existing Gecko branches. For an alternate view, use generic engine
+   identity/capabilities, `currentURI`, `ContentEngineState` and browser navigation
+   methods to create/update page stores and reload the actual active view.
+2. Register a portable asynchronous bootstrap through `contentAPI`, with explicit
+   document-start/end phases and all-frame options. Supply the small message/CSS
+   facade used by portable vAPI client/content scripts, using serialized request
+   IDs/replies and opaque frame IDs. Replace synchronous initialization with
+   async initialization or preinstalled data. Do not inject `frameModule.js`
+   wholesale: its sandbox/window-utils/XPCOM setup is Gecko-specific.
+3. Use native generic CSS registrations and the portable content loader for
+   cosmetic/procedural filtering and picker/zapper code inside the real DOM.
+   Extension-owned settings/filter lists remain in the existing chrome storage.
+4. Export only the representable static blocking subset to `setRequestRules`,
+   invalidate it on list/per-site changes and await installation before load.
+   The current URL-prefix rules are not uBlock's full filter language. A proper
+   translation must explicitly reject unsupported regex/options/exceptions and
+   dynamic decisions; it cannot silently claim equivalent protection.
+5. Keep accurate request accounting/logger unavailable for alternate requests
+   until a trustworthy observation contract exists. Do not invent channel events
+   or estimate allowed/blocked counts from DOM outcomes.
+
+No patch has been applied or approved. A narrow browser-state/content adapter is
+possible, but **full uBlock network parity is not demonstrated to be a small
+patch**. Arbitrary imperative filtering, frame-origin attribution, response-header
+CSP changes and exact logger events exceed the supported request contract.
+Requesting an extension change is separate from authorizing this browser work.
+The current result is a concrete compatibility boundary, not acceptance outcome A
+or a claim that every conceivable generic primitive has been implemented.
+
+### Remaining upstream versus adapter work
+
+* Trustworthy frame/source/top-origin/resource metadata on `send-request` remains
+  an upstream API gap (internal loader metadata listed above). Keep ambiguous
+  origin-sensitive operations unsupported.
+* Correct request-method filtering needs upstream to carry the actual request
+  method into `ResourceLoadInfo`, rather than reading the document loader method
+  in `ContentExtensionsBackend.cpp`. This benefits every content-filter embedder.
+* Header modification is possible in the public WebProcess hook, but a narrow
+  origin-independent header/redirect API would be additional generic design/work,
+  not proof that legacy nsIHttpChannel consumers are compatible. It is not exposed
+  in this task and no fake channels were added. Response-header modification and
+  origin-aware dynamic policy are not promised.
+* Private filter compilation needs an ephemeral compiler or a carefully managed
+  private temporary store; current private views explicitly reject persistent
+  compilation. Script/CSS/messaging remain available in private views.
