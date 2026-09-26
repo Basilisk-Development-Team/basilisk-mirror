@@ -1,0 +1,409 @@
+{
+  "extension_version": "1.16.6.1",
+  "xpi_sha256": "9ef1fd80f9a2350da9e182d991e6ff2b81a5dc11b36d7d26659b3560c367f8cf",
+  "scope": "Source-confirmed integration members; optional and fallback branches are identified by source references, not claimed executed in every test. No new compatibility QI interfaces are advertised.",
+  "rows": [
+    {
+      "interface": "nsIURI",
+      "members": [
+        "spec",
+        "asciiSpec",
+        "host",
+        "schemeIs",
+        "equals",
+        "equalsExceptRef"
+      ],
+      "purpose": "URLs, WebSocket scheme normalization, tab reuse, request lookup",
+      "source": "frameModule.js:47,243,292; js/vapi-background.js:914,979,986,2036,2045,2158,2231",
+      "status": "existing-native",
+      "generic_equivalent": "Services.io.newURI represents a foreign URL truthfully; browser.currentURI already supplies a real UXP URI. No adapter or network ownership claim needed."
+    },
+    {
+      "interface": "nsIIOService",
+      "members": [
+        "newURI"
+      ],
+      "purpose": "Create canonical URI values",
+      "source": "frameModule.js:47; js/vapi-background.js:2037,2055",
+      "status": "existing-native",
+      "generic_equivalent": "Reuse UXP URI parsing. Request method, original URI and source origin are separate facts, not inferred from URI."
+    },
+    {
+      "interface": "nsIObserverService",
+      "members": [
+        "addObserver",
+        "removeObserver"
+      ],
+      "purpose": "HTTP request/response and document observer registration",
+      "source": "frameModule.js:201,202,225,226; js/vapi-background.js:1855,1856,1881,1882",
+      "status": "missing-backend",
+      "generic_equivalent": "Existing Gecko registrations must remain native. Generic API has no attributed per-request observation callback, and foreign documents cannot be supplied to Gecko DOM observers."
+    },
+    {
+      "interface": "nsIHttpChannel / inherited nsIChannel, nsIRequest",
+      "members": [
+        "instanceof",
+        "URI",
+        "loadInfo",
+        "notificationCallbacks",
+        "loadGroup",
+        "cancel",
+        "redirectionLimit",
+        "redirectTo",
+        "contentLength",
+        "getResponseHeader",
+        "setResponseHeader"
+      ],
+      "purpose": "Actual blocking, redirects, response CSP and size policy",
+      "source": "js/vapi-background.js:1975-2248",
+      "status": "missing-backend",
+      "generic_equivalent": "URI is representable, but a correct attributed cancellable request is absent. Observer rejects non-nsIHttpChannel immediately; advertising that interface with unsupported inherited semantics is not justified."
+    },
+    {
+      "interface": "nsILoadInfo",
+      "members": [
+        "externalContentPolicyType",
+        "contentPolicyType",
+        "frameOuterWindowID",
+        "outerWindowID",
+        "parentOuterWindowID"
+      ],
+      "purpose": "Resource classification and frame hierarchy",
+      "source": "js/vapi-background.js:2161-2182",
+      "status": "missing-backend",
+      "generic_equivalent": "Declarative class predicates exist. Per-request resource type, frame identity and parent identity are not available from public send-request. Opaque contentAPI frame IDs cannot be correlated by URL/timing."
+    },
+    {
+      "interface": "nsILoadContext",
+      "members": [
+        "topFrameElement",
+        "associatedWindow"
+      ],
+      "purpose": "Map request to browser/tab",
+      "source": "js/vapi-background.js:1975-2018",
+      "status": "partial",
+      "generic_equivalent": "Known view can identify real XUL browser. associatedWindow must not be a fake foreign Gecko window; upstream request metadata/cancellable boundary still missing."
+    },
+    {
+      "interface": "nsIInterfaceRequestor",
+      "members": [
+        "getInterface"
+      ],
+      "purpose": "Load context and docshell/window-utils/message manager retrieval",
+      "source": "frameModule.js:57-67,233-236,345-362,597-599; js/vapi-background.js:1978,1983,2006-2008",
+      "status": "partial",
+      "generic_equivalent": "Chrome services remain native. Foreign Gecko DOM/docshell interfaces cannot be advertised."
+    },
+    {
+      "interface": "nsIWritablePropertyBag",
+      "members": [
+        "instanceof",
+        "getProperty",
+        "setProperty"
+      ],
+      "purpose": "Attach extension request data across observation/redirects",
+      "source": "js/vapi-background.js:2120-2125,2216-2223,2236-2247",
+      "status": "available-not-connected",
+      "generic_equivalent": "A scoped project-owned request can carry properties, but there is no public attributed request lifetime/redirect event source for the required legacy flow."
+    },
+    {
+      "interface": "nsIChannelEventSink",
+      "members": [
+        "asyncOnChannelRedirect"
+      ],
+      "purpose": "Carry request bookkeeping through redirects",
+      "source": "js/vapi-background.js:2227-2253",
+      "status": "missing-backend",
+      "generic_equivalent": "Redirected response URL is exposed by WebProcess send-request; legacy old/new channel lifetimes, attributed IDs and response-control semantics are not supplied."
+    },
+    {
+      "interface": "nsIAsyncVerifyRedirectCallback",
+      "members": [
+        "onRedirectVerifyCallback"
+      ],
+      "purpose": "Accept redirect after carrying properties",
+      "source": "js/vapi-background.js:2250",
+      "status": "missing-backend",
+      "generic_equivalent": "No equivalent async subresource policy deferral token is exposed by WPE send-request."
+    },
+    {
+      "interface": "nsIContentPolicy",
+      "members": [
+        "shouldLoad",
+        "ACCEPT",
+        "REJECT_REQUEST",
+        "TYPE_DOCUMENT",
+        "TYPE_SUBDOCUMENT"
+      ],
+      "purpose": "Record pending frame/resource context, not final filtering",
+      "source": "frameModule.js:237-307",
+      "status": "forbidden-dom",
+      "generic_equivalent": "Installed shouldLoad consumes contentWindow/ownerDocument/defaultView/top/parent/location and returns ACCEPT. Calling it with metadata alone does not run the network filter; fake Gecko DOM context would violate the task."
+    },
+    {
+      "interface": "nsIComponentRegistrar",
+      "members": [
+        "registerFactory",
+        "unregisterFactory",
+        "isCIDRegistered"
+      ],
+      "purpose": "HTTP sink and legacy content policy registration",
+      "source": "frameModule.js:176,211,229; js/vapi-background.js:1825,1859-1873",
+      "status": "existing-native",
+      "generic_equivalent": "These register real Gecko observers/factories; no need to replace them."
+    },
+    {
+      "interface": "nsICategoryManager",
+      "members": [
+        "addCategoryEntry",
+        "deleteCategoryEntry"
+      ],
+      "purpose": "Discover native content policies and redirect sinks",
+      "source": "frameModule.js:182,217,230; js/vapi-background.js:1830,1874,1886",
+      "status": "existing-native",
+      "generic_equivalent": "Native Gecko categories do not add a foreign per-request event source."
+    },
+    {
+      "interface": "nsIFactory",
+      "members": [
+        "createInstance",
+        "QueryInterface"
+      ],
+      "purpose": "Singleton native observer/policy factory",
+      "source": "frameModule.js:192-198; js/vapi-background.js:1844-1850",
+      "status": "existing-native",
+      "generic_equivalent": "Extension factory remains native. No alternate interface advertised."
+    },
+    {
+      "interface": "nsIMessageListenerManager / nsIMessageBroadcaster",
+      "members": [
+        "addMessageListener",
+        "removeMessageListener",
+        "broadcastAsyncMessage"
+      ],
+      "purpose": "Privileged global/browser message subscriptions and replies",
+      "source": "js/vapi-background.js:1543-1705; frameModule.js:418-456",
+      "status": "available-not-connected",
+      "generic_equivalent": "Serialized named async messages map to contentAPI, but existing listeners are reached through a Gecko frame loader requiring Components and Gecko windows. Blind broadcast into a shared foreign world lacks an extension principal/registration contract."
+    },
+    {
+      "interface": "nsIFrameScriptLoader",
+      "members": [
+        "loadFrameScript",
+        "removeDelayedFrameScript"
+      ],
+      "purpose": "Install location script and bootstrap already-open content",
+      "source": "js/vapi-background.js:1687; bootstrap.js; frameScript.js; frameScript0.js",
+      "status": "forbidden-dom",
+      "generic_equivalent": "All installed entry scripts use Components/import and Gecko docshell or content windows. They are not standards-DOM-plus-async-message scripts eligible for transparent injection."
+    },
+    {
+      "interface": "nsIContentFrameMessageManager",
+      "members": [
+        "sendAsyncMessage",
+        "addMessageListener",
+        "removeMessageListener"
+      ],
+      "purpose": "Per-frame content bootstrap messages",
+      "source": "frameModule.js:61-68,399-456,597-604",
+      "status": "available-not-connected",
+      "generic_equivalent": "Names/data/callbacks can map after an explicit portable bootstrap; obtaining this manager through foreign Gecko docshell/window chains cannot."
+    },
+    {
+      "interface": "nsISyncMessageSender / RPC message sender",
+      "members": [
+        "sendSyncMessage",
+        "sendRpcMessage"
+      ],
+      "purpose": "Synchronous policy context and script-tag rule lookup",
+      "source": "frameModule.js:88-109,297-302",
+      "status": "unsupported-sync",
+      "generic_equivalent": "No synchronous WebProcess IPC. Promise substitution changes the unchanged caller which immediately reads arrays/return values."
+    },
+    {
+      "interface": "Components.utils",
+      "members": [
+        "import",
+        "Sandbox"
+      ],
+      "purpose": "Load privileged module and create content sandbox over a Gecko window",
+      "source": "frameScript.js:38-40; frameScript0.js:30-34; processScript.js:30-34; frameModule.js:39-42,329-335",
+      "status": "forbidden-dom",
+      "generic_equivalent": "Real isolated WebKit world exists. Cannot use it as a synchronous SpiderMonkey sandboxPrototype or expose Components to it."
+    },
+    {
+      "interface": "mozIJSSubScriptLoader",
+      "members": [
+        "loadSubScript"
+      ],
+      "purpose": "Execute client/content/picker/scriptlet source in sandbox",
+      "source": "frameModule.js:346,474,574-578; js/vapi-client.js:185-204",
+      "status": "available-not-connected",
+      "generic_equivalent": "Generic registerScript/executeScript supports supplied portable source. Discovering specific scripts by filename or extracting the extension closure would be identity/source-specific rewriting."
+    },
+    {
+      "interface": "nsIDOMWindowUtils",
+      "members": [
+        "outerWindowID",
+        "loadSheetUsingURIString",
+        "removeSheetUsingURIString",
+        "USER_SHEET"
+      ],
+      "purpose": "Frame IDs and user styles",
+      "source": "frameModule.js:233-236,345-362",
+      "status": "available-not-connected",
+      "generic_equivalent": "Opaque frame IDs and insertCSS/removeCSS are available; they do not justify fake window QI or synchronous foreign DOM access."
+    },
+    {
+      "interface": "nsIDocShell / nsIDocShellTreeItem",
+      "members": [
+        "sameTypeRootTreeItem",
+        "rootTreeItem",
+        "chromeEventHandler",
+        "QueryInterface"
+      ],
+      "purpose": "Reach frame manager, owning browser/window",
+      "source": "frameModule.js:57-63; js/vapi-background.js:1623,2007",
+      "status": "forbidden-dom",
+      "generic_equivalent": "Real XUL browser identity can be retained; foreign docshell/DOM cannot be synthesized."
+    },
+    {
+      "interface": "nsIWebProgress",
+      "members": [
+        "DOMWindow",
+        "isTopLevel",
+        "addProgressListener",
+        "removeProgressListener",
+        "NOTIFY_LOCATION",
+        "NOTIFY_STATE_DOCUMENT"
+      ],
+      "purpose": "Location message bootstrap and hidden background window load",
+      "source": "frameScript.js:21-36; frameModule.js:595-624; bootstrap.js:87-104",
+      "status": "partial",
+      "generic_equivalent": "ContentEngineState has truthful URI/load state; unmodified listener bootstrap reads real DOMWindow and imports Gecko modules. Hidden chrome background remains native."
+    },
+    {
+      "interface": "nsIWebProgressListener",
+      "members": [
+        "onLocationChange",
+        "onStateChange",
+        "STATE_STOP"
+      ],
+      "purpose": "Location and background readiness callbacks",
+      "source": "frameModule.js:612-624; bootstrap.js:96-102",
+      "status": "partial",
+      "generic_equivalent": "Generic location callback exists, but native DOM/window initialization blocks this legacy script. Do not fabricate a Gecko request/document."
+    },
+    {
+      "interface": "nsIWebNavigation",
+      "members": [
+        "reload",
+        "LOAD_FLAGS_BYPASS_CACHE"
+      ],
+      "purpose": "Page reload after extension changes",
+      "source": "js/vapi-background.js:1117-1123",
+      "status": "partial",
+      "generic_equivalent": "browser.reload reaches selected view; browser.webNavigation is the native bookkeeping shell. Globally replacing its full XPCOM contract would affect unrelated chrome/extension consumers."
+    },
+    {
+      "interface": "XUL tabbrowser/browser",
+      "members": [
+        "currentURI",
+        "contentTitle",
+        "selectedBrowser",
+        "selectedTab",
+        "addTab",
+        "loadURI",
+        "messageManager",
+        "webNavigation"
+      ],
+      "purpose": "Tab state and extension UI",
+      "source": "js/vapi-background.js:888-918,979-987,1117-1175,1186-1518",
+      "status": "partial",
+      "generic_equivalent": "URI/title/selection/navigation already generic. Legacy messageManager and webNavigation remain actual native objects, not aliases for fake foreign docshells."
+    },
+    {
+      "interface": "nsIAppShellService",
+      "members": [
+        "hiddenDOMWindow",
+        "createWindowlessBrowser"
+      ],
+      "purpose": "Privileged extension background UI",
+      "source": "bootstrap.js:84-136",
+      "status": "existing-native",
+      "generic_equivalent": "Chrome remains Gecko/XUL, independent of selected content engine."
+    },
+    {
+      "interface": "nsITimer",
+      "members": [
+        "init",
+        "cancel",
+        "TYPE_ONE_SHOT"
+      ],
+      "purpose": "Startup retries and scheduling",
+      "source": "bootstrap.js:153-174",
+      "status": "existing-native",
+      "generic_equivalent": "Chrome timer remains native."
+    },
+    {
+      "interface": "nsIProperties / nsIFile",
+      "members": [
+        "get",
+        "append",
+        "exists",
+        "create",
+        "isDirectory",
+        "remove",
+        "DIRECTORY_TYPE"
+      ],
+      "purpose": "Extension-owned profile SQLite path",
+      "source": "js/vapi-background.js:348-410",
+      "status": "existing-native",
+      "generic_equivalent": "Unchanged UXP profile extension storage, not WebKit data."
+    },
+    {
+      "interface": "mozIStorageService / mozIStorageConnection",
+      "members": [
+        "openDatabase",
+        "connectionReady",
+        "createAsyncStatement",
+        "close",
+        "asyncClose"
+      ],
+      "purpose": "Extension settings/filter lists",
+      "source": "js/vapi-background.js:323-622",
+      "status": "existing-native",
+      "generic_equivalent": "Existing extension SQLite service remains native."
+    },
+    {
+      "interface": "mozIStorageAsyncStatement / result set",
+      "members": [
+        "executeAsync",
+        "newBindingParamsArray",
+        "newBindingParams",
+        "bindByName",
+        "addParams",
+        "bindParameters",
+        "getNextRow",
+        "getResultByIndex"
+      ],
+      "purpose": "Read/write extension settings",
+      "source": "js/vapi-background.js:394-622",
+      "status": "existing-native",
+      "generic_equivalent": "Unchanged privileged storage; no renderer duplication."
+    },
+    {
+      "interface": "nsIPrefBranch",
+      "members": [
+        "getBranch",
+        "getBoolPref",
+        "setBoolPref",
+        "clearUserPref"
+      ],
+      "purpose": "Extension/browser preferences",
+      "source": "bootstrap.js:240-246; js/vapi-background.js:135-312",
+      "status": "existing-native",
+      "generic_equivalent": "Unchanged chrome preferences."
+    }
+  ]
+}
