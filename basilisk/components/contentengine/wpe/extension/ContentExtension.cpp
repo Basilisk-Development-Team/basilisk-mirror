@@ -9,7 +9,10 @@
 
 namespace {
 WebKitScriptWorld* world;
+GHashTable* initialWorlds;
 struct Pending { WebKitUserMessage* message; guint timeout; WebKitScriptWorld* world; bool globalScope; };
+struct Frame;
+struct WorldBinding { Frame* frame; WebKitScriptWorld* world; bool valid; char* key; };
 struct Frame {
   gint references = 1;
   GWeakRef native, page;
@@ -18,6 +21,7 @@ struct Frame {
   bool valid = true;
   GHashTable* pending;
   GHashTable* worlds;
+  GHashTable* bindings;
 };
 Frame* Ref(Frame* frame) { ++frame->references; return frame; }
 void FreePending(gpointer data) {
@@ -30,7 +34,7 @@ void Unref(gpointer data) {
   auto* frame = static_cast<Frame*>(data);
   if (--frame->references) return;
   g_weak_ref_clear(&frame->native); g_weak_ref_clear(&frame->page);
-  g_hash_table_destroy(frame->pending); g_hash_table_destroy(frame->worlds); g_free(frame->token); delete frame;
+  g_hash_table_destroy(frame->pending); g_hash_table_destroy(frame->worlds); g_hash_table_destroy(frame->bindings); g_free(frame->token); delete frame;
 }
 void Reply(WebKitUserMessage* request, const char* json, const char* error) {
   webkit_user_message_send_reply(request, webkit_user_message_new("basilisk:result",
@@ -43,6 +47,10 @@ void Invalidate(Frame* frame) {
       g_variant_new("(s)", frame->token)), nullptr, nullptr, nullptr);
   g_clear_object(&page);
   frame->valid = false;
+  GHashTableIter bindings; gpointer bindingKey, bindingValue;
+  g_hash_table_iter_init(&bindings, frame->bindings);
+  while (g_hash_table_iter_next(&bindings, &bindingKey, &bindingValue)) static_cast<WorldBinding*>(bindingValue)->valid = false;
+  g_hash_table_remove_all(frame->bindings);
   g_hash_table_remove_all(frame->worlds);
   GHashTableIter it; gpointer key, value;
   g_hash_table_iter_init(&it, frame->pending);
@@ -60,6 +68,15 @@ GHashTable* Frames(WebKitWebPage* page) {
       +[](gpointer value) { g_hash_table_destroy(static_cast<GHashTable*>(value)); });
   }
   return frames;
+}
+GHashTable* OwnedWorlds(WebKitWebPage* page) {
+  auto* worlds = static_cast<GHashTable*>(g_object_get_data(G_OBJECT(page), "basilisk-owned-worlds"));
+  if (!worlds) {
+    worlds = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_object_unref);
+    g_object_set_data_full(G_OBJECT(page), "basilisk-owned-worlds", worlds,
+      +[](gpointer data) {g_hash_table_destroy(static_cast<GHashTable*>(data));});
+  }
+  return worlds;
 }
 void Announce(Frame* frame) {
   auto* native = WEBKIT_FRAME(g_weak_ref_get(&frame->native));
@@ -125,6 +142,7 @@ void WindowCleared(WebKitScriptWorld*, WebKitWebPage* page, WebKitFrame* native,
   frame->nativeId = webkit_frame_get_id(native); frame->token = g_uuid_string_random();
   frame->pending = g_hash_table_new_full(g_direct_hash, g_direct_equal, nullptr, FreePending);
   frame->worlds = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_object_unref);
+  frame->bindings = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, nullptr);
   g_hash_table_insert(frames, g_strdup(frame->token), frame);
   Announce(frame);
   auto* context = webkit_frame_get_js_context_for_script_world(native, world);
@@ -156,11 +174,10 @@ void WindowCleared(WebKitScriptWorld*, WebKitWebPage* page, WebKitFrame* native,
   auto* result = jsc_context_evaluate(context, bootstrap, -1);
   g_clear_object(&result); g_object_unref(context);
 }
-struct WorldBinding { Frame* frame; WebKitScriptWorld* world; };
 void WorldReply(const char* json, const char* error, guint id, gpointer data) {
   auto* binding = static_cast<WorldBinding*>(data);
   auto* pending = static_cast<Pending*>(g_hash_table_lookup(binding->frame->pending, GUINT_TO_POINTER(id)));
-  if (!binding->frame->valid || !pending || pending->globalScope || pending->world != binding->world ||
+  if (!binding->valid || !binding->frame->valid || !pending || pending->globalScope || pending->world != binding->world ||
       !json || strlen(json) > 1024 * 1024) return;
   Reply(pending->message, json, error ? error : "");
   g_hash_table_remove(binding->frame->pending, GUINT_TO_POINTER(id));
@@ -190,18 +207,27 @@ void Execute(Frame* frame, guint id, const char* source, WebKitUserMessage* requ
         Reply(request, "null", "Document execution-world limit reached");
         g_hash_table_remove(frame->pending, GUINT_TO_POINTER(id)); g_object_unref(native); return;
       }
-      selectedWorld = webkit_script_world_new();
+      auto* page = WEBKIT_WEB_PAGE(g_weak_ref_get(&frame->page));
+      selectedWorld = page ? static_cast<WebKitScriptWorld*>(g_hash_table_lookup(OwnedWorlds(page), worldId)) : nullptr;
+      if (selectedWorld) g_object_ref(selectedWorld); else selectedWorld = webkit_script_world_new();
+      g_clear_object(&page);
       g_hash_table_insert(frame->worlds, g_strdup(worldId), selectedWorld);
       auto* target = webkit_frame_get_js_context_for_script_world(native, selectedWorld);
       // Only serialized execution completion is exposed, never native invocation.
-      auto* binding = new WorldBinding{Ref(frame), selectedWorld};
+      auto* binding = new WorldBinding{Ref(frame), selectedWorld, true, g_strdup(worldId)};
+      g_hash_table_insert(frame->bindings, g_strdup(worldId), binding);
       auto* bridge = jsc_value_new_function(target, "reply", G_CALLBACK(WorldReply), binding,
-        +[](gpointer value) {auto* binding=static_cast<WorldBinding*>(value); Unref(binding->frame); delete binding;},
+        +[](gpointer value) {
+          auto* binding=static_cast<WorldBinding*>(value);
+          if (g_hash_table_lookup(binding->frame->bindings,binding->key)==binding)
+            g_hash_table_remove(binding->frame->bindings,binding->key);
+          g_free(binding->key); Unref(binding->frame); delete binding;
+        },
         G_TYPE_NONE, 3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_UINT);
       jsc_context_set_value(target, "__basiliskWorldBridge", bridge); g_object_unref(bridge);
       auto* initialized = jsc_context_evaluate(target, R"JS((function(bridge) {
         delete globalThis.__basiliskWorldBridge;
-        Object.defineProperty(globalThis, '__basiliskReply', {value: function(id, value, error) {
+        Object.defineProperty(globalThis, '__basiliskReply', {configurable:true, value: function(id, value, error) {
           bridge(JSON.stringify(value === undefined ? null : value), error, id);
         }});
       })(globalThis.__basiliskWorldBridge);)JS", -1);
@@ -230,6 +256,43 @@ void Execute(Frame* frame, guint id, const char* source, WebKitUserMessage* requ
 }
 gboolean Message(WebKitWebPage* page, WebKitUserMessage* request, gpointer) {
   const char* name = webkit_user_message_get_name(request);
+  if (!strcmp(name, "basilisk:world-release")) {
+    auto* parameters=webkit_user_message_get_parameters(request); const char* key;
+    if (!parameters || !g_variant_is_of_type(parameters,G_VARIANT_TYPE("(s)"))) {Reply(request,"null","Invalid world key");return TRUE;}
+    g_variant_get(parameters,"(&s)",&key);
+    GHashTableIter frames;gpointer frameKey,frameValue;g_hash_table_iter_init(&frames,Frames(page));
+    while(g_hash_table_iter_next(&frames,&frameKey,&frameValue)) {
+      auto* frame=static_cast<Frame*>(frameValue);
+      auto* binding=static_cast<WorldBinding*>(g_hash_table_lookup(frame->bindings,key));
+      if (binding) {binding->valid=false;g_hash_table_remove(frame->bindings,key);}
+      auto* owned=g_hash_table_lookup(frame->worlds,key);
+      GHashTableIter pending;gpointer requestKey,requestValue;g_hash_table_iter_init(&pending,frame->pending);
+      while(g_hash_table_iter_next(&pending,&requestKey,&requestValue)) {
+        auto* operation=static_cast<Pending*>(requestValue);
+        if(owned && operation->world==owned) {Reply(operation->message,"null","Execution world released");g_hash_table_iter_remove(&pending);}
+      }
+      g_hash_table_remove(frame->worlds,key);
+    }
+    g_hash_table_remove(OwnedWorlds(page),key);g_hash_table_remove(initialWorlds,key);Reply(request,"null","");return TRUE;
+  }
+  if (!strcmp(name, "basilisk:world-prepare")) {
+    auto* parameters = webkit_user_message_get_parameters(request);
+    const char* key;
+    if (!parameters || !g_variant_is_of_type(parameters, G_VARIANT_TYPE("(s)"))) {
+      Reply(request,"null","Invalid world key"); return TRUE;
+    }
+    g_variant_get(parameters,"(&s)",&key);
+    auto* worlds=OwnedWorlds(page);
+    if (!*key || strlen(key)>128 || (!g_hash_table_contains(worlds,key) && g_hash_table_size(worlds)>=64)) {
+      Reply(request,"null","Invalid world or view world limit"); return TRUE;
+    }
+    if (!g_hash_table_contains(worlds,key)) {
+      char* name=g_strconcat("basilisk-legacy-",key,nullptr);
+      auto* initial=static_cast<WebKitScriptWorld*>(g_hash_table_lookup(initialWorlds,key));
+      g_hash_table_insert(worlds,g_strdup(key),initial ? g_object_ref(initial) : webkit_script_world_new_with_name(name));g_free(name);
+    }
+    Reply(request,"null","");return TRUE;
+  }
   if (!strcmp(name, "basilisk:frames")) {
     auto* context = jsc_context_new(); auto* list = jsc_value_new_array(context, G_TYPE_NONE); guint index = 0;
     GHashTableIter it; gpointer key, value; g_hash_table_iter_init(&it, Frames(page));
@@ -274,9 +337,34 @@ gboolean Message(WebKitWebPage* page, WebKitUserMessage* request, gpointer) {
 }
 }
 extern "C" __attribute__((visibility("default")))
-void webkit_web_process_extension_initialize(WebKitWebProcessExtension* extension)
+void webkit_web_process_extension_initialize_with_user_data(WebKitWebProcessExtension* extension, const GVariant* userData)
 {
+  initialWorlds=g_hash_table_new_full(g_str_hash,g_str_equal,g_free,g_object_unref);
+  if(userData && g_variant_is_of_type(const_cast<GVariant*>(userData),G_VARIANT_TYPE("as"))) {
+    GVariantIter it;const char* key;g_variant_iter_init(&it,const_cast<GVariant*>(userData));
+    while(g_variant_iter_next(&it,"&s",&key)) {
+      if(!*key || strlen(key)>128)continue;
+      char* name=g_strconcat("basilisk-legacy-",key,nullptr);
+      g_hash_table_insert(initialWorlds,g_strdup(key),webkit_script_world_new_with_name(name));g_free(name);
+    }
+  }
   world = webkit_script_world_new_with_name("basilisk-content");
+  // Observe normal public world creation so restored user-script worlds can be
+  // addressed after a WebProcess restart without creating a second same-name world.
+  g_signal_add_emission_hook(g_signal_lookup("window-object-cleared", WEBKIT_TYPE_SCRIPT_WORLD), 0,
+    +[](GSignalInvocationHint*, guint count, const GValue* values, gpointer) -> gboolean {
+      if (count < 3) return TRUE;
+      auto* scriptWorld=WEBKIT_SCRIPT_WORLD(g_value_get_object(values));
+      const char* name=webkit_script_world_get_name(scriptWorld);
+      const char* prefix="basilisk-legacy-";
+      if(name && g_str_has_prefix(name,prefix)) {
+        auto* page=WEBKIT_WEB_PAGE(g_value_get_object(values+1));
+        auto* worlds=OwnedWorlds(page); const char* key=name+strlen(prefix);
+        if(!g_hash_table_contains(worlds,key) && g_hash_table_size(worlds)<64)
+          g_hash_table_insert(worlds,g_strdup(key),g_object_ref(scriptWorld));
+      }
+      return TRUE;
+    }, nullptr, nullptr);
   g_signal_connect(world, "window-object-cleared", G_CALLBACK(WindowCleared), nullptr);
   g_signal_connect(extension, "page-created", G_CALLBACK(+[](WebKitWebProcessExtension*, WebKitWebPage* page, gpointer) {
     g_signal_connect(page, "user-message-received", G_CALLBACK(Message), nullptr);

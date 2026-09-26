@@ -71,10 +71,15 @@ class ContentScriptClient {
       return Promise.reject(new TypeError("Invalid execution target or script"));
     return this.request("World", {frameId, worldId, source, globalScope});
   }
+  releaseWorld(worldId) {return this.request("WorldRelease", {worldId});}
+  prepareWorld(worldId) {return this.request("WorldPrepare", {worldId});}
+  registerWorldScript(token, worldId, source, runAt, allFrames) {
+    return this.request("WorldRegister", {token,worldId,source,runAt,allFrames});
+  }
   request(operation, arguments_) {
     if (this.closed) return Promise.reject(new Error("Content view closed"));
     let c = Ci.nsIWebContentView;
-    let required = {World:c.CAP_EXECUTION_WORLDS, Frames:c.CAP_FRAMES, Execute: c.CAP_CONTENT_SCRIPTS, CSS: c.CAP_CSS, Register: c.CAP_SCRIPT_REGISTRATION, Policy: c.CAP_REQUEST_FILTERING}[operation];
+    let required = {WorldRelease:c.CAP_EXECUTION_WORLDS, WorldPrepare:c.CAP_EXECUTION_WORLDS, WorldRegister:c.CAP_EXECUTION_WORLDS, World:c.CAP_EXECUTION_WORLDS, Frames:c.CAP_FRAMES, Execute: c.CAP_CONTENT_SCRIPTS, CSS: c.CAP_CSS, Register: c.CAP_SCRIPT_REGISTRATION, Policy: c.CAP_REQUEST_FILTERING}[operation];
     if (!required || !(this.capabilities & required)) return Promise.reject(new Error("Unsupported content operation: " + operation));
     if ((arguments_.frameId !== undefined || arguments_.allFrames) && !(this.capabilities & c.CAP_FRAMES))
       return Promise.reject(new Error("Frame addressing unsupported"));
@@ -87,7 +92,13 @@ class ContentScriptClient {
       try {
         let view = ContentEngines.get(this.browser);
         if (view) {
-          if (operation == "World") view.native.executeWorldScript(id, arguments_.frameId, arguments_.worldId, arguments_.source, !!arguments_.globalScope);
+          if (operation == "WorldRelease") view.native.releaseWorld(id, arguments_.worldId);
+          else if (operation == "WorldPrepare") view.native.prepareWorld(id, arguments_.worldId);
+          else if (operation == "WorldRegister") {
+            view.native.registerWorldScript(arguments_.token, arguments_.worldId, arguments_.source, arguments_.runAt, !!arguments_.allFrames);
+            this.result(id,"null","");
+          }
+          else if (operation == "World") view.native.executeWorldScript(id, arguments_.frameId, arguments_.worldId, arguments_.source, !!arguments_.globalScope);
           else if (operation == "Frames") view.native.getFrames(id);
           else if (operation == "Execute") {
             if (arguments_.frameId !== undefined) view.native.executeFrameScript(id, arguments_.frameId, arguments_.source);

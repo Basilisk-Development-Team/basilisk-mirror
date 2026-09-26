@@ -90,3 +90,29 @@ bool WPEWebRTCPluginsAvailable()
   }();
   return available;
 }
+
+// Names only, never extension configuration or browsing data. A restarted
+// WebProcess must create public world wrappers before user-content restoration.
+namespace {
+GHashTable* ExecutionWorlds() {
+  static auto* worlds=g_hash_table_new_full(g_str_hash,g_str_equal,g_free,nullptr);
+  return worlds;
+}
+void UpdateExecutionWorlds() {
+  GVariantBuilder names;g_variant_builder_init(&names,G_VARIANT_TYPE("as"));
+  GHashTableIter it;gpointer key,value;g_hash_table_iter_init(&it,ExecutionWorlds());
+  while(g_hash_table_iter_next(&it,&key,&value))g_variant_builder_add(&names,"s",static_cast<const char*>(key));
+  webkit_web_context_set_web_process_extensions_initialization_user_data(
+    webkit_web_context_get_default(),g_variant_builder_end(&names));
+}
+}
+void WPERetainExecutionWorld(const char* key) {
+  guint count=GPOINTER_TO_UINT(g_hash_table_lookup(ExecutionWorlds(),key));
+  g_hash_table_replace(ExecutionWorlds(),g_strdup(key),GUINT_TO_POINTER(count+1));UpdateExecutionWorlds();
+}
+void WPEReleaseExecutionWorld(const char* key) {
+  guint count=GPOINTER_TO_UINT(g_hash_table_lookup(ExecutionWorlds(),key));
+  if(count>1)g_hash_table_replace(ExecutionWorlds(),g_strdup(key),GUINT_TO_POINTER(count-1));
+  else g_hash_table_remove(ExecutionWorlds(),key);
+  UpdateExecutionWorlds();
+}

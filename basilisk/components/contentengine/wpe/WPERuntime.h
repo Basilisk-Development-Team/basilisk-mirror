@@ -6,4 +6,6 @@
 #include "nsError.h"
 nsresult WPEInitializeRuntime();
 bool WPEWebRTCPluginsAvailable();
+void WPERetainExecutionWorld(const char* key);
+void WPEReleaseExecutionWorld(const char* key);
 #endif

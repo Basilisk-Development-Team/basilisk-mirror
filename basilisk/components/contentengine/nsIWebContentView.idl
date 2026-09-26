@@ -12,7 +12,7 @@ interface nsIContentRequestRule;
  * the chrome window's client area. The chrome owner manages tab visibility
  * and must keep the native host inside its content rectangle.
  */
-[scriptable, uuid(d994537d-e34e-42e2-b37f-44dfbbdd377f)]
+[scriptable, uuid(b944f94a-4f0b-4bbc-b8e3-08e9d9ab9313)]
 interface nsIWebContentView : nsISupports
 {
   const unsigned long CAP_DEVTOOLS = 0x0001;
@@ -97,6 +97,13 @@ interface nsIWebContentView : nsISupports
   void executeWorldScript(in unsigned long requestId, in AUTF8String frameId,
                           in AUTF8String worldId, in AUTF8String source,
                           in boolean globalScope);
+  /** Prepare before future-document registration; release revokes pending work. */
+  void prepareWorld(in unsigned long requestId, in AUTF8String worldId);
+  void releaseWorld(in unsigned long requestId, in AUTF8String worldId);
+  /** Global source, document-start/end only. Registration affects future documents. */
+  void registerWorldScript(in AUTF8String identifier, in AUTF8String worldId,
+                           in AUTF8String source, in unsigned long runAt,
+                           in boolean allFrames);
   void insertCSS(in AUTF8String identifier, in AUTF8String source);
   void insertCSSWithOptions(in AUTF8String identifier, in AUTF8String source, in boolean allFrames);
   void removeCSS(in AUTF8String identifier);

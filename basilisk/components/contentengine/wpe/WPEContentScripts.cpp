@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include "WPEContentView.h"
 #include "WPEHost.h"
+#include "WPERuntime.h"
 #include "nsHashPropertyBag.h"
 #include <jsc/jsc.h>
 
@@ -183,6 +184,42 @@ NS_IMETHODIMP WPEContentView::ExecuteWorldScript(uint32_t id, const nsACString& 
   nsAutoCString token(frame), key(world), script(source);
   return SendFrameOperation(id, "basilisk:world-execute",
     g_variant_new("(usssb)", id, token.get(), key.get(), script.get(), globalScope));
+}
+NS_IMETHODIMP WPEContentView::PrepareWorld(uint32_t id, const nsACString& world)
+{
+  NS_ENSURE_TRUE(!world.IsEmpty() && world.Length() <= 128, NS_ERROR_INVALID_ARG);
+  nsAutoCString key(world);
+  if (!mExecutionWorlds)mExecutionWorlds=g_hash_table_new_full(g_str_hash,g_str_equal,g_free,nullptr);
+  if (!g_hash_table_contains(mExecutionWorlds,key.get())) {
+    g_hash_table_add(mExecutionWorlds,g_strdup(key.get()));WPERetainExecutionWorld(key.get());
+  }
+  return SendFrameOperation(id, "basilisk:world-prepare", g_variant_new("(s)", key.get()));
+}
+NS_IMETHODIMP WPEContentView::ReleaseWorld(uint32_t id, const nsACString& world)
+{
+  NS_ENSURE_TRUE(!world.IsEmpty() && world.Length() <= 128, NS_ERROR_INVALID_ARG);
+  nsAutoCString key(world);
+  if (mExecutionWorlds && g_hash_table_remove(mExecutionWorlds,key.get()))WPEReleaseExecutionWorld(key.get());
+  return SendFrameOperation(id, "basilisk:world-release", g_variant_new("(s)", key.get()));
+}
+NS_IMETHODIMP WPEContentView::RegisterWorldScript(const nsACString& identifier,
+  const nsACString& world, const nsACString& source, uint32_t runAt, bool allFrames)
+{
+  NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(!world.IsEmpty() && world.Length() <= 128 && source.Length() <= 1024 * 1024 &&
+    runAt <= SCRIPT_DOCUMENT_END && !identifier.IsEmpty() && identifier.Length() <= 256, NS_ERROR_INVALID_ARG);
+  nsresult rv = UnregisterScript(identifier); NS_ENSURE_SUCCESS(rv, rv);
+  if (!mUserScripts) mUserScripts = g_hash_table_new_full(g_str_hash, g_str_equal, g_free,
+    reinterpret_cast<GDestroyNotify>(webkit_user_script_unref));
+  nsAutoCString key("basilisk-legacy-"); key.Append(world);
+  nsAutoCString code;
+  code.Append(source);
+  auto* script = webkit_user_script_new_for_world(code.get(), allFrames ? WEBKIT_USER_CONTENT_INJECT_ALL_FRAMES : WEBKIT_USER_CONTENT_INJECT_TOP_FRAME,
+    runAt == SCRIPT_DOCUMENT_START ? WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START : WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_END,
+    key.get(), nullptr, nullptr);
+  webkit_user_content_manager_add_script(webkit_web_view_get_user_content_manager(mHost->webView), script);
+  nsAutoCString id(identifier); g_hash_table_insert(mUserScripts, g_strdup(id.get()), script);
+  return NS_OK;
 }
 NS_IMETHODIMP WPEContentView::UnregisterScript(const nsACString& identifier)
 {

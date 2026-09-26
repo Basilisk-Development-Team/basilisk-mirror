@@ -53,6 +53,7 @@ private:
   bool mMessaging = false;
   _GHashTable* mStyleSheets = nullptr;
   _GHashTable* mUserScripts = nullptr;
+  _GHashTable* mExecutionWorlds = nullptr;
   _GHashTable* mFrames = nullptr;
   nsCOMPtr<nsIFile> mProfileDirectory;
   _WebKitUserContentFilterStore* mFilterStore = nullptr;

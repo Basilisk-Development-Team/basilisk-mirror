@@ -319,6 +319,11 @@ NS_IMETHODIMP WPEContentView::Destroy()
   ClearRequestRules();
   if (mFrames) { g_hash_table_unref(mFrames); mFrames = nullptr; }
   if (mStyleSheets) { g_hash_table_unref(mStyleSheets); mStyleSheets = nullptr; }
+  if (mExecutionWorlds) {
+    GHashTableIter it;gpointer key,value;g_hash_table_iter_init(&it,mExecutionWorlds);
+    while(g_hash_table_iter_next(&it,&key,&value))WPEReleaseExecutionWorld(static_cast<const char*>(key));
+    g_hash_table_unref(mExecutionWorlds);mExecutionWorlds=nullptr;
+  }
   if (mUserScripts) { g_hash_table_unref(mUserScripts); mUserScripts = nullptr; }
   for (auto& inspector : mInspectors) inspector->Destroy();
   mInspectors.Clear();
