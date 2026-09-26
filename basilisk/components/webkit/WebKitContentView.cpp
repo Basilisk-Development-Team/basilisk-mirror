@@ -156,6 +156,14 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
   g_signal_connect(mHost->webView, "web-process-terminated",
     G_CALLBACK(+[](WebKitWebView*, WebKitWebProcessTerminationReason, gpointer data) {
       auto* self = static_cast<WebKitContentView*>(data);
+      self->CancelScripts();
+      g_clear_object(&self->mInspectAction);
+      RefPtr<WebKitContentView> owner = self;
+      NS_DispatchToMainThread(NS_NewRunnableFunction([owner]() {
+        if (owner->mDestroyed) return;
+        for (auto& inspector : owner->mInspectors) inspector->Destroy();
+        owner->mInspectors.Clear();
+      }));
       self->mLastError.AssignLiteral("The web content process terminated. Reload to retry.");
       self->Notify("content-view-process-terminated");
     }), this);

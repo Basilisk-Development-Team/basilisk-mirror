@@ -218,6 +218,12 @@ class ExternalContentBrowser {
   }
   observe(subject, topic) {
     if (this.destroyed) return;
+    if (topic == "content-view-process-terminated") {
+      if (ContentEngineFullscreen.view == this) ContentEngineFullscreen.exit();
+      let client = ContentEngineScripts.clients.get(this.browser);
+      if (client) for (let id of Array.from(client.pending.keys()))
+        client.result(id, "null", "WebKit content process terminated");
+    }
     if (topic == "content-view-route") {
       let info = subject.QueryInterface(Ci.nsIWritablePropertyBag2);
       info.setPropertyAsBool("handled", ContentEngineRouting.route(this.tab, info.getPropertyAsAUTF8String("uri")));

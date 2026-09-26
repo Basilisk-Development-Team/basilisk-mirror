@@ -11,7 +11,7 @@ interface nsIObserver;
  * the chrome window's client area. The chrome owner manages tab visibility
  * and must keep the native host inside its content rectangle.
  */
-[scriptable, uuid(29b2fb4d-7aa0-4ead-a0dd-09027e59d1bc)]
+[scriptable, uuid(3ab177a9-123c-4839-b38b-e8d6c1b59e17)]
 interface nsIWebContentView : nsISupports
 {
   /** listener topics: content-view-state (read state getters) and
