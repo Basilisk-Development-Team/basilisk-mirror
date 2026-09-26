@@ -19,6 +19,9 @@ XPCOMUtils.defineLazyModuleGetter(this, "LoginHelper",
 var gContextMenuContentData = null;
 
 function nsContextMenu(aXulMenu, aIsShift) {
+#ifdef MOZ_WEBKIT
+  if (ContentEngineContext.pending) return ContentEngineContext.create(aXulMenu);
+#endif
   this.shouldDisplay = true;
   this.initMenu(aXulMenu, aIsShift);
 }
