@@ -23,6 +23,24 @@ function attach(win) {
       throw new Error(engine + " CSS removal failed");
     let value = await api.executeScript("await Promise.resolve(); document.body.setAttribute('data-extension', 'real DOM'); return {value: document.body.getAttribute('data-extension'), components: typeof Components};");
     if (value.value != "real DOM" || value.components != "undefined") throw new Error(engine + " script isolation failed: " + JSON.stringify(value));
+    let isolated = await api.executeScript(`
+      let script = document.createElement('script');
+      script.textContent = "document.body.setAttribute('data-page-bridge', typeof browserContent)";
+      document.documentElement.appendChild(script); script.remove();
+      return document.body.getAttribute('data-page-bridge');
+    `);
+    if (isolated != "undefined") throw new Error(engine + " bridge exposed to page world");
+    let mutation = await api.executeScript(`
+      return await new Promise(resolve => {
+        let observer = new MutationObserver(() => { observer.disconnect(); resolve(true); });
+        observer.observe(document.body, {attributes: true, attributeFilter: ['data-mutation']});
+        document.body.setAttribute('data-mutation', 'observed');
+      });
+    `);
+    if (!mutation) throw new Error(engine + " MutationObserver failed");
+    let rejected = false;
+    try { await api.executeScript("throw new Error('fixture exception');"); } catch (error) { rejected = true; }
+    if (!rejected) throw new Error(engine + " exception not rejected");
     let reply = new Promise((resolve, reject) => {
       let timer = win.setTimeout(() => reject(new Error("Message timeout")), 5000);
       let listener = message => {

@@ -79,12 +79,12 @@ var ContentEngines = {
   switchEngine(tab, engine, options = {}) {
     if (!["gecko", "webkit"].includes(engine)) throw new Error("Unknown content engine");
     let manual = options.manual !== false;
-    if (manual) {
-      SessionStore.setTabValue(tab, "basilisk.engineOverride", engine);
-      delete tab._contentRouteChain;
-      tab.removeAttribute("contentroutingblocked");
-    }
     if (this.engineFor(tab.linkedBrowser) == engine) {
+      if (manual) {
+        SessionStore.setTabValue(tab, "basilisk.engineOverride", engine);
+        delete tab._contentRouteChain;
+        tab.removeAttribute("contentroutingblocked");
+      }
       tab.linkedBrowser.reload();
       return tab;
     }
@@ -102,7 +102,7 @@ var ContentEngines = {
     let selected = tab == gBrowser.selectedTab;
     let replacement = engine == "webkit" ? this.open(uri, false, false) :
       gBrowser.addTab(uri, {skipAnimation: true});
-    let override = SessionStore.getTabValue(tab, "basilisk.engineOverride");
+    let override = manual ? engine : SessionStore.getTabValue(tab, "basilisk.engineOverride");
     if (override) SessionStore.setTabValue(replacement, "basilisk.engineOverride", override);
     gBrowser.moveTabTo(replacement, tab._tPos);
     if (tab.pinned) gBrowser.pinTab(replacement);

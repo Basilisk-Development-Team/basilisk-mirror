@@ -31,6 +31,16 @@ async function run() {
   for (let tab of [gecko, wpe]) dump("WPE-ADVANCED extension " + JSON.stringify(await fixture.run(tab.linkedBrowser)) + "\n");
   for (let engine of ["gecko", "webkit"])
     check(fixture.states.some(state => state.engine == engine && state.uri.startsWith(base) && state.title.startsWith("Page")), "Fixture B: " + engine + " state");
+  let descriptor = Object.getOwnPropertyDescriptor(gecko.linkedBrowser, "permitUnload");
+  Object.defineProperty(gecko.linkedBrowser, "permitUnload", {configurable: true,
+    value: () => ({timedOut:false, permitUnload:false})});
+  try {
+    check(engines.switchEngine(gecko, "webkit") === gecko, "cancelled switch replaced tab");
+    check(!win.SessionStore.getTabValue(gecko, "basilisk.engineOverride"), "cancelled switch changed override");
+  } finally {
+    if (descriptor) Object.defineProperty(gecko.linkedBrowser, "permitUnload", descriptor);
+    else delete gecko.linkedBrowser.permitUnload;
+  }
   let api = wpe.linkedBrowser.contentAPI;
   await api.registerScript("fixture", "document.body.setAttribute('data-persistent', 'yes');");
   await api.insertCSS("body {color: rgb(12, 34, 56) !important;}", "fixture");
@@ -68,6 +78,22 @@ async function run() {
   await g.selectedBrowser.contentAPI.executeScript("let f=document.createElement('iframe');f.src=" + JSON.stringify(base + "a") + ";document.body.appendChild(f);");
   await new Promise(resolve => setTimeout(resolve, 1000));
   check(!engines.get() && g.selectedBrowser.currentURI.host == "localhost", "subframe changed engine");
+  // Restore saved engine identity even when rules now prefer the other engine.
+  let savedGecko = win.SessionStore.getTabState(g.selectedTab);
+  Services.prefs.setCharPref("browser.contentEngine.siteRules", JSON.stringify({"localhost":"webkit"}));
+  let restored = g.addTab("about:blank"); g.selectedTab = restored;
+  win.SessionStore.setTabState(restored, savedGecko);
+  await waitFor(() => restored.linkedBrowser.contentTitle.startsWith("Page B") && !restored.hasAttribute("busy"), "explicit Gecko restore");
+  check(restored.linkedBrowser.contentEngine == "gecko", "Gecko restore inferred engine from rules");
+  restored.linkedBrowser.reload();
+  await waitFor(() => engines.get() && g.selectedBrowser.contentTitle.startsWith("Page B"), "routing resumes after restore");
+  let savedWPE = win.SessionStore.getTabState(g.selectedTab);
+  Services.prefs.setCharPref("browser.contentEngine.siteRules", "{}");
+  restored = g.addTab("about:blank"); g.selectedTab = restored;
+  win.SessionStore.setTabState(restored, savedWPE);
+  await waitFor(() => engines.get(restored.linkedBrowser) && restored.linkedBrowser.contentTitle.startsWith("Page B") &&
+    !restored.hasAttribute("busy"), "explicit WPE restore");
+  check(restored.linkedBrowser.contentEngine == "webkit", "WPE restore inferred engine from rules");
   Services.prefs.clearUserPref("browser.contentEngine.siteRules");
   dump("WPE-ADVANCED PASS exact-host/origin routing, manual override, redirect and subframe isolation\n");
 }

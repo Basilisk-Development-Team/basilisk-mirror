@@ -47,7 +47,11 @@ var ContentEngineSession = {
   },
   restore(tab) {
     delete tab._contentRestoring;
-    if (tab.closing || this.engine(tab) != "webkit") return;
+    if (tab.closing) return;
+    if (this.engine(tab) != "webkit") {
+      delete tab._contentRestoreURI;
+      return;
+    }
     let uri = SessionStore.getTabValue(tab, "basilisk.contentURI") || "about:blank";
     let zoom = Number(SessionStore.getTabValue(tab, "basilisk.contentZoom")) || 1;
     let muted = SessionStore.getTabValue(tab, "basilisk.contentMuted") == "true";
