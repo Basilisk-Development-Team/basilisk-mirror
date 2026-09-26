@@ -25,6 +25,8 @@ interface nsIWebContentView : nsISupports
   void setBounds(in long x, in long y, in long width, in long height);
   void setVisible(in boolean visible);
   void focus();
+  /** Return native keyboard focus to the owning chrome widget. */
+  void blur();
   /** Idempotent. Disconnects callbacks and releases native/engine resources. */
   void destroy();
 
@@ -47,5 +49,6 @@ interface nsIWebContentView : nsISupports
   /** Plain-text editing commands: copy, cut, paste, selectAll. */
   void edit(in AUTF8String command);
   void find(in AUTF8String text, in boolean backwards, in boolean caseSensitive);
+  void findAgain(in boolean backwards);
   void clearFind();
 };

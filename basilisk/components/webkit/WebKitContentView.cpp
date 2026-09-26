@@ -47,6 +47,13 @@ NS_IMETHODIMP WebKitContentView::Attach(mozIDOMWindowProxy* window, nsIObserver*
       static_cast<nsIWritablePropertyBag2*>(info));
   };
   mLastError.Truncate();
+  auto* finder = webkit_web_view_get_find_controller(mHost->webView);
+  g_signal_connect(finder, "found-text", G_CALLBACK(+[](WebKitFindController*, guint, gpointer data) {
+    static_cast<WebKitContentView*>(data)->Notify("content-view-find-found");
+  }), this);
+  g_signal_connect(finder, "failed-to-find-text", G_CALLBACK(+[](WebKitFindController*, gpointer data) {
+    static_cast<WebKitContentView*>(data)->Notify("content-view-find-not-found");
+  }), this);
   for (const char* signal : {"notify::is-loading", "notify::is-playing-audio", "notify::is-muted"})
     g_signal_connect(mHost->webView, signal, G_CALLBACK(+[](GObject*, GParamSpec*, gpointer data) {
       static_cast<WebKitContentView*>(data)->Notify("content-view-state");
@@ -175,9 +182,16 @@ NS_IMETHODIMP WebKitContentView::Destroy()
     mContainer = nullptr;
     g_signal_handlers_disconnect_by_data(host->area, this);
     g_signal_handlers_disconnect_by_data(host->webView, this);
+    g_signal_handlers_disconnect_by_data(webkit_web_view_get_find_controller(host->webView), this);
     g_signal_handlers_disconnect_by_data(webkit_web_view_get_back_forward_list(host->webView), this);
     wpe_host_free(host);
   }
+  return NS_OK;
+}
+NS_IMETHODIMP WebKitContentView::Blur()
+{
+  NS_ENSURE_TRUE(mHost && mContainer, NS_ERROR_NOT_INITIALIZED);
+  gtk_widget_grab_focus(GTK_WIDGET(mContainer));
   return NS_OK;
 }
 void WebKitContentView::Notify(const char* topic, nsISupports* subject)
@@ -301,6 +315,14 @@ NS_IMETHODIMP WebKitContentView::ClearFind()
 {
   NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
   webkit_find_controller_search_finish(webkit_web_view_get_find_controller(mHost->webView));
+  return NS_OK;
+}
+NS_IMETHODIMP WebKitContentView::FindAgain(bool backwards)
+{
+  NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
+  auto* finder = webkit_web_view_get_find_controller(mHost->webView);
+  if (backwards) webkit_find_controller_search_previous(finder);
+  else webkit_find_controller_search_next(finder);
   return NS_OK;
 }
 
