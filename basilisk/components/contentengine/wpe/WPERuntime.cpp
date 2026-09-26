@@ -9,6 +9,7 @@
 #include "nsThreadUtils.h"
 #include <glib.h>
 #include <gst/gst.h>
+#include <wpe/webkit.h>
 
 namespace { bool sSandboxedWebRTCTransport = false; }
 
@@ -38,6 +39,11 @@ nsresult WPEInitializeRuntime()
   bundle.AppendLiteral("/injected-bundle");
   resources.AppendLiteral("/share");
   modules.AppendLiteral("/lib/modules");
+  nsAutoCString extensions(root);
+  extensions.AppendLiteral("/extensions");
+  nsAutoCString bridge(extensions);
+  bridge.AppendLiteral("/libbasilisk-content-extension.so");
+  NS_ENSURE_TRUE(g_file_test(bridge.get(), G_FILE_TEST_IS_REGULAR), NS_ERROR_FILE_NOT_FOUND);
   // These are upstream embedding lookup overrides. WEBKIT_EXEC_PATH requires
   // upstream's DEVELOPER_MODE build option; staging verifies that support.
   g_setenv("WEBKIT_EXEC_PATH", helpers.get(), TRUE);
@@ -62,6 +68,8 @@ nsresult WPEInitializeRuntime()
       g_key_file_get_boolean(features, "Build", "ENABLE_BUBBLEWRAP_SANDBOX", nullptr);
   }
   g_key_file_unref(features);
+  // The default context snapshots the injected-bundle path at construction.
+  webkit_web_context_set_web_process_extensions_directory(webkit_web_context_get_default(), extensions.get());
   initialized = true;
   return NS_OK;
 }

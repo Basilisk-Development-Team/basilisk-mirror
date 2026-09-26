@@ -141,6 +141,36 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
         static_cast<nsIWritablePropertyBag2*>(info));
       return nullptr; // Only XUL may create tabs/windows; no unmanaged WPE views.
     }), this);
+  mFrames = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, nullptr);
+  g_signal_connect(mHost->webView, "user-message-received", G_CALLBACK(+[](WebKitWebView*, WebKitUserMessage* message, gpointer data) -> gboolean {
+    auto* self = static_cast<WPEContentView*>(data);
+    const char* name = webkit_user_message_get_name(message);
+    auto* parameters = webkit_user_message_get_parameters(message);
+    if (!strcmp(name, "basilisk:frame-destroyed")) {
+      if (parameters && g_variant_is_of_type(parameters, G_VARIANT_TYPE("(s)"))) {
+        const char* token; g_variant_get(parameters, "(&s)", &token);
+        g_hash_table_remove(self->mFrames, token);
+      }
+      return TRUE;
+    }
+    bool created = !strcmp(name, "basilisk:frame-created");
+    if (!created && strcmp(name, "basilisk:frame-message")) return FALSE;
+    if (!parameters || !g_variant_is_of_type(parameters, G_VARIANT_TYPE("(ssbs)"))) return TRUE;
+    const char* token; const char* uri; const char* json; gboolean top;
+    g_variant_get(parameters, "(&s&sb&s)", &token, &uri, &top, &json);
+    if (strlen(token) > 128 || strlen(json) > 1024 * 1024) return TRUE;
+    if (created) {
+      g_hash_table_add(self->mFrames, g_strdup(token));
+    } else if (g_hash_table_contains(self->mFrames, token)) {
+      RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
+      info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("json"), nsDependentCString(json));
+      info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("frameId"), nsDependentCString(token));
+      info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("documentURI"), nsDependentCString(uri));
+      info->SetPropertyAsBool(NS_LITERAL_STRING("isTopFrame"), top);
+      self->Notify("content-view-message", static_cast<nsIWritablePropertyBag2*>(info));
+    }
+    return TRUE;
+  }), this);
   g_signal_connect(mHost->webView, "notify::uri", G_CALLBACK(+[](GObject*, GParamSpec*, gpointer data) {
     static_cast<WPEContentView*>(data)->Notify("content-view-state");
   }), this);
@@ -149,7 +179,10 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
   }), this);
   g_signal_connect(mHost->webView, "load-changed", G_CALLBACK(+[](WebKitWebView*, WebKitLoadEvent event, gpointer data) {
     auto* self = static_cast<WPEContentView*>(data);
-    if (event == WEBKIT_LOAD_STARTED) self->CancelScripts();
+    if (event == WEBKIT_LOAD_STARTED) {
+      self->CancelScripts();
+      g_hash_table_remove_all(self->mFrames);
+    }
     self->Notify("content-view-state");
   }), this);
   g_signal_connect(webkit_web_view_get_back_forward_list(mHost->webView), "changed",
@@ -284,6 +317,7 @@ NS_IMETHODIMP WPEContentView::Destroy()
   mDestroyed = true;
   CancelScripts();
   ClearRequestRules();
+  if (mFrames) { g_hash_table_unref(mFrames); mFrames = nullptr; }
   if (mStyleSheets) { g_hash_table_unref(mStyleSheets); mStyleSheets = nullptr; }
   if (mUserScripts) { g_hash_table_unref(mUserScripts); mUserScripts = nullptr; }
   for (auto& inspector : mInspectors) inspector->Destroy();
@@ -549,7 +583,7 @@ NS_IMETHODIMP WPEContentView::GetCapabilities(uint32_t* result)
   if (mInspectorView || mDestroyed) { *result = 0; return NS_OK; }
   *result = CAP_FULLSCREEN | CAP_DOWNLOADS | CAP_CONTENT_SCRIPTS |
     CAP_ISOLATED_CONTENT_WORLD | CAP_PRIVATE_STORAGE | CAP_AUDIO_CONTROL |
-    CAP_CSS | CAP_SCRIPT_REGISTRATION | CAP_MESSAGING | CAP_FIND;
+    CAP_CSS | CAP_SCRIPT_REGISTRATION | CAP_MESSAGING | CAP_FIND | CAP_SCRIPT_TIMING | CAP_FRAMES;
   if (!mPrivate) *result |= CAP_PERSISTENT_STORAGE | CAP_DEVTOOLS | CAP_INSPECT_ELEMENT | CAP_REQUEST_FILTERING;
   if (mHost && webkit_settings_get_enable_webrtc(webkit_web_view_get_settings(mHost->webView)) &&
       WPEWebRTCPluginsAvailable()) *result |= CAP_WEBRTC;

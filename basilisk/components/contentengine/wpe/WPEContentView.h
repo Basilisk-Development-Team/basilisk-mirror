@@ -20,6 +20,7 @@ struct _GdkWindow;
 struct _GCancellable;
 struct _GHashTable;
 struct _WebKitUserContentFilterStore;
+struct _GVariant;
 
 class WPEContentView final : public nsIWebContentView
 {
@@ -34,6 +35,7 @@ private:
   nsresult Mount(_GdkWindow* native);
   void CancelScripts();
   void EnsureMessaging();
+  nsresult SendFrameOperation(uint32_t id, const char* name, _GVariant* parameters);
   nsresult EnsureFilterStore();
   void ClearRequestRules();
   WPEHost* mHost = nullptr;
@@ -51,6 +53,7 @@ private:
   bool mMessaging = false;
   _GHashTable* mStyleSheets = nullptr;
   _GHashTable* mUserScripts = nullptr;
+  _GHashTable* mFrames = nullptr;
   nsCOMPtr<nsIFile> mProfileDirectory;
   _WebKitUserContentFilterStore* mFilterStore = nullptr;
   _GCancellable* mFilterCancellation = nullptr;

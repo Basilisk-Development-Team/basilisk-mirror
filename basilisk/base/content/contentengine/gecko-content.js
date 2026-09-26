@@ -2,98 +2,130 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 "use strict";
-// A dedicated ordinary Gecko frame script. Existing extension message names,
-// child globals and loadFrameScript semantics are never replaced.
+// An opt-in ordinary Gecko frame script, separate from existing extensions'
+// child globals and message names. These are real Gecko documents/sandboxes.
 (function() {
-  let sandbox, document, styleDocument;
-  const styles = new Map(), scripts = new Map(), applied = new Map();
-  function world() {
-    if (document != content.document) {
-      if (sandbox) Components.utils.nukeSandbox(sandbox);
-      document = content.document;
-      sandbox = Components.utils.Sandbox(content, {
-        sandboxPrototype: content, wantXrays: true, wantComponents: false,
-        sandboxName: "Basilisk content bridge"
-      });
-      let currentDocument = document;
-      Components.utils.exportFunction(json => {
-        if (currentDocument == content.document && typeof json == "string" && json.length <= 1024 * 1024)
-          sendAsyncMessage("Basilisk:ContentMessage", {json});
-      }, sandbox, {defineAs: "__basiliskPost"});
-      Components.utils.evalInSandbox(`(function() {
-        // Hide the legacy content-window Components shim in this opt-in world.
-        Object.defineProperty(this, 'Components', {value: undefined});
+  const C = Components, Ci = C.interfaces, Cu = C.utils;
+  const {Services} = Cu.import("resource://gre/modules/Services.jsm", {});
+  const frames = new Map(), styles = new Map(), scripts = new Map();
+  function belongs(win) { try { return win && win.top == content; } catch (_) { return false; } }
+  function current(frame) { try { return belongs(frame.win) && frame.doc == frame.win.document; } catch (_) { return false; } }
+  function dispose(frame) {
+    for (let id of frame.pending) result(id, null, "Frame document destroyed");
+    frame.pending.clear();
+    if (frame.sandbox) Cu.nukeSandbox(frame.sandbox);
+    frames.delete(frame.id);
+  }
+  function record(win) {
+    for (let frame of frames.values()) {
+      if (!current(frame)) dispose(frame);
+      else if (frame.doc == win.document) return frame;
+    }
+    let frame = {id:C.classes["@mozilla.org/uuid-generator;1"].getService(Ci.nsIUUIDGenerator).generateUUID().toString(), win, doc:win.document, applied:new Map(), pending:new Set()};
+    frames.set(frame.id, frame); return frame;
+  }
+  function metadata(frame) { return {frameId:frame.id, documentURI:frame.doc.documentURI, isTopFrame:frame.win == content}; }
+  function world(frame) {
+    if (!frame.sandbox) {
+      let sandbox = frame.sandbox = Cu.Sandbox(frame.win, {sandboxPrototype:frame.win,
+        wantXrays:true, wantComponents:false, sandboxName:"Basilisk content bridge"});
+      Cu.exportFunction(json => {
+        if (current(frame) && typeof json == "string" && json.length <= 1024 * 1024)
+          sendAsyncMessage("Basilisk:ContentMessage", {json, frame:metadata(frame)});
+      }, sandbox, {defineAs:"__basiliskPost"});
+      Cu.evalInSandbox(`(function() {
+        Object.defineProperty(this, 'Components', {value:undefined});
         const listeners = new Set();
-        Object.defineProperty(this, 'browserContent', {value: Object.freeze({
+        Object.defineProperty(this, 'browserContent', {value:Object.freeze({
           sendMessage(value) {
-            const json = JSON.stringify(value);
-            if (typeof json !== 'string') throw new TypeError('Message must be JSON serializable');
+            const json=JSON.stringify(value);
+            if(typeof json!='string') throw TypeError('Message must be JSON serializable');
             __basiliskPost(json);
           },
-          addMessageListener(fn) { listeners.add(fn); },
-          removeMessageListener(fn) { listeners.delete(fn); },
-          _dispatch(json) { const value = JSON.parse(json); for (const fn of listeners) fn(value); }
+          addMessageListener(fn) {listeners.add(fn);},
+          removeMessageListener(fn) {listeners.delete(fn);},
+          _dispatch(json) {const value=JSON.parse(json);for(const fn of listeners) fn(value);}
         })});
       }).call(this);`, sandbox);
     }
-    return sandbox;
+    return frame.sandbox;
   }
-  function execute({id, source}) {
-    if (typeof source != "string" || source.length > 1024 * 1024) return;
+  function result(id, json, error) { sendAsyncMessage("Basilisk:ContentResult", {id, json, error}); }
+  function execute({id, source, frameId}, selected) {
     try {
-      let current = world();
-      let requestedDocument = document;
-      let script = "(async function(){let value=await (async function(){\n" + source +
-        "\n})();return JSON.stringify(value === undefined ? null : value);})()";
-      Promise.resolve(Components.utils.evalInSandbox(script, current, "latest", "basilisk-content-script", 1))
-        .then(json => {
-          if (requestedDocument != content.document) throw new Error("Document navigated");
-          sendAsyncMessage("Basilisk:ContentResult", {id, json});
-        }).catch(error => sendAsyncMessage("Basilisk:ContentResult", {id, error: String(error)}));
-    } catch (error) { sendAsyncMessage("Basilisk:ContentResult", {id, error: String(error)}); }
+      if (typeof source != "string" || source.length > 1024 * 1024) throw Error("Invalid script");
+      let frame = selected || (frameId === undefined ? record(content) : frames.get(frameId));
+      if (!frame || !current(frame)) throw Error("Unknown or expired frame");
+      if (id) frame.pending.add(id);
+      let code = "(async function(){let value=await (async function(){\n" + source +
+        "\n})();return JSON.stringify(value===undefined?null:value);})()";
+      Promise.resolve(Cu.evalInSandbox(code, world(frame), "latest", "basilisk-content-script", 1)).then(json => {
+        if (!current(frame)) throw Error("Document navigated");
+        frame.pending.delete(id); result(id, json);
+      }).catch(error => {frame.pending.delete(id); result(id, null, String(error));});
+    } catch (error) { result(id, null, String(error)); }
   }
-  addMessageListener("Basilisk:ContentExecute", message => execute(message.data));
-  function styleUtils() {
-    if (styleDocument != content.document) { styleDocument = content.document; applied.clear(); }
-    return content.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
-      .getInterface(Components.interfaces.nsIDOMWindowUtils);
+  function documents(win = content, list = []) {
+    if (!belongs(win)) return list;
+    list.push(record(win));
+    for (let i=0; i<win.frames.length; ++i) documents(win.frames[i], list);
+    return list;
   }
-  function applyStyle(token, source) {
-    let utils = styleUtils();
-    if (applied.has(token)) utils.removeSheetUsingURIString(applied.get(token), utils.USER_SHEET);
-    applied.delete(token);
-    if (source !== undefined) {
-      let uri = "data:text/css;charset=utf-8," + encodeURIComponent(source);
-      utils.loadSheetUsingURIString(uri, utils.USER_SHEET);
-      applied.set(token, uri);
+  function applyStyle(frame, token, definition) {
+    if (!current(frame)) return;
+    let utils=frame.win.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowUtils);
+    if (frame.applied.has(token)) utils.removeSheetUsingURIString(frame.applied.get(token), utils.USER_SHEET);
+    frame.applied.delete(token);
+    if (definition && (definition.allFrames || frame.win == content)) {
+      let uri="data:text/css;charset=utf-8,"+encodeURIComponent(definition.source);
+      utils.loadSheetUsingURIString(uri, utils.USER_SHEET); frame.applied.set(token,uri);
     }
   }
+  addMessageListener("Basilisk:ContentFrames", message => {
+    try { result(message.data.id, JSON.stringify(documents().map(metadata))); }
+    catch(error) {result(message.data.id,null,String(error));}
+  });
+  addMessageListener("Basilisk:ContentExecute", message => execute(message.data));
   addMessageListener("Basilisk:ContentCSS", message => {
-    let {id, token, source, remove} = message.data;
+    let {id,token,source,allFrames,remove}=message.data;
     try {
-      if (remove) styles.delete(token); else styles.set(token, source);
-      applyStyle(token, remove ? undefined : source);
-      sendAsyncMessage("Basilisk:ContentResult", {id, json: "null"});
-    } catch (error) { sendAsyncMessage("Basilisk:ContentResult", {id, error: String(error)}); }
+      if(remove) styles.delete(token);else styles.set(token,{source,allFrames});
+      for(let frame of documents()) applyStyle(frame,token,styles.get(token));
+      result(id,"null");
+    } catch(error) {result(id,null,String(error));}
   });
   addMessageListener("Basilisk:ContentRegister", message => {
-    let {id, token, source, remove} = message.data;
-    if (remove) scripts.delete(token); else scripts.set(token, source);
-    sendAsyncMessage("Basilisk:ContentResult", {id, json: "null"});
+    let {id,token,source,allFrames,runAt,remove}=message.data;
+    if(remove) scripts.delete(token);else scripts.set(token,{source,allFrames,runAt:runAt===undefined?1:runAt});
+    result(id,"null");
   });
-  addMessageListener("Basilisk:ContentReset", () => {
-    for (let token of styles.keys()) applyStyle(token, undefined);
-    styles.clear(); scripts.clear();
-    if (sandbox) Components.utils.nukeSandbox(sandbox);
-    sandbox = null; document = null;
-  });
+  function phase(doc, runAt) {
+    if (!belongs(doc.defaultView)) return;
+    let frame=record(doc.defaultView);
+    if(runAt==0) for(let [token,definition] of styles) applyStyle(frame,token,definition);
+    for(let definition of scripts.values())
+      if(definition.runAt==runAt && (definition.allFrames || frame.win==content)) execute({id:0,source:definition.source},frame);
+  }
+  const observer={observe:doc=>phase(doc,0)};
+  Services.obs.addObserver(observer,"document-element-inserted",false);
   addEventListener("DOMContentLoaded", event => {
-    if (event.target != content.document) return;
-    for (let [token, source] of styles) applyStyle(token, source);
-    for (let source of scripts.values()) execute({id: 0, source});
-  }, true);
-  addEventListener("unload", () => {
-    if (sandbox) Components.utils.nukeSandbox(sandbox);
-    sandbox = null; document = null;
-  }, false);
+    let doc=event.target;
+    if(!belongs(doc.defaultView)) return;
+    phase(doc,1);
+    content.setTimeout(()=> {if(doc.defaultView && doc.defaultView.document==doc) phase(doc,2);},0);
+  },true);
+  addEventListener("pagehide",event=>{
+    for(let frame of frames.values()) if(frame.doc==event.target) dispose(frame);
+  },true);
+  function reset() {
+    for(let frame of frames.values()) {
+      if(current(frame)) for(let token of styles.keys()) applyStyle(frame,token);
+      dispose(frame);
+    }
+    styles.clear();scripts.clear();
+  }
+  addMessageListener("Basilisk:ContentReset",reset);
+  addEventListener("unload",()=>{
+    Services.obs.removeObserver(observer,"document-element-inserted");reset();
+  },false);
 })();

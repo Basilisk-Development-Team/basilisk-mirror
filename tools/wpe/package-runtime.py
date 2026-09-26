@@ -68,6 +68,10 @@ def stage(prefix, dist, patchelf):
         for required in ('libexec/WPEWebProcess', 'libexec/WPENetworkProcess',
                          'injected-bundle/libWPEInjectedBundle.so', 'share/inspector.gresource'):
             if not (temporary / required).is_file(): raise RuntimeError('Missing WPE runtime file: ' + required)
+        extension = dist.parent / 'contentengine-backends/libbasilisk-content-extension.so'
+        if not extension.is_file(): raise RuntimeError('Missing project WebProcess content bridge: ' + str(extension))
+        (temporary / 'extensions').mkdir()
+        shutil.copy2(extension, temporary / 'extensions' / extension.name)
         if runtime.exists(): shutil.rmtree(runtime)
         temporary.rename(runtime)
     finally:

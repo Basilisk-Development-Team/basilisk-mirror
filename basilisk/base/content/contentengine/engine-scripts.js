@@ -13,7 +13,7 @@ var ContentEngineScripts = {
     if (client) client.result(info.getPropertyAsUint32("id"),
       info.getPropertyAsAUTF8String("json"), info.getPropertyAsAUTF8String("error"));
   },
-  message(browser, json) { let client = this.clients.get(browser); if (client) client.message(json); },
+  message(browser, json, frame) { let client = this.clients.get(browser); if (client) client.message(json, frame); },
   transfer(from, to) {
     let client = this.clients.get(from);
     if (!client) return;
@@ -51,19 +51,28 @@ class ContentScriptClient {
     this.scripts = new Map();
     this.policies = new Map();
     this.receive = message => this.result(message.data.id, message.data.json, message.data.error);
-    this.receiveContent = message => this.message(message.data.json);
+    this.receiveContent = message => this.message(message.data.json, message.data.frame);
   }
   get capabilities() { return ContentEngines.capabilitiesFor(this.browser); }
-  executeScript(source) {
+  executeScript(source, options = {}) {
     if (this.closed || typeof source != "string" || source.length > 1024 * 1024)
       return Promise.reject(new Error("Invalid script or closed content view"));
-    return this.request("Execute", {source});
+    if (options.allFrames) return this.getFrames().then(frames => Promise.all(frames.map(frame =>
+      this.executeScript(source, {frameId:frame.frameId}).then(result => ({frameId:frame.frameId, result})))));
+    if (options.frameId !== undefined && (typeof options.frameId != "string" || !options.frameId || options.frameId.length > 128))
+      return Promise.reject(new TypeError("Invalid frame ID"));
+    return this.request("Execute", {source, frameId:options.frameId});
   }
+  getFrames() { return this.request("Frames", {}); }
   request(operation, arguments_) {
     if (this.closed) return Promise.reject(new Error("Content view closed"));
     let c = Ci.nsIWebContentView;
-    let required = {Execute: c.CAP_CONTENT_SCRIPTS, CSS: c.CAP_CSS, Register: c.CAP_SCRIPT_REGISTRATION, Policy: c.CAP_REQUEST_FILTERING}[operation];
+    let required = {Frames:c.CAP_FRAMES, Execute: c.CAP_CONTENT_SCRIPTS, CSS: c.CAP_CSS, Register: c.CAP_SCRIPT_REGISTRATION, Policy: c.CAP_REQUEST_FILTERING}[operation];
     if (!required || !(this.capabilities & required)) return Promise.reject(new Error("Unsupported content operation: " + operation));
+    if ((arguments_.frameId !== undefined || arguments_.allFrames) && !(this.capabilities & c.CAP_FRAMES))
+      return Promise.reject(new Error("Frame addressing unsupported"));
+    if (arguments_.runAt !== undefined && !(this.capabilities & c.CAP_SCRIPT_TIMING))
+      return Promise.reject(new Error("Script timing unsupported"));
     return new Promise((resolve, reject) => {
       let id = ContentEngineScripts.nextId++;
       let timer = setTimeout(() => this.result(id, "null", "Content operation timed out"), 30000);
@@ -71,17 +80,22 @@ class ContentScriptClient {
       try {
         let view = ContentEngines.get(this.browser);
         if (view) {
-          if (operation == "Execute") view.native.executeScript(id, arguments_.source);
+          if (operation == "Frames") view.native.getFrames(id);
+          else if (operation == "Execute") {
+            if (arguments_.frameId !== undefined) view.native.executeFrameScript(id, arguments_.frameId, arguments_.source);
+            else view.native.executeScript(id, arguments_.source);
+          }
           else if (operation == "Policy" && !arguments_.remove)
             view.native.setRequestRules(id, arguments_.token, arguments_.rules.length, arguments_.rules);
           else {
             if (operation == "CSS") {
               if (arguments_.remove) view.native.removeCSS(arguments_.token);
-              else view.native.insertCSS(arguments_.token, arguments_.source);
+              else view.native.insertCSSWithOptions(arguments_.token, arguments_.source, !!arguments_.allFrames);
             } else if (operation == "Policy") view.native.removeRequestRules(arguments_.token);
             else if (operation == "Register") {
               if (arguments_.remove) view.native.unregisterScript(arguments_.token);
-              else view.native.registerScript(arguments_.token, arguments_.source);
+              else view.native.registerScriptWithOptions(arguments_.token, arguments_.source,
+                arguments_.runAt === undefined ? c.SCRIPT_DOCUMENT_END : arguments_.runAt, !!arguments_.allFrames);
             }
             this.result(id, "null", "");
           }
@@ -113,18 +127,23 @@ class ContentScriptClient {
       catch (error) { request.reject(error); }
     }
   }
-  insertCSS(source, token = "style-" + ContentEngineScripts.nextId++) {
+  insertCSS(source, token = "style-" + ContentEngineScripts.nextId++, options = {}) {
     if (typeof source != "string" || typeof token != "string" || !token || token.length > 256 || source.length > 1024 * 1024)
       return Promise.reject(new TypeError("Invalid stylesheet"));
-    return this.request("CSS", {token, source}).then(() => { this.styles.set(token, source); return token; });
+    let definition = {source, allFrames:!!options.allFrames};
+    return this.request("CSS", Object.assign({token}, definition)).then(() => { this.styles.set(token, definition); return token; });
   }
   removeCSS(token) {
     return this.request("CSS", {token, remove: true}).then(() => { this.styles.delete(token); });
   }
-  registerScript(token, source) {
+  registerScript(token, source, options = {}) {
     if (typeof source != "string" || typeof token != "string" || !token || token.length > 256 || source.length > 1024 * 1024)
       return Promise.reject(new TypeError("Invalid script registration"));
-    return this.request("Register", {token, source}).then(() => { this.scripts.set(token, source); });
+    const phases = {"document-start":0, "document-end":1, "document-idle":2};
+    if (options.runAt !== undefined && !Object.prototype.hasOwnProperty.call(phases, options.runAt))
+      return Promise.reject(new TypeError("Invalid script phase"));
+    let definition = {source, runAt:phases[options.runAt], allFrames:!!options.allFrames};
+    return this.request("Register", Object.assign({token}, definition)).then(() => { this.scripts.set(token, definition); });
   }
   unregisterScript(token) {
     return this.request("Register", {token, remove: true}).then(() => { this.scripts.delete(token); });
@@ -143,8 +162,10 @@ class ContentScriptClient {
     this.disconnect();
     this.browser = browser;
     let operations = [];
-    for (let [token, source] of this.styles) operations.push(this.request("CSS", {token, source}));
-    for (let [token, source] of this.scripts) operations.push(this.request("Register", {token, source}));
+    for (let [token, value] of this.styles) operations.push(this.request("CSS", Object.assign({token},
+      typeof value == "string" ? {source:value} : value)));
+    for (let [token, value] of this.scripts) operations.push(this.request("Register", Object.assign({token},
+      typeof value == "string" ? {source:value} : value)));
     if (this.capabilities & Ci.nsIWebContentView.CAP_REQUEST_FILTERING)
       for (let [token, rules] of this.policies) operations.push(this.request("Policy", {token, rules}));
     this.ready = Promise.all(operations);
@@ -179,24 +200,24 @@ class ContentScriptClient {
       this.request("Policy", {token, remove:true}) : Promise.resolve();
     return remove.then(() => this.policies.delete(token));
   }
-  sendMessage(value) {
+  sendMessage(value, options = {}) {
     let json;
     try { json = JSON.stringify(value); }
     catch (error) { return Promise.reject(error); }
     if (typeof json != "string") return Promise.reject(new TypeError("Message must be JSON serializable"));
-    return this.executeScript("browserContent._dispatch(" + JSON.stringify(json) + ");");
+    return this.executeScript("browserContent._dispatch(" + JSON.stringify(json) + ");", options);
   }
   addMessageListener(listener) {
     if (typeof listener != "function") throw new TypeError("Expected message listener");
     this.listeners.add(listener);
   }
   removeMessageListener(listener) { this.listeners.delete(listener); }
-  message(json) {
+  message(json, frame) {
     try {
       if (typeof json != "string" || json.length > 1024 * 1024) return;
       let value = JSON.parse(json);
       for (let listener of this.listeners) {
-        try { listener(value); } catch (error) { Cu.reportError(error); }
+        try { listener(value, frame); } catch (error) { Cu.reportError(error); }
       }
     } catch (error) { Cu.reportError(error); }
   }

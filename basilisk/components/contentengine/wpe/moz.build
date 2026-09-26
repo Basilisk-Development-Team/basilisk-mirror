@@ -3,6 +3,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 SOURCES += ['WPEContentScripts.cpp', 'WPEContentView.cpp', 'WPEHost.cpp', 'WPERequestFilters.cpp', 'WPERuntime.cpp', 'WPEStorage.cpp']
+DIRS += ['extension']
 FINAL_LIBRARY = 'xul'
 LOCAL_INCLUDES += ['..', '/platform/dom/base', '/platform/widget/gtk']
 CXXFLAGS += CONFIG['WPE_WEBKIT_CFLAGS']

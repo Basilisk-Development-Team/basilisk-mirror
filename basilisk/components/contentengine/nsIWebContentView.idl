@@ -12,7 +12,7 @@ interface nsIContentRequestRule;
  * the chrome window's client area. The chrome owner manages tab visibility
  * and must keep the native host inside its content rectangle.
  */
-[scriptable, uuid(a45068a6-7252-469d-89cb-c40ee4bfae3f)]
+[scriptable, uuid(33f1636f-4873-416b-a832-f1e44dc3d993)]
 interface nsIWebContentView : nsISupports
 {
   const unsigned long CAP_DEVTOOLS = 0x0001;
@@ -33,6 +33,11 @@ interface nsIWebContentView : nsISupports
   const unsigned long CAP_WEBRTC = 0x4000;
   /** Capture with trustworthy requester identity and browser permission mediation. */
   const unsigned long CAP_MEDIA_CAPTURE = 0x8000;
+  const unsigned long CAP_SCRIPT_TIMING = 0x10000;
+  const unsigned long CAP_FRAMES = 0x20000;
+  const unsigned long SCRIPT_DOCUMENT_START = 0;
+  const unsigned long SCRIPT_DOCUMENT_END = 1;
+  const unsigned long SCRIPT_DOCUMENT_IDLE = 2;
   /** Available in this view's configuration, not an OS/version guess. */
   readonly attribute unsigned long capabilities;
   /** listener topics: content-view-state (read state getters) and
@@ -82,9 +87,15 @@ interface nsIWebContentView : nsISupports
   void setFullscreen(in boolean active);
   /** Async function body in the isolated Basilisk world. Replies are JSON. */
   void executeScript(in unsigned long requestId, in AUTF8String source);
+  /** Opaque document-lifetime frame identities, never DOM/native pointers. */
+  void getFrames(in unsigned long requestId);
+  void executeFrameScript(in unsigned long requestId, in AUTF8String frameId, in AUTF8String source);
   void insertCSS(in AUTF8String identifier, in AUTF8String source);
+  void insertCSSWithOptions(in AUTF8String identifier, in AUTF8String source, in boolean allFrames);
   void removeCSS(in AUTF8String identifier);
   void registerScript(in AUTF8String identifier, in AUTF8String source);
+  void registerScriptWithOptions(in AUTF8String identifier, in AUTF8String source,
+                                 in unsigned long runAt, in boolean allFrames);
   void unregisterScript(in AUTF8String identifier);
   /** Async atomic replacement. Completion is content-view-policy-result.
    * Caller must await completion before starting a navigation to be filtered.

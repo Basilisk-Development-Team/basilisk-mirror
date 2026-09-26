@@ -55,7 +55,7 @@ var ContentEngines = {
     let c = Ci.nsIWebContentView;
     return c.CAP_DEVTOOLS | c.CAP_INSPECT_ELEMENT | c.CAP_FULLSCREEN | c.CAP_DOWNLOADS |
       c.CAP_CONTENT_SCRIPTS | c.CAP_ISOLATED_CONTENT_WORLD | c.CAP_PRIVATE_STORAGE |
-      c.CAP_AUDIO_CONTROL | c.CAP_CSS | c.CAP_SCRIPT_REGISTRATION | c.CAP_MESSAGING | c.CAP_FIND |
+      c.CAP_AUDIO_CONTROL | c.CAP_CSS | c.CAP_SCRIPT_REGISTRATION | c.CAP_MESSAGING | c.CAP_FIND | c.CAP_FRAMES | c.CAP_SCRIPT_TIMING |
       (PrivateBrowsingUtils.isBrowserPrivate(browser) ? 0 : c.CAP_PERSISTENT_STORAGE);
   },
   supports(browser, capability) { return !!(this.capabilitiesFor(browser) & capability); },
@@ -311,7 +311,10 @@ class ExternalContentBrowser {
       return;
     }
     if (topic == "content-view-message") {
-      ContentEngineScripts.message(this.browser, subject.QueryInterface(Ci.nsIPropertyBag2).getPropertyAsAUTF8String("json"));
+      let info = subject.QueryInterface(Ci.nsIPropertyBag2), frame;
+      if (info.hasKey("frameId")) frame = Object.freeze({frameId:info.getPropertyAsAUTF8String("frameId"),
+        documentURI:info.getPropertyAsAUTF8String("documentURI"), isTopFrame:info.getPropertyAsBool("isTopFrame")});
+      ContentEngineScripts.message(this.browser, info.getPropertyAsAUTF8String("json"), frame);
       return;
     }
     if (topic == "content-view-script-result" || topic == "content-view-policy-result") {

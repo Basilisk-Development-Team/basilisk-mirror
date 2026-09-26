@@ -87,6 +87,9 @@ NS_IMETHODIMP WPEContentView::ExecuteScript(uint32_t id, const nsACString& sourc
 }
 
 NS_IMETHODIMP WPEContentView::InsertCSS(const nsACString& identifier, const nsACString& source)
+{ return InsertCSSWithOptions(identifier, source, false); }
+
+NS_IMETHODIMP WPEContentView::InsertCSSWithOptions(const nsACString& identifier, const nsACString& source, bool allFrames)
 {
   NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed, NS_ERROR_NOT_AVAILABLE);
   NS_ENSURE_TRUE(!identifier.IsEmpty() && identifier.Length() <= 256 && source.Length() <= 1024 * 1024,
@@ -96,7 +99,7 @@ NS_IMETHODIMP WPEContentView::InsertCSS(const nsACString& identifier, const nsAC
     +[](gpointer value) { webkit_user_style_sheet_unref(static_cast<WebKitUserStyleSheet*>(value)); });
   nsAutoCString id(identifier);
   nsAutoCString css(source);
-  auto* sheet = webkit_user_style_sheet_new_for_world(css.get(), WEBKIT_USER_CONTENT_INJECT_TOP_FRAME,
+  auto* sheet = webkit_user_style_sheet_new_for_world(css.get(), allFrames ? WEBKIT_USER_CONTENT_INJECT_ALL_FRAMES : WEBKIT_USER_CONTENT_INJECT_TOP_FRAME,
     WEBKIT_USER_STYLE_LEVEL_USER, kContentWorld, nullptr, nullptr);
   webkit_user_content_manager_add_style_sheet(webkit_web_view_get_user_content_manager(mHost->webView), sheet);
   g_hash_table_insert(mStyleSheets, g_strdup(id.get()), sheet);
@@ -114,24 +117,63 @@ NS_IMETHODIMP WPEContentView::RemoveCSS(const nsACString& identifier)
   return NS_OK;
 }
 NS_IMETHODIMP WPEContentView::RegisterScript(const nsACString& identifier, const nsACString& source)
+{ return RegisterScriptWithOptions(identifier, source, SCRIPT_DOCUMENT_END, false); }
+
+NS_IMETHODIMP WPEContentView::RegisterScriptWithOptions(const nsACString& identifier, const nsACString& source, uint32_t runAt, bool allFrames)
 {
   NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed, NS_ERROR_NOT_AVAILABLE);
   NS_ENSURE_TRUE(!identifier.IsEmpty() && identifier.Length() <= 256 && source.Length() <= 1024 * 1024,
                  NS_ERROR_INVALID_ARG);
+  NS_ENSURE_TRUE(runAt <= SCRIPT_DOCUMENT_IDLE, NS_ERROR_INVALID_ARG);
   UnregisterScript(identifier);
   EnsureMessaging();
   if (!mUserScripts) mUserScripts = g_hash_table_new_full(g_str_hash, g_str_equal, g_free,
     +[](gpointer value) { webkit_user_script_unref(static_cast<WebKitUserScript*>(value)); });
   nsAutoCString id(identifier);
   nsAutoCString code(kMessagingBootstrap);
+  if (runAt == SCRIPT_DOCUMENT_IDLE) code.AppendLiteral("\nsetTimeout(() => {\n");
   code.AppendLiteral("\n(async function(){\n");
   code.Append(source);
   code.AppendLiteral("\n})();");
-  auto* script = webkit_user_script_new_for_world(code.get(), WEBKIT_USER_CONTENT_INJECT_TOP_FRAME,
-    WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_END, kContentWorld, nullptr, nullptr);
+  if (runAt == SCRIPT_DOCUMENT_IDLE) code.AppendLiteral("\n}, 0);");
+  auto* script = webkit_user_script_new_for_world(code.get(), allFrames ? WEBKIT_USER_CONTENT_INJECT_ALL_FRAMES : WEBKIT_USER_CONTENT_INJECT_TOP_FRAME,
+    runAt == SCRIPT_DOCUMENT_START ? WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START : WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_END,
+    kContentWorld, nullptr, nullptr);
   webkit_user_content_manager_add_script(webkit_web_view_get_user_content_manager(mHost->webView), script);
   g_hash_table_insert(mUserScripts, g_strdup(id.get()), script);
   return NS_OK;
+}
+
+nsresult WPEContentView::SendFrameOperation(uint32_t id, const char* name, GVariant* parameters)
+{
+  NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed, NS_ERROR_NOT_AVAILABLE);
+  if (!mScriptCancellation) mScriptCancellation = g_cancellable_new();
+  auto* reply = new ScriptReply{this, id};
+  webkit_web_view_send_message_to_page(mHost->webView, webkit_user_message_new(name, parameters), mScriptCancellation,
+    [](GObject* object, GAsyncResult* result, gpointer data) {
+      auto* reply = static_cast<ScriptReply*>(data);
+      GError* error = nullptr;
+      auto* message = webkit_web_view_send_message_to_page_finish(WEBKIT_WEB_VIEW(object), result, &error);
+      const char *json = "null", *failure = error ? error->message : "Invalid frame reply";
+      auto* parameters = message ? webkit_user_message_get_parameters(message) : nullptr;
+      if (parameters && g_variant_is_of_type(parameters, G_VARIANT_TYPE("(ss)")))
+        g_variant_get(parameters, "(&s&s)", &json, &failure);
+      RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
+      info->SetPropertyAsUint32(NS_LITERAL_STRING("id"), reply->id);
+      info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("json"), nsDependentCString(json));
+      info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("error"), nsDependentCString(failure));
+      reply->owner->Notify("content-view-script-result", static_cast<nsIWritablePropertyBag2*>(info));
+      g_clear_object(&message); g_clear_error(&error); delete reply;
+    }, reply);
+  return NS_OK;
+}
+NS_IMETHODIMP WPEContentView::GetFrames(uint32_t id)
+{ return SendFrameOperation(id, "basilisk:frames", nullptr); }
+NS_IMETHODIMP WPEContentView::ExecuteFrameScript(uint32_t id, const nsACString& frame, const nsACString& source)
+{
+  NS_ENSURE_TRUE(!frame.IsEmpty() && frame.Length() <= 128 && source.Length() <= 1024 * 1024, NS_ERROR_INVALID_ARG);
+  nsAutoCString token(frame), script(source);
+  return SendFrameOperation(id, "basilisk:execute", g_variant_new("(uss)", id, token.get(), script.get()));
 }
 NS_IMETHODIMP WPEContentView::UnregisterScript(const nsACString& identifier)
 {
