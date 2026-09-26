@@ -69,10 +69,14 @@ await api.unregisterScript("my-extension:start");
   `browserContent`. No XPCOM/native pointers or privileged XUL objects cross it.
 * `insertCSS(css, optionalToken)` returns a token; `removeCSS(token)` removes it.
   Sheets use the backend's user stylesheet support and apply to the current and
-  subsequent top-level documents. Tokens are scoped to the browser client.
+  subsequent top-level documents by default. An optional third `{allFrames:true}`
+  argument covers child frames too. Tokens are scoped to the browser client.
 * `registerScript(token, source)` installs an async body at document end for
   **future top-level documents**; `unregisterScript(token)` removes it. Registering
   does not execute it retroactively; use `executeScript` for the current document.
+  The optional third argument now supports `{runAt:"document-start", allFrames:true}`;
+  document-end and document-idle are also supported. See the [generic shim
+  contract](content-engine-shim.md) for precise phases and frame-addressed execution.
 * Script/style definitions and chrome message listeners survive manual engine
   replacement in the same window. Existing page listeners and DOM state do not.
   Registrations are in-memory, not stored as executable code in session files.
@@ -89,6 +93,8 @@ await api.unregisterScript("my-extension:start");
 WPE uses supported `call_async_javascript_function`, user content manager,
 world-specific message handler, user-script and user-style-sheet APIs. Gecko uses
 an ordinary dedicated frame script and content-principal sandbox with Xrays.
+Frame-targeted WPE execution additionally uses the adapter-owned public WebProcess
+extension and JSC named-world evaluation; all results remain asynchronous JSON.
 Existing Gecko frame-script globals, extension messages and DOM getters are not
 replaced. The bridge sandbox hides the legacy content `Components` shim.
 

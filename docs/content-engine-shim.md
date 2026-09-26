@@ -69,9 +69,36 @@ Cross-window alternate-tab adoption now copies serialized script/style/policy
 definitions into the destination client before its first page load. Chrome
 callbacks are not copied across window lifetimes. Same-window replacement retains
 client identity/listeners. Definitions are in-memory, not executable session data;
-extensions must register again after application restart. Top-level document-end
-scripts and top-level user CSS are the current contract; all-frame/document-start
-options are possible future adapter work, not an upstream blocker.
+extensions must register again after application restart. `CAP_SCRIPT_TIMING` and
+`CAP_FRAMES` now describe explicit document-start/end/idle and frame operations:
+
+```js
+await api.registerScript("extension:bootstrap", source, {
+  runAt: "document-start", allFrames: true
+});
+await api.insertCSS(css, "extension:cosmetic", {allFrames: true});
+const frames = await api.getFrames();
+await api.executeScript(source, {frameId: frames[0].frameId});
+await api.sendMessage({kind: "update"}, {allFrames: true});
+api.addMessageListener((value, frame) => { /* serialized value + frame metadata */ });
+```
+
+`executeScript(source, {allFrames:true})` returns an array of `{frameId, result}`. Without options, existing top-frame behavior
+is preserved. Frame metadata contains opaque `frameId`, `documentURI`, `isTopFrame`.
+A document URI is **not a security origin**. IDs are scoped to the view/document,
+renewed on navigation/BFCache restoration, and rejected after destruction or when
+addressed through a different tab. No native pointers or DOM nodes cross this API.
+Document-start uses the native user-script phase (Gecko's document-element-inserted
+observer in the opt-in frame script). Document-end is DOM-ready; idle is a later
+task, not a network-idle guarantee. Registrations cover future child frames.
+
+The WPE adapter owns a small normal WebProcess-extension module under
+`wpe/extension`, loaded from the packaged `webkit/extensions` directory. It uses
+public WebKit/JSC APIs and the existing named isolated world, not UXP IPC or XPCOM.
+It reports frame creation/removal and serialized async results through WebKit user
+messages. Evaluation uses JSC in that world, so page CSP is not globally weakened.
+Pending operations expire or reject when the relevant view/document disappears.
+Gecko uses real Gecko sandboxes/frames, leaving legacy frame scripts untouched.
 
 ## Request policy version 1
 
@@ -87,11 +114,19 @@ await api.removeRequestRules("extension:tracking");
 ```
 
 Rules block matching requests; unmatched requests remain allowed. Prefix matching
-uses the canonical ASCII HTTP(S) URI and is case-sensitive. Resource classes are
-image, stylesheet, script, font, media, document and fetch (XHR/Fetch). An omitted
-class list means all classes. Unknown fields/types reject, including origin
-fields: origin attribution is never guessed. This intentionally small API is not
-an adblock rule language, regex ABI or imperative per-request hook.
+uses canonical ASCII HTTP(S)/WS(S) URIs and is case-sensitive. Resource classes
+are image, stylesheet, script, font, media, document (both kinds), topDocument,
+subdocument, fetch (XHR/Fetch), websocket, ping and other. An omitted class list
+means all classes. Optional `party` is `any`, `first-party` or `third-party`;
+WebKit compares the resource's registrable domain to the main document's domain.
+This is not an assertion about the initiating frame's security origin. Optional
+`topURLPrefix` restricts the canonical HTTP(S) main-document URL. Unknown fields,
+including origin and method fields, reject: requester attribution is never guessed.
+The public filter parser accepts request-method, but upstream 2.54 evaluates it
+against the initiating document loader's method, not necessarily the resource
+request. A server-counter experiment caught this; method filtering is not exposed.
+This intentionally small API is not an adblock rule language, regex ABI or
+imperative per-request hook.
 
 Tokens are per view. Compilation/replacement is asynchronous and atomic; failure
 leaves an existing compiled policy in place. Await installation before navigation.

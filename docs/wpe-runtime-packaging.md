@@ -14,6 +14,8 @@ application/
     lib/                 WPE and dependency-prefix shared libraries
     lib/modules/         optional WPE platform modules
     libexec/             WebProcess, NetworkProcess, optional GPU helper
+    extensions/          adapter-owned isolated-frame bridge module
+    lib/gstreamer-1.0/    narrowly bundled webrtcbin/NICE plugins
     injected-bundle/     upstream injected bundle
     share/               Inspector gresource and upstream license notices
 ```
@@ -127,3 +129,40 @@ scripts/messages and the upstream Inspector passed with the checkout hidden and
 no LD_LIBRARY_PATH. No test-owned helper processes remained afterward. The
 archive is self-contained for the bundled WPE build; the system dependencies
 listed above remain required.
+
+
+## WebRTC follow-up runtime (2026-09-26)
+
+The current staged distribution contains **40 ELF files**, including the normal
+public-API frame bridge module and narrow WebRTC additions. The bundled prefix
+adds libnice 0.1.23, libgstwebrtcnice and the GStreamer 1.28.1 `webrtcbin`/NICE
+plugins, built from checksum-verified upstream archives by
+`tools/wpe/build-webrtc-plugins.py`. GStreamer core/base, DTLS/SRTP/SCTP/RTP plugins,
+Opus/VP8 and other optional codecs remain system components; no host plugin tree
+is copied. Unrelated host ONNX/OpenCV plugin warnings are not unresolved shipped
+ELF dependencies and those plugins are not required for this test.
+
+`basilisk-build.ini` ships actual feature booleans from CMake, without source or
+build paths. The runtime uses application-relative plugin/extension/helper paths
+and retains the normal WebKit sandbox. The fresh copied distribution passes the
+hidden-checkout HTTPS/Inspector/frame-script and ELF audit. Its peer test proves
+API exposure and SDP negotiation from that relocated runtime, but explicitly
+reports the known ICE transport failure. A successful **packaging** audit is not
+a successful WebRTC transport test; the focused WebRTC suite remains failing for
+that feature. See [diagnosis](content-engine-navigation-webrtc-plan.md).
+
+The test layout puts the application beneath `distribution/application` and its
+XDG runtime directory outside `distribution`. Upstream developer-mode sandboxing
+binds an executable's grandparent read-only; putting both the application and its
+writable D-Bus sockets directly beneath the same temporary parent incorrectly
+froze those sockets. The fixture now models a separate application install and
+runtime directory. No sandbox workaround or upstream change was made.
+
+
+Final regenerated installer validation: the enabled archive contains **32 ELF
+files**, all resolving without LD_LIBRARY_PATH. Its extracted application passed
+the same hidden-checkout HTTP/HTTPS/scripts/Inspector launch, with app-local
+helpers/resources and the same explicit RTC transport limitation. The disabled
+archive contains **22 ELF files** and no WebKit component/interface/resource or
+library dependency. Neither archive includes temporary test chrome. See the
+[full result ledger](content-engine-navigation-webrtc-results.md).
