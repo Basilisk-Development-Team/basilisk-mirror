@@ -37,7 +37,7 @@ async function run() {
   await waitFor(() => Services.wm.getMostRecentWindow("Basilisk:WebInspector"), "Inspector host");
   // Keep the real upstream frontend visible long enough to inspect/capture it.
   dump("WPE-RUNTIME INSPECTOR OPEN\n");
-  await new Promise(resolve => setTimeout(resolve, 5000));
+  await new Promise(resolve => setTimeout(resolve, 15000));
   win.ContentEngineDevTools.open();
   await waitFor(() => !Services.wm.getMostRecentWindow("Basilisk:WebInspector"), "Inspector close");
   tab.linkedBrowser.loadURI("https://example.com/");

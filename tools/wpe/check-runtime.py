@@ -69,9 +69,12 @@ def main():
             root = Path(temporary)
             dist = root / 'application'
             shutil.copytree(args.objdir.resolve() / 'dist/bin', dist, symlinks=False)
+            for name in ('tmp', 'runtime'):
+                (root / name).mkdir(mode=0o700)
             env = {'PATH':'/usr/bin:/bin', 'HOME':str(root), 'LANG':'C.UTF-8',
                    'DISPLAY':os.environ['DISPLAY'], 'XDG_CACHE_HOME':str(root / 'cache'),
-                   'XDG_CONFIG_HOME':str(root / 'config'), 'XDG_DATA_HOME':str(root / 'data')}
+                   'XDG_CONFIG_HOME':str(root / 'config'), 'XDG_DATA_HOME':str(root / 'data'),
+                   'TMPDIR':str(root / 'tmp'), 'XDG_RUNTIME_DIR':str(root / 'runtime')}
             if os.environ.get('XAUTHORITY'): env['XAUTHORITY'] = os.environ['XAUTHORITY']
             audit(dist, env)
             chrome = dist / 'browser/chrome/browser/content/browser/contentengine'
@@ -105,7 +108,7 @@ def main():
                     output.append(line)
                     if 'WPE-RUNTIME INSPECTOR OPEN' in line:
                         # Capture the actual upstream frontend, not just its XUL host.
-                        threading.Event().wait(2)
+                        threading.Event().wait(10)
                         subprocess.run(['import', '-display', env['DISPLAY'], '-window', 'root',
                                         str(args.log.resolve()) + '.png'], env=env, timeout=15)
                 process.wait(timeout=15)
