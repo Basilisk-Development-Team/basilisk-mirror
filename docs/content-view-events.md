@@ -24,6 +24,7 @@ except the explicit project interface used for an Inspector child view.
 | content-view-download-finished | uri/path/error strings; backend owns transfer and chrome owns UI |
 | content-view-find-found / content-view-find-not-found | Backend find result |
 | content-view-script-result | id (uint32), json and error strings; correlated asynchronous completion |
+| content-view-policy-result | id (uint32), json (null) and error strings; asynchronous rule installation completion |
 | content-view-message | json string from isolated content world |
 
 No trustworthy generic permission-origin, TLS/security-state, favicon or detailed

@@ -65,7 +65,8 @@ for path in root.rglob('*'):
             require(not any(part in '/' + name for name in archive.namelist() for part in ('/contentengine/', '/webkit/')),
                     'WPE resources packaged in ' + str(path))
     elif path.suffix == '.xpt':
-        require(b'nsIWebContentView' not in path.read_bytes(),
+        require(not any(name in path.read_bytes() for name in
+                (b'nsIWebContentView', b'nsIContentViewObserver', b'nsIContentRequestRule')),
                 'WPE interface in merged typelib: ' + str(path))
 print('PASS: no WPE define, build directory, component, interfaces, resources, or ELF dependency')
 print('Inspected %d ELF files under %s' % (count, root))

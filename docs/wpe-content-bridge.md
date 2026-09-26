@@ -76,8 +76,9 @@ await api.unregisterScript("my-extension:start");
 * Script/style definitions and chrome message listeners survive manual engine
   replacement in the same window. Existing page listeners and DOM state do not.
   Registrations are in-memory, not stored as executable code in session files.
-  On cross-window adoption/extensions restart, extensions should register through
-  the destination window's tab lifecycle; no source-window globals are retained.
+  Cross-window alternate-tab adoption transfers serialized definitions before the
+  destination load, but never source-window callbacks/globals. After application
+  restart, extensions must register through the destination tab lifecycle.
 * Script/CSS inputs and messages are limited to 1 MiB. Operations time out after
   30 seconds. Native WPE operations are cancelled on navigation/destruction;
   process termination rejects pending chrome operations and permits reload.
@@ -110,7 +111,7 @@ This extends the source audit in [wpe-persistent-integration.md](wpe-persistent-
 | Existing synchronous contentDocument/contentWindow/nsIDOM/layout code | Gecko only; WPE getters remain null, never fake objects |
 | nsIContentPolicy/nsIChannel/HTTP observers | Gecko only; no fabricated WPE channels |
 | Procedural/cosmetic ad blocking | Script, CSS and message foundations available; no full blocker implemented |
-| WPE network filtering | Not exposed by this bridge yet; declarative WPE content filters are a future adapter task, not a reason to alter Gecko networking |
+| Alternate network filtering | Normal WPE views expose generic URL/type block rules; see [shim contract](content-engine-shim.md). Gecko networking is unchanged |
 | Gecko DevTools actors/targets | Gecko only; WPE dispatches to upstream Inspector |
 
 The profile-installed test extension under `tools/wpe/extension` exercises fixtures

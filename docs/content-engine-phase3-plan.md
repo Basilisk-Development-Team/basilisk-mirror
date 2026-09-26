@@ -46,3 +46,11 @@ scripts/CSS and extension active; fixtures A–F and routing; 20 simultaneous vi
 20 adoptions; Inspector lifetime; WebProcess termination/recovery; active shutdown;
 persistent data, private isolation and mixed session restoration. The pre-existing
 platform gitlink difference is untouched.
+
+## Authorized packaging follow-up
+
+After Phase 3, make enabled distributions self-contained for the bundled WPE
+runtime: ship its libraries, helpers and resources beneath the application;
+use relocatable $ORIGIN-relative lookup; remove build-tree runtime paths; copy
+dist/bin elsewhere and launch with no build-tree LD_LIBRARY_PATH; inspect every
+shipped ELF with ldd. This must preserve the disabled build's zero-WPE property.

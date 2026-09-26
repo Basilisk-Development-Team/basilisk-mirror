@@ -99,3 +99,42 @@ popup interaction. This UI automation limitation did not affect the successful
 Gecko network/cosmetic control or the reproduced WebKit failures. Neither run
 reported a uBlock script exception. Missing page-store/request/content events
 remain the concrete WebKit compatibility failures.
+
+## Implemented portable policy and upstream boundary
+
+Phase 3 adds `setRequestRules(token, rules)` / `removeRequestRules(token)` with
+canonical HTTP(S) URL-prefix and stable resource-type matching. The WPE adapter
+uses upstream declarative content filters, not a JavaScript network interception
+loop. Replacement is atomic, removal invalidates pending compilation, and rules
+stay scoped to their view. Script/style/policy definitions transfer before the
+first destination navigation on switching or alternate-tab adoption. The focused
+test verifies actual page execution/fetch outcomes, isolation and cancellation.
+No uBlock rule parser or extension-specific production behavior was added.
+
+Exact upstream 2.54 source evidence for the remaining attribution gap:
+
+* `Source/WebKit/WebProcess/InjectedBundle/API/glib/WebKitWebPage.cpp`, the
+  `send-request` signal, supplies a page, URI request and redirected response.
+  It permits cancellation/request-header modification, but does not supply the
+  requesting frame, trustworthy requesting origin or typed resource context.
+* `Source/WebKit/WebProcess/Network/WebLoaderStrategy.cpp:540–575` internally
+  carries `sourceOrigin`, `topOrigin`, `documentURL` and `isMainFrameNavigation`.
+  Frame IDs also exist in loader tracking parameters. Those internal objects
+  are not a public per-request attribution API for this adapter.
+* The smallest useful upstream addition would be immutable request-context
+  metadata on an interception hook: stable frame/request IDs, actual source/top
+  security origins (including opaque/unknown states), resource class and
+  navigation classification. An embedder could enforce preinstalled policies
+  locally without synchronous UI-process callbacks. Other content blockers and
+  embedders would benefit from the same trustworthy metadata.
+
+Header modification itself is **not** inherently an upstream blocker: the public
+web-process-extension signal permits it. A separate extension module and a stable
+portable contract would be additional adapter work. What cannot safely be promised
+through that signal today is origin/frame-sensitive policy based on metadata it
+does not expose. Likewise earlier/all-frame scripts are future generic API work,
+not a reason to patch upstream or pretend arbitrary Gecko scripts are portable.
+
+The permission-origin issue remains unchanged and denied. The Inspector's
+frontend-close notification/private-store configuration limitations are recorded
+separately in the Inspector documentation. No upstream source changes were made.
