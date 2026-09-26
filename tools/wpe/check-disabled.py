@@ -37,7 +37,7 @@ count = 0
 for path in root.rglob('*'):
     if not path.is_file():
         continue
-    require('/webkit/prototype.' not in path.as_posix(),
+    require('/chrome/' not in path.as_posix() or '/webkit/' not in path.as_posix(),
             'WPE chrome resource installed: ' + str(path))
     require(path.name != 'webcontentview.xpt', 'WPE interfaces installed')
     with path.open('rb') as stream:
@@ -62,7 +62,7 @@ for path in root.rglob('*'):
                 'WPE component registered in ' + str(path))
     elif zipfile.is_zipfile(path):
         with zipfile.ZipFile(path) as archive:
-            require(not any('webkit/prototype.' in name for name in archive.namelist()),
+            require(not any('/webkit/' in '/' + name for name in archive.namelist()),
                     'WPE resources packaged in ' + str(path))
     elif path.suffix == '.xpt':
         require(b'nsIWebContentView' not in path.read_bytes(),
