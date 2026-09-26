@@ -21,6 +21,7 @@ class MockContentView {
     this.loading = false; this.focused = false; this.lastError = "";
     this.canGoBack = false; this.canGoForward = false; this.zoom = 1;
     this.muted = false; this.audioPlaying = false;
+    this.cameraActive = this.microphoneActive = this.screenCaptureActive = false;
     this.capabilities = Ci.nsIWebContentView.CAP_CONTENT_SCRIPTS | Ci.nsIWebContentView.CAP_MESSAGING;
     instances.push(this);
   }
@@ -81,6 +82,11 @@ async function run() {
   let rejected = false;
   try { await browser.contentAPI.insertCSS("body{}"); } catch (error) { rejected = true; }
   check(rejected, "unsupported capability not rejected");
+  // Exercise XBL URL-bar command dispatch, not just the browser expando method.
+  win.gURLBar.value = "mock.invalid/chrome-navigation";
+  win.gURLBar.handleCommand();
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  check(mock.currentURI == "http://mock.invalid/chrome-navigation", "URL bar missed alternate backend: " + mock.currentURI);
   let received;
   browser.contentAPI.addMessageListener(value => received = value);
   mock.emit("content-view-message", bag({json:'{"mock":true}'}));
