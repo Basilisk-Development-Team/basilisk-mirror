@@ -151,6 +151,7 @@ browser.jar:
         content/browser/webkit/content-engines.js     (content/webkit/content-engines.js)
         content/browser/webkit/engine-context.js      (content/webkit/engine-context.js)
         content/browser/webkit/engine-finder.js       (content/webkit/engine-finder.js)
+        content/browser/webkit/engine-downloads.js    (content/webkit/engine-downloads.js)
         content/browser/webkit/prototype.xul          (content/webkit/prototype.xul)
         content/browser/webkit/prototype.js           (content/webkit/prototype.js)
 #endif

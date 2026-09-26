@@ -11,6 +11,7 @@
 <script type="application/javascript" src="chrome://browser/content/webkit/content-engines.js"/>
 <script type="application/javascript" src="chrome://browser/content/webkit/engine-context.js"/>
 <script type="application/javascript" src="chrome://browser/content/webkit/engine-finder.js"/>
+<script type="application/javascript" src="chrome://browser/content/webkit/engine-downloads.js"/>
 #endif
 <script type="application/javascript" src="chrome://browser/content/customizableui/panelUI.js"/>
 <script type="application/javascript" src="chrome://global/content/viewSourceUtils.js"/>
