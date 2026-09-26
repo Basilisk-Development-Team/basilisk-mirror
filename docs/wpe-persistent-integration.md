@@ -71,8 +71,9 @@ both unused beneath `FIXME: store SecurityOrigins`. The public request interface
 only supplies allow/deny; media subclasses add device-category queries. A
 Basilisk adapter cannot recover the discarded requesting identity reliably.
 
-Per the requested stop-before-upstream-modification policy, feature work stops
-at this boundary. The smallest plausible upstream change is to retain those
+This was the stopping point of the preceding phase. The subsequent authorized
+continuation leaves these requests denied and implements independent features;
+see [wpe-content-bridge.md](wpe-content-bridge.md). The smallest plausible upstream change is to retain those
 origins and expose read-only security-origin accessors (with corresponding
 origin support on the other relevant request types). This is a generally useful
 embedding API improvement and a candidate for upstream submission. Alternatives
