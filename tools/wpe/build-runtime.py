@@ -2,9 +2,9 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-"""Build pristine upstream WPE with relocatable helper lookup, then stage it.
+"""Build verified upstream WPE plus the documented patch series, then stage it.
 
-Uses upstream CMake, never installs into /usr and never edits WebKit sources.
+Uses upstream CMake, never installs into /usr and never silently repairs sources.
 Additional CMake dependency/feature options may follow --. Use --interpreter for
 JSC CLoop without JIT on any supported architecture. Existing cache options are
 otherwise retained. A cache explicitly configured with another DEVELOPER_MODE
@@ -16,18 +16,26 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 
 root = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--source', type=Path, default=root / 'build-wpe-deps/wpewebkit-2.54.0')
 parser.add_argument('--build', type=Path, default=root / 'build-wpe-deps/wpe-runtime-build')
 parser.add_argument('--stage', type=Path, default=root / 'build-wpe-deps/runtime-stage')
+parser.add_argument('--source-archive', type=Path, default=root / 'build-wpe-deps/downloads/wpewebkit-2.54.0.tar.xz')
 parser.add_argument('--jobs', type=int, default=4)
 parser.add_argument('--interpreter', action='store_true')
 parser.add_argument('--install-only', action='store_true')
 parser.add_argument('cmake_options', nargs=argparse.REMAINDER)
 args = parser.parse_args()
 source, build, stage = args.source.resolve(), args.build.resolve(), args.stage.resolve()
+subprocess.check_call([sys.executable, str(root / 'tools/wpe/verify-source.py'),
+                       '--source', str(source), '--archive', str(args.source_archive.resolve()),
+                       '--allow-python-cache'])
+# Read/write generated Python bytecode in the object directory, not vendor source.
+# This also prevents loading pre-existing source-side __pycache__ entries.
+build_environment = dict(os.environ, PYTHONPYCACHEPREFIX=str(build / 'python-cache'))
 if not args.install_only:
     options = args.cmake_options
     if options[:1] == ['--']: options = options[1:]
@@ -41,12 +49,12 @@ if not args.install_only:
                '-DLIBEXEC_INSTALL_DIR=/usr/libexec/wpe-webkit-2.0', '-DCMAKE_INSTALL_DATADIR=share']
     if args.interpreter:
         command += ['-DENABLE_C_LOOP=ON', '-DENABLE_JIT=OFF', '-DENABLE_DFG_JIT=OFF', '-DENABLE_FTL_JIT=OFF']
-    subprocess.check_call(command + options)
-    subprocess.check_call(['cmake', '--build', str(build), '--parallel', str(args.jobs)])
+    subprocess.check_call(command + options, env=build_environment)
+    subprocess.check_call(['cmake', '--build', str(build), '--parallel', str(args.jobs)], env=build_environment)
 cache = (build / 'CMakeCache.txt').read_text()
 if 'CMAKE_INSTALL_PREFIX:PATH=/usr\n' not in cache:
     raise SystemExit('Expected a conventional /usr compiled prefix; choose --stage for the actual install destination')
-environment = dict(os.environ, DESTDIR=str(stage))
+environment = dict(build_environment, DESTDIR=str(stage))
 subprocess.check_call(['cmake', '--install', str(build)], env=environment)
 prefix = stage / 'usr'
 # pkg-config is build metadata, not shipped runtime data. Point it at the staged
