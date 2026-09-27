@@ -8,22 +8,54 @@
 #include "nsNetUtil.h"
 #include "nsIURI.h"
 #include "nsCharSeparatedTokenizer.h"
+#include <algorithm>
+
+static constexpr uint32_t kBlocksPerPolicyPart = 8192;
+static constexpr uint32_t kConcurrentPolicyCompilations = 4;
+struct WPEPolicyCompilation {
+  RefPtr<WPEContentView> owner;
+  nsCString token;
+  nsCString identifier;
+  uint64_t generation;
+  uint32_t request;
+  uint32_t part = 0;
+  uint32_t completed = 0;
+  uint32_t active = 0;
+  uint32_t blocks = 0;
+  nsCString error;
+  nsTArray<WebKitUserContentFilterStore*> storePool;
+  nsTArray<WebKitUserContentFilterStore*> stores;
+  bool busy[kConcurrentPolicyCompilations] = {};
+  GCancellable* cancellation;
+  nsTArray<nsCString> rules;
+  nsTArray<bool> allows;
+  nsTArray<nsCString> storeIds;
+  nsTArray<WebKitUserContentFilter*> filters;
+  ~WPEPolicyCompilation() {
+    for (auto* filter : filters) if (filter) webkit_user_content_filter_unref(filter);
+    for (auto* store : stores) g_object_unref(store);
+    for (auto* store : storePool) g_object_unref(store);
+    g_object_unref(cancellation);
+  }
+};
 
 namespace {
 bool NoPatternWhitespace(char16_t) { return false; }
 struct Policy {
   uint64_t generation = 0;
   bool enabled = true;
-  WebKitUserContentFilter* filter = nullptr;
-  nsCString storeId;
-  ~Policy() { if (filter) webkit_user_content_filter_unref(filter); }
+  nsTArray<WebKitUserContentFilter*> filters;
+  nsTArray<nsCString> storeIds;
+  nsTArray<WebKitUserContentFilterStore*> stores;
+  ~Policy() {
+    for (auto* filter : filters) webkit_user_content_filter_unref(filter);
+    for (auto* store : stores) g_object_unref(store);
+  }
 };
-struct Reply {
-  RefPtr<WPEContentView> owner;
-  nsCString token;
-  nsCString storeId;
-  uint64_t generation;
-  uint32_t request;
+struct PolicyPart {
+  WPEPolicyCompilation* compilation;
+  uint32_t index;
+  uint32_t slot;
 };
 void RemoveStored(WebKitUserContentFilterStore* store, const nsCString& id)
 {
@@ -77,6 +109,13 @@ nsresult WPEContentView::EnsureFilterStore()
   rv = directory->GetNativePath(path);
   NS_ENSURE_SUCCESS(rv, rv);
   mFilterStore = webkit_user_content_filter_store_new(path.get());
+  // Upstream serializes compilation by store path. A small fixed pool gives
+  // bounded parallel compilation and is shared by views using this profile.
+  for (uint32_t i = 1; i < kConcurrentPolicyCompilations; ++i) {
+    nsAutoCString slot(path);
+    slot.AppendLiteral("/compiler-"); slot.AppendInt(i);
+    mAdditionalFilterStores.AppendElement(webkit_user_content_filter_store_new(slot.get()));
+  }
   mFilterCancellation = g_cancellable_new();
   mRequestRules = g_hash_table_new_full(g_str_hash, g_str_equal, g_free,
     +[](gpointer item) { delete static_cast<Policy*>(item); });
@@ -88,7 +127,10 @@ NS_IMETHODIMP WPEContentView::SetRequestRules(uint32_t request, const nsACString
 {
   NS_ENSURE_TRUE(!identifier.IsEmpty() && identifier.Length() <= 256 && count && count <= 150000 && rules,
                  NS_ERROR_INVALID_ARG);
-  nsAutoCString json("[");
+  nsAutoCString json;
+  nsTArray<nsCString> encodedRules;
+  nsTArray<bool> allows;
+  uint32_t totalBytes = 0, blocks = 0;
   const char* names[] = {"image", "style-sheet", "script", "font", "media", "document", "fetch", "top-document", "child-document", "websocket", "ping", "other"};
   for (uint32_t i = 0; i < count; ++i) {
     NS_ENSURE_ARG_POINTER(rules[i]);
@@ -119,7 +161,7 @@ NS_IMETHODIMP WPEContentView::SetRequestRules(uint32_t request, const nsACString
       uri->GetAsciiSpec(canonical);
       NS_ENSURE_TRUE(canonical.Equals(prefix), NS_ERROR_INVALID_ARG);
     }
-    if (i) json.Append(',');
+    json.Truncate();
     json.AppendLiteral("{\"trigger\":{\"url-filter\":");
     if (!prefix.IsEmpty()) AppendPrefix(json, prefix);
     else AppendPattern(json, pattern);
@@ -175,9 +217,12 @@ NS_IMETHODIMP WPEContentView::SetRequestRules(uint32_t request, const nsACString
     json.Append(action.EqualsLiteral("allow") ?
       "},\"action\":{\"type\":\"ignore-previous-rules\"}}" :
       "},\"action\":{\"type\":\"block\"}}");
-    NS_ENSURE_TRUE(json.Length() <= 64 * 1024 * 1024, NS_ERROR_INVALID_ARG);
+    NS_ENSURE_TRUE(json.Length() <= 64 * 1024 * 1024 - totalBytes, NS_ERROR_INVALID_ARG);
+    totalBytes += json.Length();
+    encodedRules.AppendElement(json);
+    allows.AppendElement(action.EqualsLiteral("allow"));
+    if (!allows.LastElement()) ++blocks;
   }
-  json.Append(']');
   nsresult rv = EnsureFilterStore();
   NS_ENSURE_SUCCESS(rv, rv);
   nsCString token(identifier);
@@ -185,45 +230,120 @@ NS_IMETHODIMP WPEContentView::SetRequestRules(uint32_t request, const nsACString
   if (!policy) { policy = new Policy(); g_hash_table_insert(mRequestRules, g_strdup(token.get()), policy); }
   policy->generation = ++mFilterGeneration;
   char* unique = g_uuid_string_random();
-  auto* reply = new Reply{this, token, nsCString(unique), policy->generation, request};
+  auto* compilation = new WPEPolicyCompilation;
+  compilation->owner = this;
+  compilation->token = token;
+  compilation->identifier = unique;
+  compilation->generation = policy->generation;
+  compilation->request = request;
+  compilation->blocks = blocks;
+  compilation->storePool.AppendElement(WEBKIT_USER_CONTENT_FILTER_STORE(g_object_ref(mFilterStore)));
+  for (auto* store : mAdditionalFilterStores)
+    compilation->storePool.AppendElement(WEBKIT_USER_CONTENT_FILTER_STORE(g_object_ref(store)));
+  compilation->cancellation = G_CANCELLABLE(g_object_ref(mFilterCancellation));
+  compilation->rules.SwapElements(encodedRules);
+  compilation->allows.SwapElements(allows);
   g_free(unique);
-  GBytes* bytes = g_bytes_new(json.get(), json.Length());
-  webkit_user_content_filter_store_save(mFilterStore, reply->storeId.get(), bytes, mFilterCancellation,
-    [](GObject* source, GAsyncResult* result, gpointer data) {
-      auto* reply = static_cast<Reply*>(data);
-      auto* owner = reply->owner.get();
-      auto* store = WEBKIT_USER_CONTENT_FILTER_STORE(source);
-      GError* error = nullptr;
-      auto* filter = webkit_user_content_filter_store_save_finish(store, result, &error);
-      auto* policy = owner->mRequestRules ? static_cast<Policy*>(g_hash_table_lookup(owner->mRequestRules, reply->token.get())) : nullptr;
-      bool current = !owner->mDestroyed && policy && policy->generation == reply->generation;
-      if (current && filter) {
-        auto* manager = webkit_web_view_get_user_content_manager(owner->mHost->webView);
-        if (policy->filter) {
-          if (policy->enabled) webkit_user_content_manager_remove_filter(manager, policy->filter);
-          webkit_user_content_filter_unref(policy->filter);
-          RemoveStored(store, policy->storeId);
-        }
-        policy->filter = filter;
-        policy->storeId = reply->storeId;
-        if (policy->enabled) webkit_user_content_manager_add_filter(manager, filter);
-      } else {
-        if (filter) webkit_user_content_filter_unref(filter);
-        RemoveStored(store, reply->storeId);
-        if (current && !policy->filter)
-          g_hash_table_remove(owner->mRequestRules, reply->token.get());
-      }
-      RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
-      info->SetPropertyAsUint32(NS_LITERAL_STRING("id"), reply->request);
-      info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("json"), NS_LITERAL_CSTRING("null"));
-      info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("error"), nsDependentCString(
-        !current ? "Content policy superseded or view closed" : error ? error->message : ""));
-      owner->Notify("content-view-policy-result", static_cast<nsIWritablePropertyBag2*>(info));
-      g_clear_error(&error);
-      delete reply;
-    }, reply);
-  g_bytes_unref(bytes);
+  CompileNextPolicy(compilation);
   return NS_OK;
+}
+
+void WPEContentView::CompileNextPolicy(WPEPolicyCompilation* compilation)
+{
+  auto* policy = mRequestRules ? static_cast<Policy*>(g_hash_table_lookup(mRequestRules, compilation->token.get())) : nullptr;
+  if (mDestroyed || !policy || policy->generation != compilation->generation) {
+    compilation->error.AssignLiteral("Content policy superseded or view closed");
+  }
+  const uint32_t parts = std::max(1u, (compilation->blocks + kBlocksPerPolicyPart - 1) / kBlocksPerPolicyPart);
+  if (!compilation->active && (!compilation->error.IsEmpty() || compilation->part == parts)) {
+    FinishPolicyCompilation(compilation, compilation->error.get());
+    return;
+  }
+  // Partition block rules, but retain every subsequent allow in each part.
+  // A matching block survives iff no later matching allow cancels it. OR-ing
+  // these independent lists therefore preserves the original ordered policy,
+  // including a later block overriding an earlier exception. Other owners'
+  // policies remain separate. Bound the number of concurrently parsed parts.
+  while (compilation->error.IsEmpty() && compilation->part < parts &&
+         compilation->active < compilation->storePool.Length()) {
+    uint32_t slot = 0;
+    while (compilation->busy[slot]) ++slot;
+    compilation->busy[slot] = true;
+    nsAutoCString json("[");
+    uint32_t block = 0;
+    bool included = false;
+    for (uint32_t i = 0; i < compilation->rules.Length(); ++i) {
+      bool keep;
+      if (compilation->allows[i]) keep = included || !compilation->blocks;
+      else keep = block++ / kBlocksPerPolicyPart == compilation->part;
+      if (!keep) continue;
+      if (included) json.Append(',');
+      json.Append(compilation->rules[i]);
+      included = true;
+    }
+    json.Append(']');
+    nsCString storeId(compilation->identifier);
+    storeId.Append('.');
+    storeId.AppendInt(compilation->part);
+    compilation->storeIds.AppendElement(storeId);
+    auto* store = compilation->storePool[slot];
+    compilation->stores.AppendElement(WEBKIT_USER_CONTENT_FILTER_STORE(g_object_ref(store)));
+    compilation->filters.AppendElement(nullptr);
+    auto* part = new PolicyPart{compilation, compilation->part++, slot};
+    ++compilation->active;
+    GBytes* bytes = g_bytes_new(json.get(), json.Length());
+    webkit_user_content_filter_store_save(store, storeId.get(), bytes, compilation->cancellation,
+      [](GObject* source, GAsyncResult* result, gpointer data) {
+        auto* part = static_cast<PolicyPart*>(data);
+        auto* compilation = part->compilation;
+        compilation->busy[part->slot] = false;
+        --compilation->active;
+        GError* error = nullptr;
+        auto* filter = webkit_user_content_filter_store_save_finish(WEBKIT_USER_CONTENT_FILTER_STORE(source), result, &error);
+        if (filter) {
+          compilation->filters[part->index] = filter;
+          ++compilation->completed;
+          RefPtr<nsHashPropertyBag> progress = new nsHashPropertyBag();
+          progress->SetPropertyAsUint32(NS_LITERAL_STRING("id"), compilation->request);
+          progress->SetPropertyAsDouble(NS_LITERAL_STRING("progress"),
+            double(compilation->completed) / std::max(1u, (compilation->blocks + kBlocksPerPolicyPart - 1) / kBlocksPerPolicyPart));
+          compilation->owner->Notify("content-view-policy-progress", static_cast<nsIWritablePropertyBag2*>(progress));
+        } else {
+          if (compilation->error.IsEmpty()) compilation->error.Assign(error ? error->message : "Policy compiler returned no result");
+        }
+        compilation->owner->CompileNextPolicy(compilation);
+        g_clear_error(&error);
+        delete part;
+      }, part);
+    g_bytes_unref(bytes);
+  }
+}
+
+void WPEContentView::FinishPolicyCompilation(WPEPolicyCompilation* compilation, const char* error)
+{
+  RefPtr<WPEContentView> owner = this;
+  auto* policy = mRequestRules ? static_cast<Policy*>(g_hash_table_lookup(mRequestRules, compilation->token.get())) : nullptr;
+  bool current = !mDestroyed && policy && policy->generation == compilation->generation;
+  if (current && !*error) {
+    auto* manager = webkit_web_view_get_user_content_manager(mHost->webView);
+    if (policy->enabled) {
+      for (auto* filter : compilation->filters) webkit_user_content_manager_add_filter(manager, filter);
+      for (auto* filter : policy->filters) webkit_user_content_manager_remove_filter(manager, filter);
+    }
+    policy->filters.SwapElements(compilation->filters);
+    policy->storeIds.SwapElements(compilation->storeIds);
+    policy->stores.SwapElements(compilation->stores);
+  } else if (current && policy->filters.IsEmpty())
+    g_hash_table_remove(mRequestRules, compilation->token.get());
+  for (uint32_t i = 0; i < compilation->storeIds.Length(); ++i)
+    RemoveStored(compilation->stores[i], compilation->storeIds[i]);
+  RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
+  info->SetPropertyAsUint32(NS_LITERAL_STRING("id"), compilation->request);
+  info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("json"), NS_LITERAL_CSTRING("null"));
+  info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("error"), nsDependentCString(
+    current ? error : "Content policy superseded or view closed"));
+  Notify("content-view-policy-result", static_cast<nsIWritablePropertyBag2*>(info));
+  delete compilation;
 }
 
 NS_IMETHODIMP WPEContentView::RemoveRequestRules(const nsACString& identifier)
@@ -232,9 +352,9 @@ NS_IMETHODIMP WPEContentView::RemoveRequestRules(const nsACString& identifier)
   nsCString token(identifier);
   auto* policy = static_cast<Policy*>(g_hash_table_lookup(mRequestRules, token.get()));
   if (!policy) return NS_OK;
-  if (policy->filter && policy->enabled && mHost) webkit_user_content_manager_remove_filter(
-    webkit_web_view_get_user_content_manager(mHost->webView), policy->filter);
-  RemoveStored(mFilterStore, policy->storeId);
+  if (policy->enabled && mHost) for (auto* filter : policy->filters)
+    webkit_user_content_manager_remove_filter(webkit_web_view_get_user_content_manager(mHost->webView), filter);
+  for (uint32_t i = 0; i < policy->storeIds.Length(); ++i) RemoveStored(policy->stores[i], policy->storeIds[i]);
   g_hash_table_remove(mRequestRules, token.get());
   return NS_OK;
 }
@@ -243,11 +363,13 @@ NS_IMETHODIMP WPEContentView::SetRequestRulesEnabled(const nsACString& identifie
   NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed && mRequestRules, NS_ERROR_NOT_AVAILABLE);
   nsCString token(identifier);
   auto* policy = static_cast<Policy*>(g_hash_table_lookup(mRequestRules, token.get()));
-  NS_ENSURE_TRUE(policy && policy->filter, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(policy && !policy->filters.IsEmpty(), NS_ERROR_NOT_AVAILABLE);
   if (policy->enabled == enabled) return NS_OK;
   auto* manager = webkit_web_view_get_user_content_manager(mHost->webView);
-  if (enabled) webkit_user_content_manager_add_filter(manager, policy->filter);
-  else webkit_user_content_manager_remove_filter(manager, policy->filter);
+  for (auto* filter : policy->filters) {
+    if (enabled) webkit_user_content_manager_add_filter(manager, filter);
+    else webkit_user_content_manager_remove_filter(manager, filter);
+  }
   policy->enabled = enabled;
   return NS_OK;
 }
@@ -257,9 +379,14 @@ void WPEContentView::ClearRequestRules()
   if (mRequestRules) {
     GHashTableIter iter; gpointer key, value;
     g_hash_table_iter_init(&iter, mRequestRules);
-    while (g_hash_table_iter_next(&iter, &key, &value)) RemoveStored(mFilterStore, static_cast<Policy*>(value)->storeId);
+    while (g_hash_table_iter_next(&iter, &key, &value)) {
+      auto* policy = static_cast<Policy*>(value);
+      for (uint32_t i = 0; i < policy->storeIds.Length(); ++i) RemoveStored(policy->stores[i], policy->storeIds[i]);
+    }
     g_hash_table_unref(mRequestRules); mRequestRules = nullptr;
   }
   g_clear_object(&mFilterCancellation);
   g_clear_object(&mFilterStore);
+  for (auto* store : mAdditionalFilterStores) g_object_unref(store);
+  mAdditionalFilterStores.Clear();
 }

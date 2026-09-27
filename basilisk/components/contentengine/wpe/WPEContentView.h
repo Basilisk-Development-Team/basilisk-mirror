@@ -12,6 +12,7 @@
 #include "nsIFile.h"
 
 struct WPEHost;
+struct WPEPolicyCompilation;
 struct _MozContainer;
 struct _WebKitDownload;
 struct _WPEView;
@@ -38,6 +39,8 @@ private:
   nsresult SendFrameOperation(uint32_t id, const char* name, _GVariant* parameters);
   nsresult EnsureFilterStore();
   void ClearRequestRules();
+  void CompileNextPolicy(WPEPolicyCompilation* compilation);
+  void FinishPolicyCompilation(WPEPolicyCompilation* compilation, const char* error);
   void CancelNavigationPreparations();
   _GHashTable* mNavigationPreparations = nullptr;
   uint32_t mNavigationPreparationId = 0;
@@ -60,6 +63,7 @@ private:
   _GHashTable* mFrames = nullptr;
   nsCOMPtr<nsIFile> mProfileDirectory;
   _WebKitUserContentFilterStore* mFilterStore = nullptr;
+  nsTArray<_WebKitUserContentFilterStore*> mAdditionalFilterStores;
   _GCancellable* mFilterCancellation = nullptr;
   _GHashTable* mRequestRules = nullptr;
   uint64_t mFilterGeneration = 0;

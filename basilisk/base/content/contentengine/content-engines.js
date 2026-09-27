@@ -355,6 +355,12 @@ class ExternalContentBrowser {
       ContentEngineScripts.result(this.browser, subject.QueryInterface(Ci.nsIPropertyBag2));
       return;
     }
+    if (topic == "content-view-policy-progress") {
+      const info=subject.QueryInterface(Ci.nsIPropertyBag2);
+      this.browser.dispatchEvent(new CustomEvent("ContentPolicyProgress",{detail:Object.freeze({
+        requestId:info.getPropertyAsUint32("id"),progress:info.getPropertyAsDouble("progress")})}));
+      return;
+    }
     if (topic == "content-view-inspector") {
       window.openDialog("chrome://browser/content/contentengine/inspector.xul", "_blank", "chrome,all,dialog=no", subject);
       return;

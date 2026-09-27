@@ -115,5 +115,26 @@ async function run(){
  tab=win.ContentEngines.switchEngine(tab,'webkit');
  await waitFor(()=>tab.linkedBrowser.contentTitle=='Matrix ready'&&!tab.hasAttribute('busy'),'WPE switch');
  await load('restored',true);
+ api=tab.linkedBrowser.contentAPI;
+ const partitioned=[{urlPrefix:base+'/deny/script'}];
+ for(let i=0;i<8191;i++) partitioned.push({urlPrefix:base+'/unused/'+i+'/'});
+ partitioned.push({urlPrefix:base+'/deny/image'},
+   {urlPrefix:base+'/deny/',action:'allow'},
+   {urlPrefix:base+'/deny/script'});
+ await api.setRequestRules('matrix',partitioned);
+ async function partitionCheck(run) {
+  tab.linkedBrowser.loadURI(base+'/matrix?run='+run);
+  await waitFor(()=>tab.linkedBrowser.contentTitle=='Matrix ready'&&!tab.hasAttribute('busy'),'partition navigation');
+  await delay(500);const requests=await counts();
+  check(!requests['/deny/script?run='+run],'later block lost across compiled parts');
+  check(requests['/deny/image?run='+run]===1,'exception lost across compiled parts');
+  check(requests['/deny/fetch?run='+run]===1,'unmatched resource blocked across compiled parts');
+ }
+ await partitionCheck('partitioned');
+ let failedPart=false;
+ try {await api.setRequestRules('matrix',partitioned.concat([{urlPattern:'['}]));}catch(_){failedPart=true;}
+ check(failedPart,'invalid later part accepted');
+ await partitionCheck('partition-rollback');
+ dump('NETWORK PASS multi-part exceptions, later block priority and failed-part rollback\n');
  dump('NETWORK PASS pre-fetch script/image/stylesheet/subframe/XHR/fetch/WebSocket/redirect blocking; party, unsupported-method rejection, toggle and independent Gecko\n');
 }

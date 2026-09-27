@@ -87,7 +87,10 @@ class ContentScriptClient {
       return Promise.reject(new Error("Script timing unsupported"));
     return new Promise((resolve, reject) => {
       let id = ContentEngineScripts.nextId++;
-      let timer = setTimeout(() => this.result(id, "null", "Content operation timed out"), 30000);
+      // Compiling a complete filter list is bounded setup work, unlike a
+      // script/message round trip. Keep ordinary content operations at 30 s.
+      const timeout=operation=="Policy" && !arguments_.remove ? 120000 : 30000;
+      let timer = setTimeout(() => this.result(id, "null", "Content operation timed out"), timeout);
       this.pending.set(id, {resolve, reject, timer});
       try {
         let view = ContentEngines.get(this.browser);
