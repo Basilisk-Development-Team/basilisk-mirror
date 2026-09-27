@@ -13,8 +13,8 @@
 #include "mozilla/UniquePtr.h"
 #include <algorithm>
 
-static constexpr uint32_t kBlocksPerPolicyPart = 8192;
-static constexpr uint32_t kConcurrentPolicyCompilations = 4;
+static constexpr uint32_t kBlocksPerPolicyPart = 131072;
+static constexpr uint32_t kConcurrentPolicyCompilations = 1;
 struct WPEPolicyCompilation {
   RefPtr<WPEContentView> owner;
   nsCString token;
@@ -144,8 +144,9 @@ nsresult WPEContentView::EnsureFilterStore()
   rv = directory->GetNativePath(path);
   NS_ENSURE_SUCCESS(rv, rv);
   mFilterStore = webkit_user_content_filter_store_new(path.get());
-  // Upstream serializes compilation by store path. A small fixed pool gives
-  // bounded parallel compilation and is shared by views using this profile.
+  // Upstream serializes compilation by store path. Keep the pool at one:
+  // profiling showed concurrent compilers contending on allocator locks. Any
+  // future tuning remains bounded and shared by views using this profile.
   for (uint32_t i = 1; i < kConcurrentPolicyCompilations; ++i) {
     nsAutoCString slot(path);
     slot.AppendLiteral("/compiler-"); slot.AppendInt(i);

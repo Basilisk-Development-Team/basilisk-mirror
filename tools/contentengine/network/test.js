@@ -117,7 +117,7 @@ async function run(){
  await load('restored',true);
  api=tab.linkedBrowser.contentAPI;
  const partitioned=[{urlPrefix:base+'/deny/script'}];
- for(let i=0;i<8191;i++) partitioned.push({urlPrefix:base+'/unused/'+i+'/'});
+ for(let i=0;i<131071;i++) partitioned.push({urlPrefix:base+'/unused/'+i+'/'});
  partitioned.push({urlPrefix:base+'/deny/image'},
    {urlPrefix:base+'/deny/',action:'allow'},
    {urlPrefix:base+'/deny/script'});
