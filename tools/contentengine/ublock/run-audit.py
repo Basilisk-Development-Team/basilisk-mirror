@@ -42,7 +42,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if self.path.startswith('/page?'):
                 third = 'http://localhost:%d' % self.server.server_port
-                body = "<!doctype html><meta charset=utf-8><title>Loading</title><body data-load='%d'><div class='audit-ad'>Cosmetic target</div>" % self.server.counts[self.path]
+                body = "<!doctype html><meta charset=utf-8><title>Loading</title><body data-load='%d'><div class='audit-ad'>Cosmetic target</div><div class='basilisk-audit-generic'>Generic cosmetic</div><div class='basilisk-audit-exception'>Excepted cosmetic</div>" % self.server.counts[self.path]
                 for prefix in ('audit-blocked', 'audit-allowed'):
                     body += "<script src='/%s.js?engine=%s'></script>" % (prefix, engine)
                     body += "<script src='%s/%s-third-script?engine=%s'></script>" % (third, prefix, engine)
@@ -80,7 +80,10 @@ def main():
     parser.add_argument('--require-webkit', action='store_true', help='Require WebKit network, cosmetic, page-state, reload, picker and logger acceptance probes')
     parser.add_argument('--compiled-policy-probe', action='store_true', help='Test-only live-state translation with user filters; not automatic adapter acceptance')
     parser.add_argument('--automatic', action='store_true', help='Use user-filter test configuration with normal adapter lifecycle; never install policies from the harness')
+    parser.add_argument('--site', default='', help='Also navigate each engine to this diagnostic site without changing its filters')
+    parser.add_argument('--switches',type=int,default=0,help='Additional Gecko/WebKit/Gecko cycles with server-counter checks')
     args=parser.parse_args()
+    if not 0<=args.switches<=1000:parser.error('--switches must be between 0 and 1000')
     obj=args.objdir.resolve();chrome=obj/'dist/bin/browser/chrome/browser/content/browser/contentengine'
     original_hash=hashlib.sha256(args.xpi.read_bytes()).hexdigest()
     print('XPI SHA256 '+original_hash,flush=True)
@@ -99,12 +102,18 @@ def main():
             target.symlink_to(Path('basilisk/base/content/contentengine/adapters/ublock-state.js').resolve());staged.append(target)
         with tempfile.TemporaryDirectory(prefix='basilisk-ublock-audit-') as profile:
             extensions=Path(profile,'extensions');extensions.mkdir();shutil.copy2(args.xpi,extensions/'uBlock0@raymondhill.net.xpi')
-            prefs={'extensions.autoDisableScopes':0,'extensions.enabledScopes':15,'browser.dom.window.dump.enabled':True,'browser.shell.checkDefaultBrowser':False,'content.audit.port':server.server_port,'content.audit.requireWebKit':args.require_webkit,'content.audit.compiledProbe':args.compiled_policy_probe,'content.audit.automatic':args.automatic}
+            prefs={'extensions.autoDisableScopes':0,'extensions.enabledScopes':15,'browser.dom.window.dump.enabled':True,'browser.shell.checkDefaultBrowser':False,'content.audit.port':server.server_port,'content.audit.requireWebKit':args.require_webkit,'content.audit.compiledProbe':args.compiled_policy_probe,'content.audit.automatic':args.automatic,'content.audit.site':args.site,'content.audit.switches':args.switches}
             Path(profile,'user.js').write_text('\n'.join('user_pref(%s,%s);'%(json.dumps(k),json.dumps(v)) for k,v in prefs.items()))
-            result=subprocess.run([str(obj/'dist/bin/basilisk'),'-no-remote','-profile',profile,'-chrome','chrome://browser/content/contentengine/content-ublock-audit.xul'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=180)
+            result=subprocess.Popen([str(obj/'dist/bin/basilisk'),'-no-remote','-profile',profile,'-chrome','chrome://browser/content/contentengine/content-ublock-audit.xul'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+            watchdog=threading.Timer(180+10*args.switches,result.kill);watchdog.start();output=[]
+            try:
+                for line in result.stdout:
+                    output.append(line);print(line,end='',flush=True)
+                result.wait()
+            finally: watchdog.cancel()
             assert hashlib.sha256(args.xpi.read_bytes()).hexdigest() == original_hash, 'source XPI changed'
             assert hashlib.sha256((extensions/'uBlock0@raymondhill.net.xpi').read_bytes()).hexdigest() == original_hash, 'installed XPI changed'
-            print(result.stdout,end='');return 0 if result.returncode==0 and 'UBLOCK-AUDIT COMPLETE' in result.stdout else 1
+            return 0 if result.returncode==0 and any('UBLOCK-AUDIT COMPLETE' in line for line in output) else 1
     finally:
         for path in staged:path.unlink()
         server.shutdown();server.server_close()
