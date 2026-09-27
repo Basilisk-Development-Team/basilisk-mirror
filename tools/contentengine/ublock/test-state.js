@@ -51,6 +51,39 @@ assert.strictEqual(changed.permanent.firewall.length, first.permanent.firewall.l
 assert.strictEqual(first.whitelist, 'example.org');
 assert.strictEqual(changed.whitelist, 'different.example');
 assert.throws(() => vm.runInContext('UBlockStateAdapter.snapshot("other", {µBlock})', context), /Unsupported/);
+// Compare translated rules with the actual extension matcher on a controlled
+// corpus. No browser request observer or synthetic channel is involved.
+vm.runInContext(`
+µBlock.staticNetFilteringEngine.reset();
+compile(['||ads.example^', '@@||ads.example/allowed',
+         '||ads.example/important$important', '@@||ads.example/important',
+         '*/banner*', '|https://exact.example/path|', '||scripts.example^$script',
+         '||third.example^$third-party']);
+`, context);
+const compiled = vm.runInContext('UBlockStateAdapter.compileStaticNetwork(UBlockStateAdapter.snapshot("1.16.6.1", {µBlock}))', context);
+assert.strictEqual(compiled.unsupported.length, 0);
+for (const url of ['https://ads.example/x', 'https://ads.example/allowed',
+                   'https://ads.example/important', 'https://notads.example/x',
+                   'https://sub.ads.example/x', 'https://ads.example:pw@safe.example/x',
+                   'https://user@ads.example:443/x', 'https://elsewhere.example/banner/a',
+                   'https://exact.example/path', 'https://exact.example/path2',
+                   'https://scripts.example/x', 'https://third.example/x']) {
+  for (const type of ['script', 'image']) {
+    const host = new URL(url).hostname;
+    const request = {requestURL:url, requestHostname:host, requestType:type,
+                     pageHostname:'page.example', pageDomain:'page.example'};
+    const nativeBlock = engine.matchString(request) === 1;
+    let translatedBlock = false;
+    for (const rule of compiled.rules) {
+      if (!rule.resourceTypes.includes(type)) continue;
+      if (rule.party === 'first-party') continue;
+      if (new RegExp(rule.urlPattern, 'i').test(url)) translatedBlock = rule.action === 'block';
+    }
+    assert.strictEqual(translatedBlock, nativeBlock, url + ' ' + type);
+  }
+}
+vm.runInContext(`compile(['||domain.example^$domain=page.example']);`, context);
+assert(vm.runInContext('UBlockStateAdapter.compileStaticNetwork(UBlockStateAdapter.snapshot("1.16.6.1", {µBlock})).unsupported.length', context) > 0);
 context.µBlock.loadingFilterLists = true;
 assert.throws(read, /not ready/);
 context.µBlock.loadingFilterLists = false;

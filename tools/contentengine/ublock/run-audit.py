@@ -78,10 +78,13 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('objdir',type=Path);parser.add_argument('xpi',type=Path)
     parser.add_argument('--require-webkit', action='store_true', help='Require WebKit network, cosmetic, page-state, reload, picker and logger acceptance probes')
+    parser.add_argument('--compiled-policy-probe', action='store_true', help='Test-only live-state translation with user filters; not automatic adapter acceptance')
     args=parser.parse_args()
     obj=args.objdir.resolve();chrome=obj/'dist/bin/browser/chrome/browser/content/browser/contentengine'
     original_hash=hashlib.sha256(args.xpi.read_bytes()).hexdigest()
     print('XPI SHA256 '+original_hash,flush=True)
+    if args.compiled_policy_probe and original_hash != '9ef1fd80f9a2350da9e182d991e6ff2b81a5dc11b36d7d26659b3560c367f8cf':
+        raise SystemExit('Compiled probe requires the pinned unmodified XPI')
     import zipfile, xml.etree.ElementTree as ET
     with zipfile.ZipFile(args.xpi) as archive:
         manifest=ET.fromstring(archive.read('install.rdf'))
@@ -90,9 +93,12 @@ def main():
     try:
         for suffix in ('js','xul'):
             target=chrome/('content-ublock-audit.'+suffix);target.symlink_to(Path(__file__).resolve().parent/('audit.'+suffix));staged.append(target)
+        if args.compiled_policy_probe:
+            target=chrome/'ublock-state-probe.js'
+            target.symlink_to(Path('basilisk/base/content/contentengine/adapters/ublock-state.js').resolve());staged.append(target)
         with tempfile.TemporaryDirectory(prefix='basilisk-ublock-audit-') as profile:
             extensions=Path(profile,'extensions');extensions.mkdir();shutil.copy2(args.xpi,extensions/'uBlock0@raymondhill.net.xpi')
-            prefs={'extensions.autoDisableScopes':0,'extensions.enabledScopes':15,'browser.dom.window.dump.enabled':True,'browser.shell.checkDefaultBrowser':False,'content.audit.port':server.server_port,'content.audit.requireWebKit':args.require_webkit}
+            prefs={'extensions.autoDisableScopes':0,'extensions.enabledScopes':15,'browser.dom.window.dump.enabled':True,'browser.shell.checkDefaultBrowser':False,'content.audit.port':server.server_port,'content.audit.requireWebKit':args.require_webkit,'content.audit.compiledProbe':args.compiled_policy_probe}
             Path(profile,'user.js').write_text('\n'.join('user_pref(%s,%s);'%(json.dumps(k),json.dumps(v)) for k,v in prefs.items()))
             result=subprocess.run([str(obj/'dist/bin/basilisk'),'-no-remote','-profile',profile,'-chrome','chrome://browser/content/contentengine/content-ublock-audit.xul'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=180)
             assert hashlib.sha256(args.xpi.read_bytes()).hexdigest() == original_hash, 'source XPI changed'

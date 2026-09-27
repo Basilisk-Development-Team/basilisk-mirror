@@ -3,7 +3,7 @@
 from pathlib import Path
 import re
 root = Path(__file__).resolve().parents[2]
-paths = list((root / 'basilisk/base/content/contentengine').glob('*'))
+paths = list((root / 'basilisk/base/content/contentengine').rglob('*'))
 paths += [p for p in (root / 'basilisk/components/contentengine').glob('*') if p.suffix in ('.cpp', '.h', '.idl')]
 errors = []
 for path in paths:

@@ -33,6 +33,15 @@ async function run() {
     if (bg) bg = bg.wrappedJSObject;
     return bg && bg.µBlock && bg.µBlock.availableFilterLists && bg.µBlock.availableFilterLists['user-filters'];
   }, "uBlock startup");
+  const compiledProbe = Services.prefs.getBoolPref("content.audit.compiledProbe");
+  let adapter;
+  if (compiledProbe) {
+    await waitFor(() => !bg.µBlock.loadingFilterLists, "initial list load");
+    bg.µBlock.saveSelectedFilterLists(['user-filters']);
+    await new Promise(resolve => bg.µBlock.loadFilterLists(resolve));
+    adapter = {};
+    Services.scriptloader.loadSubScript("chrome://browser/content/contentengine/ublock-state-probe.js", adapter, "UTF-8");
+  }
   let count = bg.µBlock.staticNetFilteringEngine.acceptedCount;
   bg.µBlock.appendUserFilters("*/audit-blocked*\n127.0.0.1##.audit-ad\n");
   await waitFor(() => bg.µBlock.staticNetFilteringEngine.acceptedCount > count, "user filter compilation");
@@ -53,7 +62,29 @@ async function run() {
   let acceptanceFailures = [];
   const probes = ['.js','-third-script','-image','-style','-frame','-fetch','-xhr','-socket','-redirect'];
   for (let engine of ['gecko', 'webkit']) {
-    let tab = engine == 'gecko' ? g.addTab(base+'/page?engine=gecko') : win.ContentEngines.open(base+'/page?engine=webkit');
+    let tab = engine == 'gecko' ? g.addTab(base+'/page?engine=gecko') : win.ContentEngines.open(compiledProbe ? 'about:blank' : base+'/page?engine=webkit');
+    let probeCSS = null;
+    async function installProbeState() {
+      if (!compiledProbe || engine != 'webkit') return;
+      const url = base+'/page?engine=webkit';
+      const page = adapter.UBlockStateAdapter.pageState('1.16.6.1', bg, url);
+      if (probeCSS) { await tab.linkedBrowser.contentAPI.removeCSS(probeCSS); probeCSS = null; }
+      if (!page.enabled) {
+        await tab.linkedBrowser.contentAPI.removeRequestRules('compiled-state-probe');
+        return;
+      }
+      const snapshot = adapter.UBlockStateAdapter.snapshot('1.16.6.1', bg);
+      const compiled = adapter.UBlockStateAdapter.compileStaticNetwork(snapshot);
+      if (compiled.unsupported.length) throw Error('Probe contains unsupported predicates: '+JSON.stringify(compiled.unsupported));
+      if (!compiled.rules.length) throw Error('Probe exported no active rules');
+      await tab.linkedBrowser.contentAPI.setRequestRules('compiled-state-probe', compiled.rules);
+      if (page.css) probeCSS = await tab.linkedBrowser.contentAPI.insertCSS(page.css);
+      dump('UBLOCK-AUDIT COMPILED PROBE installed '+compiled.rules.length+' rules from live extension state\n');
+    }
+    if (compiledProbe && engine == 'webkit') {
+      await installProbeState();
+      tab.linkedBrowser.loadURI(base+'/page?engine=webkit');
+    }
     g.selectedTab = tab;
     await waitFor(() => tab.linkedBrowser.contentTitle == 'Audit page' && !tab.hasAttribute('busy'), engine+' load');
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -88,18 +119,32 @@ async function run() {
       let requests=result.server['/audit-blocked'+path+'?engine='+engine]||0;
       result.blockedRequests[path] = requests;
       if(engine=='gecko' && requests)throw Error('Gecko network block reached server '+path);
+      if(engine=='webkit' && requests && compiledProbe)throw Error('Compiled uBlock rule reached server '+path);
       if(engine=='webkit' && requests)acceptanceFailures.push('WebKit request reached server: '+path);
     }
+    if(compiledProbe && engine=='webkit')dump('UBLOCK-AUDIT COMPILED PROBE PASS nine blocked resource counters zero\n');
     if(result.allowed!='loaded')throw Error(engine+' allowed script missing');
     for(let path of probes.filter(p=>p!='-redirect')) {
       if(!result.server['/audit-allowed'+path+'?engine='+engine])throw Error(engine+' allowed control missing '+path);
     }
     bg.µBlock.toggleNetFilteringSwitch(base+'/page?engine='+engine, 'site', false);
+    await installProbeState();
     tab.linkedBrowser.reload();await new Promise(resolve=>setTimeout(resolve,1500));
     result.disabled = await tab.linkedBrowser.contentAPI.executeScript("return {external:document.body.getAttribute('data-external'),display:getComputedStyle(document.querySelector('.audit-ad')).display};");
     bg.µBlock.toggleNetFilteringSwitch(base+'/page?engine='+engine, 'site', true);
+    await installProbeState();
     tab.linkedBrowser.reload();await new Promise(resolve=>setTimeout(resolve,1500));
     result.reenabled = await tab.linkedBrowser.contentAPI.executeScript("return {external:document.body.getAttribute('data-external'),display:getComputedStyle(document.querySelector('.audit-ad')).display};");
+    if (compiledProbe && engine == 'webkit') {
+      if (result.display != 'none' || result.dynamic != 'none' || result.disabled.external != 'loaded' ||
+          result.disabled.display != 'block' || result.reenabled.external || result.reenabled.display != 'none')
+        throw Error('Compiled probe cosmetic/site-state translation failed');
+      const finalCounts = await new Promise(resolve => {let x=new XMLHttpRequest();x.open('GET',base+'/counts');x.onload=()=>resolve(JSON.parse(x.responseText));x.send();});
+      for (const path of probes)
+        if (finalCounts['/audit-blocked'+path+'?engine=webkit'] !== 1)
+          throw Error('Site toggle server-counter mismatch '+path);
+      dump('UBLOCK-AUDIT COMPILED PROBE PASS declarative/dynamic CSS and site disable/reenable\n');
+    }
     if(engine=='webkit') {
       if(result.display!='none'||result.dynamic!='none')acceptanceFailures.push('WebKit static/dynamic cosmetics absent');
       if(result.pageStoreURI!=result.tabURI)acceptanceFailures.push('WebKit page store missing');
