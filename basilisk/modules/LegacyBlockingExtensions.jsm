@@ -74,10 +74,37 @@ var LegacyBlockingExtensions = {
       if (old && old.background===bg && old.categories===runtime.identity && old.signature===signature) {
         found=old;break;
       }
-      const snapshot=adapter.snapshot(addon.version,bg);
-      const compiled=adapter.compileStaticNetwork(snapshot);
+      const reuse=old && old.background===bg && old.categories===runtime.identity &&
+        old.networkSignature===runtime.networkSignature;
+      const started=Date.now();
+      let compiled=reuse ? old.compiled : null;
+      if (!compiled) {
+        const steps=adapter.compileStaticNetworkSteps(adapter.snapshot(addon.version,bg));
+        let step;
+        do {
+          // Yield to chrome between bounded translation batches. Never keep
+          // one privileged JS task alive throughout a complete EasyList build.
+          await new Promise(resolve => {
+            const timer=Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
+            timer.initWithCallback(resolve,0,Ci.nsITimer.TYPE_ONE_SHOT);
+          });
+          if (epoch!==this.epoch) return {waiting:!!this.listeners.size,entry:null};
+          step=steps.next();
+        } while (!step.done);
+        compiled=step.value;
+        const current=adapter.inspectRuntime(scope);
+        if (!current || current.waiting || current.identity!==runtime.identity || current.signature!==signature)
+          return {waiting:true,entry:this.entry};
+      }
+      const generation=++this.generation;
       found={id:addon.id,version:addon.version,background:bg,signature,
-        categories:runtime.identity,compiled,adapter,generation:++this.generation};
+        categories:runtime.identity,compiled,adapter,generation,
+        // Transfer bulk policy data as a value, not hundreds of thousands of
+        // cross-compartment object/property accesses on the browser thread.
+        ruleSource:reuse ? old.ruleSource : JSON.stringify(compiled.rules),
+        networkSignature:runtime.networkSignature,
+        networkGeneration:reuse ? old.networkGeneration : generation,
+        translationMS:reuse ? old.translationMS : Date.now()-started};
       break;
     }
     if (waiting && !found) return {waiting:true,entry:this.entry};

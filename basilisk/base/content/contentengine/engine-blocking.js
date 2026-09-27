@@ -10,11 +10,18 @@ var ContentEngineBlocking = {
       for (const view of ContentEngines.views.values())
         this.prepare(view,(this.states.get(view)||{}).uri || view.native.currentURI || "about:blank").catch(Cu.reportError);
     };
-    LegacyBlockingExtensions.subscribe(this.changed);
     window.addEventListener("unload",()=>LegacyBlockingExtensions.unsubscribe(this.changed),{once:true});
     gBrowser.tabContainer.addEventListener("TabSelect",()=>this.updatePage(gBrowser.selectedBrowser));
   },
   prepare(view,uri) {
+    if (view.destroyed) return Promise.resolve();
+    // Gecko-only windows need no alternate policy translation. Discovery and
+    // synchronization start automatically when the first alternate view needs
+    // a policy, then remain active for this window's lifetime.
+    if (!this.active) {
+      this.active=true;
+      LegacyBlockingExtensions.subscribe(this.changed);
+    }
     let state=this.states.get(view);
     if (!state) {state={queue:Promise.resolve(),revision:0};this.states.set(view,state);}
     state.uri=uri;
@@ -28,25 +35,28 @@ var ContentEngineBlocking = {
       await api.removeCSS(this.token);
       if (view.destroyed || state.revision!==revision) return;
       if (!entry || !/^https?:/.test(uri)) {
-        await api.removeRequestRules(this.token); state.networkKey=null; state.key=key; return;
+        await api.removeRequestRules(this.token); state.networkKey=null; state.hasNetwork=false; state.key=key; return;
       }
       const page=entry.adapter.pageState(entry.version,entry.background,uri);
       if (!page.enabled) {
-        await api.removeRequestRules(this.token); state.networkKey=null;
+        if (state.hasNetwork) view.native.setRequestRulesEnabled(this.token,false);
       } else {
-        if (entry.compiled.unsupported.some(item => item.category & 1))
+        if (entry.compiled.unsupported.some(item => (item.category & 1) && item.networkException!==false))
           throw new Error("Unsupported blocking extension exception; refusing an overblocking policy");
-        if (state.networkKey !== entry.generation) {
+        if (state.networkKey !== entry.networkGeneration) {
           if (entry.compiled.rules.length)
-            await api.setRequestRules(this.token,entry.compiled.rules,{persistAcrossViews:false});
+            await api.setRequestRules(this.token,JSON.parse(entry.ruleSource),{persistAcrossViews:false});
           else await api.removeRequestRules(this.token);
-          state.networkKey=entry.generation;
+          state.networkKey=entry.networkGeneration;
+          state.hasNetwork=!!entry.compiled.rules.length;
         }
         if (view.destroyed || state.revision!==revision) return;
+        if (state.hasNetwork) view.native.setRequestRulesEnabled(this.token,true);
         if (page.css) await api.insertCSS(page.css,this.token,{persistAcrossViews:false});
       }
       state.key=key;
-      view.browser.setAttribute("contentblocking",page.enabled ? "active" : "disabled");
+      view.browser.setAttribute("contentblocking",page.enabled ?
+        (entry.compiled.unsupported.length ? "partial" : "active") : "disabled");
       view.browser.setAttribute("contentblockingunsupported",String(entry.compiled.unsupported.length));
       this.updatePage(view.browser);
     };
