@@ -103,3 +103,26 @@ generic enforcement mechanism, **not uBlock rule ingestion**.
 No production adapter, UXP change, extension modification or WPE patch is part
 of this investigation. Real EasyList acceptance must follow successful state
 ingestion and deterministic uBlock-triggered blocking; it is not yet established.
+
+## Authorized adapter implementation
+
+The user explicitly approved a documented, versioned uBlock state adapter after
+this trace. `adapters/ublock-state.js` is the first isolated piece. It reads the
+live engine's own `toSelfie()` output, active session/permanent rules and current
+whitelist. It does not parse filter-list text, call request matchers, modify the
+extension, or install enforcement rules yet. It is not packaged/loaded into
+browser chrome until the consumer and lifecycle integration are ready.
+
+`tools/contentengine/ublock/test-state.py <pinned.xpi>` verifies the package hash,
+extracts fixed JavaScript members into a temporary directory, and runs the actual
+extension compiler/engine with the reader. Tests passed for effective badfilter
+removal, selfie restoration with empty raw filter sets, incremental user filters,
+temporary versus permanent rules, whitelist changes, detached immutable state,
+unchanged match registers, and version/schema/readiness rejection.
+
+The strict clean-XPI browser audit was also rerun: Gecko blocking/cosmetics/toggle
+controls passed; WPE still failed all nine network probes, cosmetics, page store,
+logger, picker, extension reload and site toggle. This is a baseline failure,
+not an expected-pass change. Logs for this run are
+`/tmp/basilisk-compiled-policy-network.log` and
+`/tmp/basilisk-compiled-policy-ublock.log`.
