@@ -76,6 +76,20 @@ async function settle(result=addons) {
     assert(service.entry);
     assert.strictEqual(subscriptions,1);
   }
+  // A filter generation can change while chrome is yielding translation.
+  // Never publish a snapshot after its source generation has been replaced.
+  const previous=service.entry;
+  networkSignature='in flight';signature='in flight';holdTimer=true;
+  service.refresh();
+  const superseded=settle();
+  while(!heldTimer) await new Promise(resolve=>setImmediate(resolve));
+  networkSignature='replacement';signature='replacement';
+  heldTimer();heldTimer=null;
+  assert.strictEqual((await superseded).waiting,true);
+  assert.strictEqual(service.entry,previous);
+  service.refresh();await settle();
+  assert.strictEqual(service.entry.signature,'replacement');
+
   // Closing the last window while translation is yielded must not publish it.
   networkSignature='cancel compilation';signature='cancel';holdTimer=true;
   service.refresh();

@@ -58,6 +58,7 @@ var UBlockStateAdapter = Object.freeze({
     if (snapshot.extensionVersion !== this.version || snapshot.schema !== 1)
       throw new Error("Unsupported uBlock snapshot");
     const groups = [[], [], []], unsupported = [];
+    const documentCache=new Map(), patternCache=new Map();
     const types = [null, "stylesheet", "image", null, "script", "fetch",
       "subdocument", "font", "media", "websocket", "other"];
     const ordinary = ["stylesheet", "image", "script", "fetch", "subdocument",
@@ -76,15 +77,19 @@ var UBlockStateAdapter = Object.freeze({
       if (id === 15) { for (const name of data[1]) emit(bits, [4, name],documents,excludeDocument); return; }
       if (id===13) {
         try {
-          const names=data[1].split('|');
-          const include=names.filter(name=>name[0]!=='~');
-          const exclude=names.filter(name=>name[0]==='~').map(name=>name.slice(1));
-          // Pure exclusion sets map directly to the generic negated union.
-          // Expanding their complement into thousands of positive regexes is
-          // equivalent for DNS hosts but needlessly expensive to compile.
-          const negative=!include.length && !!exclude.length;
-          emit(bits,data[2],ContentPolicyDomains.patterns(negative ? exclude : include,
-            negative ? [] : exclude),negative);
+          let condition=documentCache.get(data[1]);
+          if (!condition) {
+            const names=data[1].split('|');
+            const include=names.filter(name=>name[0]!=='~');
+            const exclude=names.filter(name=>name[0]==='~').map(name=>name.slice(1));
+            // Pure exclusions map directly to a negated union. Do not build
+            // thousands of positive patterns for their DNS complement.
+            const negative=!include.length && !!exclude.length;
+            condition={negative,patterns:ContentPolicyDomains.patterns(negative ? exclude : include,
+              negative ? [] : exclude)};
+            documentCache.set(data[1],condition);
+          }
+          emit(bits,data[2],condition.patterns,condition.negative);
         } catch(error) {unsupported.push({reason:error.message,category:bits,classId:id});}
         return;
       }
@@ -133,7 +138,11 @@ var UBlockStateAdapter = Object.freeze({
         // hostname in large dictionaries on an interpreter-only platform.
         if (!/^[\x20-\x7e]+$/.test(regex) || regex.length>8192)
           throw new Error("Unsupported pattern size or character");
-        const patterns=id>=9 && id<=12 ? ContentPolicyPatterns.expand(regex,false) : [regex];
+        let patterns=patternCache.get(regex);
+        if (!patterns) {
+          patterns=id>=9 && id<=12 ? ContentPolicyPatterns.expand(regex,false) : [regex];
+          patternCache.set(regex,patterns);
+        }
         for (const urlPattern of patterns) {
             const rule={
               urlPattern, caseSensitive:false,
@@ -148,11 +157,22 @@ var UBlockStateAdapter = Object.freeze({
 
     }
     let processed=0;
-    for (const category of snapshot.network.categories)
+    for (const category of snapshot.network.categories) {
+      const type=(category[0]&0x1f0)>>>4;
+      if (type>=11 && type<=19) {
+        // Report the unsupported category once, without decoding its often
+        // enormous dictionaries. These are not ordinary network predicates.
+        // compiledEntries counts category entries, not expanded filter rules.
+        unsupported.push({reason:"behavioral category",category:category[0],networkException:false,
+          compiledEntries:category[1].length});
+        yield;
+        continue;
+      }
       for (const entry of category[1]) {
         emit(category[0], entry[1]);
         if (++processed % 256 === 0) yield;
       }
+    }
     // Missing allow predicates cannot just be dropped: that would overblock.
     // Caller must explicitly handle unsupported state, never call this a full
     // effective-policy replacement when unsupported entries remain.
