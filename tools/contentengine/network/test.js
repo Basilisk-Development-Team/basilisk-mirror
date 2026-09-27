@@ -136,5 +136,20 @@ async function run(){
  check(failedPart,'invalid later part accepted');
  await partitionCheck('partition-rollback');
  dump('NETWORK PASS multi-part exceptions, later block priority and failed-part rollback\n');
+ // A cached immutable bundle must survive destruction of its original view,
+ // and sharing compilation must not combine logical owners in a later view.
+ win.gBrowser.removeTab(tab);
+ tab=win.ContentEngines.open('about:blank');api=tab.linkedBrowser.contentAPI;
+ let progress=0;
+ tab.linkedBrowser.addEventListener('ContentPolicyProgress',()=>++progress);
+ await api.setRequestRules('cached-a',partitioned);
+ check(progress===0,'identical policy was rebuilt after view destruction');
+ await partitionCheck('cached-view');
+ await api.setRequestRules('cached-b',partitioned);
+ await api.removeRequestRules('cached-a');
+ await partitionCheck('cached-owner');
+ await api.removeRequestRules('cached-b');
+ await load('cached-removed',false);
+ dump('NETWORK PASS cached bundle lifetime and same-view owner independence\n');
  dump('NETWORK PASS pre-fetch script/image/stylesheet/subframe/XHR/fetch/WebSocket/redirect blocking; party, unsupported-method rejection, toggle and independent Gecko\n');
 }

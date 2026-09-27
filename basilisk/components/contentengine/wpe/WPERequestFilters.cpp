@@ -8,6 +8,9 @@
 #include "nsNetUtil.h"
 #include "nsIURI.h"
 #include "nsCharSeparatedTokenizer.h"
+#include "mozilla/ClearOnShutdown.h"
+#include "mozilla/StaticPtr.h"
+#include "mozilla/UniquePtr.h"
 #include <algorithm>
 
 static constexpr uint32_t kBlocksPerPolicyPart = 8192;
@@ -16,6 +19,7 @@ struct WPEPolicyCompilation {
   RefPtr<WPEContentView> owner;
   nsCString token;
   nsCString identifier;
+  nsCString cacheKey;
   uint64_t generation;
   uint32_t request;
   uint32_t part = 0;
@@ -52,6 +56,37 @@ struct Policy {
     for (auto* store : stores) g_object_unref(store);
   }
 };
+// Compiled filters are immutable and may be attached to different views.
+// Keep a small process-local cache so opening/adopting/switching tabs does not
+// rebuild the same full policy. Profile path is part of the content hash. No
+// private policies enter this cache. The cache owns filter references, not
+// backing files: unlinking the store entry leaves the retained filter usable.
+struct CachedPolicy {
+  nsCString key;
+  nsTArray<WebKitUserContentFilter*> filters;
+  ~CachedPolicy() {
+    for (auto* filter : filters) webkit_user_content_filter_unref(filter);
+  }
+};
+using PolicyCache = nsTArray<mozilla::UniquePtr<CachedPolicy>>;
+mozilla::StaticAutoPtr<PolicyCache> sPolicyCache;
+CachedPolicy* FindCachedPolicy(const nsCString& key) {
+  if (sPolicyCache) for (const auto& entry : *sPolicyCache)
+    if (entry->key.Equals(key)) return entry.get();
+  return nullptr;
+}
+void CachePolicy(const nsCString& key, const nsTArray<WebKitUserContentFilter*>& filters) {
+  if (!sPolicyCache) {
+    sPolicyCache = new PolicyCache();
+    mozilla::ClearOnShutdown(&sPolicyCache);
+  }
+  if (FindCachedPolicy(key)) return;
+  if (sPolicyCache->Length() == 4) sPolicyCache->RemoveElementAt(0);
+  auto entry = mozilla::MakeUnique<CachedPolicy>();
+  entry->key = key;
+  for (auto* filter : filters) entry->filters.AppendElement(webkit_user_content_filter_ref(filter));
+  sPolicyCache->AppendElement(std::move(entry));
+}
 struct PolicyPart {
   WPEPolicyCompilation* compilation;
   uint32_t index;
@@ -229,11 +264,54 @@ NS_IMETHODIMP WPEContentView::SetRequestRules(uint32_t request, const nsACString
   auto* policy = static_cast<Policy*>(g_hash_table_lookup(mRequestRules, token.get()));
   if (!policy) { policy = new Policy(); g_hash_table_insert(mRequestRules, g_strdup(token.get()), policy); }
   policy->generation = ++mFilterGeneration;
+  nsAutoCString profilePath;
+  rv = mProfileDirectory->GetNativePath(profilePath);
+  NS_ENSURE_SUCCESS(rv, rv);
+  GChecksum* checksum = g_checksum_new(G_CHECKSUM_SHA256);
+  g_checksum_update(checksum, reinterpret_cast<const guchar*>(profilePath.get()), profilePath.Length());
+  const guchar separator = 0;
+  g_checksum_update(checksum, &separator, 1);
+  for (const auto& rule : encodedRules)
+    g_checksum_update(checksum, reinterpret_cast<const guchar*>(rule.get()), rule.Length());
+  nsCString cacheKey(g_checksum_get_string(checksum));
+  g_checksum_free(checksum);
+  auto* cached = FindCachedPolicy(cacheKey);
+  if (cached) {
+    // WebKit identifies physical lists within a content manager by identifier.
+    // Do not share one physical list between independent tokens in the SAME
+    // view: removing one token must not detach another owner's policy.
+    GHashTableIter iter; gpointer key, value;
+    g_hash_table_iter_init(&iter, mRequestRules);
+    while (cached && g_hash_table_iter_next(&iter, &key, &value))
+      for (auto* filter : static_cast<Policy*>(value)->filters)
+        if (cached->filters.Contains(filter)) {cached = nullptr; break;}
+  }
+  if (cached) {
+    auto* manager = webkit_web_view_get_user_content_manager(mHost->webView);
+    if (policy->enabled) {
+      for (auto* filter : cached->filters) webkit_user_content_manager_add_filter(manager, filter);
+      for (auto* filter : policy->filters) webkit_user_content_manager_remove_filter(manager, filter);
+    }
+    for (auto* filter : policy->filters) webkit_user_content_filter_unref(filter);
+    policy->filters.Clear();
+    for (uint32_t i = 0; i < policy->storeIds.Length(); ++i) RemoveStored(policy->stores[i], policy->storeIds[i]);
+    policy->storeIds.Clear();
+    for (auto* store : policy->stores) g_object_unref(store);
+    policy->stores.Clear();
+    for (auto* filter : cached->filters) policy->filters.AppendElement(webkit_user_content_filter_ref(filter));
+    RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
+    info->SetPropertyAsUint32(NS_LITERAL_STRING("id"), request);
+    info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("json"), NS_LITERAL_CSTRING("null"));
+    info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("error"), EmptyCString());
+    Notify("content-view-policy-result", static_cast<nsIWritablePropertyBag2*>(info));
+    return NS_OK;
+  }
   char* unique = g_uuid_string_random();
   auto* compilation = new WPEPolicyCompilation;
   compilation->owner = this;
   compilation->token = token;
   compilation->identifier = unique;
+  compilation->cacheKey = cacheKey;
   compilation->generation = policy->generation;
   compilation->request = request;
   compilation->blocks = blocks;
@@ -325,6 +403,7 @@ void WPEContentView::FinishPolicyCompilation(WPEPolicyCompilation* compilation, 
   auto* policy = mRequestRules ? static_cast<Policy*>(g_hash_table_lookup(mRequestRules, compilation->token.get())) : nullptr;
   bool current = !mDestroyed && policy && policy->generation == compilation->generation;
   if (current && !*error) {
+    CachePolicy(compilation->cacheKey, compilation->filters);
     auto* manager = webkit_web_view_get_user_content_manager(mHost->webView);
     if (policy->enabled) {
       for (auto* filter : compilation->filters) webkit_user_content_manager_add_filter(manager, filter);

@@ -27,3 +27,13 @@ Validation: the native network suite proves pre-fetch blocking, cross-owner
 isolation, mixed document scopes, disable/re-enable, exception precedence across
 multiple parts, and preserving the installed bundle when a later part fails.
 The invalid-pattern diagnostic in that rollback test is intentional.
+
+A four-entry process-local cache retains immutable compiled filter references.
+Its SHA-256 key covers the profile path and complete ordered native rule encoding.
+It does not retain browsing URLs or introduce a new persistent database. Store
+files can be removed when the original owner closes: the public filter reference
+retains the compiled object. Cache hits are only shared across content managers;
+two independent tokens in the same view still receive separate physical list
+identifiers. Otherwise removing either token could detach the other's list.
+The cache is cleared at application shutdown. Native server-counter tests cover
+reuse after original-view destruction and independent removal of two owners.
