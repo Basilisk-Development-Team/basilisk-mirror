@@ -67,6 +67,14 @@ new view. Gecko keeps its existing extension implementation.
   site and extension reload work. No harness adapter refresh is used.
 * The strict audit still **fails** request logger and picker assertions. Those
   checks remain enabled. No blocked-request count is fabricated.
+* Enabled and disabled incremental builds pass. The completed disabled
+  distribution audit examines 30 ELF files and finds no WPE dependencies,
+  components, interfaces or resources.
+* Bundled-source verification passes: 38,842 upstream WPE entries, zero patches.
+  The clean XPI retains SHA256
+  `9ef1fd80f9a2350da9e182d991e6ff2b81a5dc11b36d7d26659b3560c367f8cf`.
+  UXP tracked files remain clean; the pre-existing checkout/gitlink mismatch
+  remains untouched (`845e0e1a` checkout, `f865b384` gitlink).
 
 ## Remaining daily-use gaps
 
