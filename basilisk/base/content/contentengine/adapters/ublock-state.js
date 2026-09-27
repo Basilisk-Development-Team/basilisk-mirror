@@ -10,6 +10,39 @@
 var UBlockStateAdapter = Object.freeze({
   version: "1.16.6.1",
 
+  inspectRuntime(scope) {
+    const Cu=Components.utils;
+    const Services=Cu.import("resource://gre/modules/Services.jsm",{}).Services;
+    let background;
+    try {background=Cu.evalInSandbox("typeof bgProcess !== 'undefined' && bgProcess && bgProcess.contentWindow",scope);}
+    catch (_) {return null;}
+    if (!background || !Services.scriptSecurityManager.isSystemPrincipal(background.document.nodePrincipal)) return null;
+    background=background.wrappedJSObject;
+    const u=background.µBlock;
+    if (!u || !u.staticNetFilteringEngine || !u.cosmeticFilteringEngine) return null;
+    if (u.loadingFilterLists || !u.staticNetFilteringEngine.frozen || !u.cosmeticFilteringEngine.frozen)
+      return {waiting:true};
+    const engine=u.staticNetFilteringEngine;
+    return {background, identity:engine.categories,
+      signature:JSON.stringify([engine.acceptedCount,engine.discardedCount,
+        u.cosmeticFilteringEngine.acceptedCount,u.cosmeticFilteringEngine.discardedCount,
+        u.stringFromWhitelist(u.netWhitelist),u.sessionFirewall.toArray(),
+        u.sessionURLFiltering.toArray(),u.sessionSwitches.toArray(),u.userSettings])};
+  },
+
+  updateBrowserState(background,browser,previousURI) {
+    let reported=previousURI;
+    background.vAPI.tabs.get(null,info=> {
+      if (!info || background.vAPI.tabs.get(info.id)!==browser) return;
+      const uri=browser.currentURI.spec;
+      if (uri!==previousURI) {
+        background.vAPI.tabs.onNavigation({frameId:0,tabId:info.id,url:uri});
+        reported=uri;
+      }
+    });
+    return reported;
+  },
+
   // Decode the pinned extension's EFFECTIVE compiled classes. This does not
   // parse ABP/EasyList text; uBlock remains responsible for list parsing,
   // badfilter elimination and building the active engine.
@@ -27,11 +60,21 @@ var UBlockStateAdapter = Object.freeze({
         .join("([^%.0-9a-z_-]|$)")).join(".*");
     }
     const host = "^[a-z-]+://([^/?#]*@)?([^/?#:@]*\\.)?";
-    function emit(bits, data) {
+    function emit(bits, data, documents) {
+      if (!Array.isArray(data)) data=[0];
       const id = data[0];
-      if (id === 16) { emit(bits, data[1]); emit(bits, data[2]); return; }
-      if (id === 17) { for (const child of data[1]) emit(bits, child); return; }
-      if (id === 15) { for (const name of data[1]) emit(bits, [4, name]); return; }
+      if (id === 16) { emit(bits, data[1],documents); emit(bits, data[2],documents); return; }
+      if (id === 17) { for (const child of data[1]) emit(bits, child,documents); return; }
+      if (id === 15) { for (const name of data[1]) emit(bits, [4, name],documents); return; }
+      if (id===13) {
+        try {
+          const names=data[1].split('|');
+          const include=names.filter(name=>name[0]!=='~');
+          const exclude=names.filter(name=>name[0]==='~').map(name=>name.slice(1));
+          emit(bits,data[2],ContentPolicyDomains.patterns(include,exclude));
+        } catch(error) {unsupported.push({reason:error.message,category:bits,classId:id});}
+        return;
+      }
       let type = (bits & 0x1f0) >>> 4;
       if ((bits & ~0x1ff) || (bits & 12) === 12 || (type && !types[type])) {
         unsupported.push({reason:"resource category", category:bits}); return;
@@ -49,12 +92,19 @@ var UBlockStateAdapter = Object.freeze({
       else if (id === 10 || id === 11) regex = host + pattern(data[1]) + (id === 11 ? "$" : "");
       else if (id === 12) regex = data[1];
       else { unsupported.push({reason:"compiled class", category:bits, classId:id}); return; }
-      groups[bits & 2 ? 2 : bits & 1 ? 1 : 0].push({
-        urlPattern:regex, caseSensitive:false,
-        resourceTypes:type ? [types[type]] : ordinary.slice(),
-        party:bits & 8 ? "third-party" : bits & 4 ? "first-party" : "any",
-        action:bits & 1 ? "allow" : "block"
-      });
+      try {
+        for (const urlPattern of ContentPolicyPatterns.expand(regex)) {
+          for (const documentURLPattern of documents || [""]) {
+            groups[bits & 2 ? 2 : bits & 1 ? 1 : 0].push({
+              urlPattern, documentURLPattern, caseSensitive:false,
+              resourceTypes:type ? [types[type]] : ordinary.slice(),
+              party:bits & 8 ? "third-party" : bits & 4 ? "first-party" : "any",
+              action:bits & 1 ? "allow" : "block"
+            });
+          }
+        }
+      } catch(error) {unsupported.push({reason:error.message,category:bits,classId:id});}
+
     }
     for (const category of snapshot.network.categories)
       for (const entry of category[1]) emit(category[0], entry[1]);

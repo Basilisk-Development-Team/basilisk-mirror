@@ -47,3 +47,6 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'windows':
         'WindowsJumpLists.jsm',
         'WindowsPreviewPerTab.jsm',
     ]
+
+if CONFIG['MOZ_WEBKIT']:
+    EXTRA_JS_MODULES += ['LegacyBlockingExtensions.jsm']

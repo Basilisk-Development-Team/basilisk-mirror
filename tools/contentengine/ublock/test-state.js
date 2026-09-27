@@ -8,6 +8,7 @@ for (const file of ['utils.js', 'static-net-filtering.js', 'dynamic-net-filterin
                     'url-net-filtering.js', 'hnswitches.js']) {
   vm.runInContext(fs.readFileSync(root + '/js/' + file, 'utf8'), context, {filename:file});
 }
+for (const file of ['policy-domains.js','policy-patterns.js']) vm.runInContext(fs.readFileSync('basilisk/base/content/contentengine/'+file,'utf8'),context);
 vm.runInContext(fs.readFileSync('basilisk/base/content/contentengine/adapters/ublock-state.js', 'utf8'), context);
 // Supply browser-independent state normally created by background/startup. The
 // filtering engine, parser, serialization and rule containers above are the
@@ -83,10 +84,28 @@ for (const url of ['https://ads.example/x', 'https://ads.example/allowed',
   }
 }
 vm.runInContext(`compile(['||domain.example^$domain=page.example']);`, context);
-assert(vm.runInContext('UBlockStateAdapter.compileStaticNetwork(UBlockStateAdapter.snapshot("1.16.6.1", {µBlock})).unsupported.length', context) > 0);
+assert(vm.runInContext('UBlockStateAdapter.compileStaticNetwork(UBlockStateAdapter.snapshot("1.16.6.1", {µBlock})).unsupported.length', context) === 0);
 context.µBlock.loadingFilterLists = true;
 assert.throws(read, /not ready/);
 context.µBlock.loadingFilterLists = false;
 context.µBlock.systemSettings.compiledMagic++;
 assert.throws(read, /schema/);
 console.log('PASS live effective state, badfilter, selfie restore, user edits, session rules, whitelist, immutable ownership, version/schema/readiness guards');
+if(process.argv[3]) {
+  context.µBlock.systemSettings.compiledMagic--;
+  context.listLines=fs.readFileSync(process.argv[3],'utf8').split(/\r?\n/);
+  const start=Date.now();
+  vm.runInContext('µBlock.staticNetFilteringEngine.reset();compile(listLines);',context);
+  const parsed=Date.now();
+  const result=vm.runInContext('UBlockStateAdapter.compileStaticNetwork(UBlockStateAdapter.snapshot("1.16.6.1", {µBlock}))',context);
+  const reasons={};
+  for(const item of result.unsupported) {
+    const key=JSON.stringify(item);
+    reasons[key]=(reasons[key]||0)+1;
+  }
+  console.log('LIST TRANSLATION '+JSON.stringify({
+    sha256:require('crypto').createHash('sha256').update(fs.readFileSync(process.argv[3])).digest('hex'),
+    accepted:engine.acceptedCount,discarded:engine.discardedCount,rules:result.rules.length,
+    parserMS:parsed-start,translationMS:Date.now()-parsed,unsupported:reasons
+  }));
+}

@@ -21,5 +21,5 @@ with tempfile.TemporaryDirectory(prefix='ublock-state-test-') as temporary:
             target = root / 'js' / name
             target.parent.mkdir(exist_ok=True)
             target.write_bytes(archive.read(member))
-    subprocess.run(['node', str(Path(__file__).with_name('test-state.js')), str(root)], check=True)
+    subprocess.run(['node', str(Path(__file__).with_name('test-state.js')), str(root)] + sys.argv[2:], check=True)
 assert hashlib.sha256(xpi.read_bytes()).hexdigest() == expected

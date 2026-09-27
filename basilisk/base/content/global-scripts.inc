@@ -16,6 +16,7 @@
 <script type="application/javascript" src="chrome://browser/content/contentengine/engine-fullscreen.js"/>
 <script type="application/javascript" src="chrome://browser/content/contentengine/engine-scripts.js"/>
 <script type="application/javascript" src="chrome://browser/content/contentengine/legacy-runtime.js"/>
+<script type="application/javascript" src="chrome://browser/content/contentengine/engine-blocking.js"/>
 <script type="application/javascript" src="chrome://browser/content/contentengine/engine-context.js"/>
 <script type="application/javascript" src="chrome://browser/content/contentengine/engine-finder.js"/>
 <script type="application/javascript" src="chrome://browser/content/contentengine/engine-downloads.js"/>

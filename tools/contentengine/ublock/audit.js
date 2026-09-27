@@ -34,13 +34,18 @@ async function run() {
     return bg && bg.µBlock && bg.µBlock.availableFilterLists && bg.µBlock.availableFilterLists['user-filters'];
   }, "uBlock startup");
   const compiledProbe = Services.prefs.getBoolPref("content.audit.compiledProbe");
+  const automatic=Services.prefs.getBoolPref("content.audit.automatic");
   let adapter;
-  if (compiledProbe) {
+  if (compiledProbe || automatic) {
     await waitFor(() => !bg.µBlock.loadingFilterLists, "initial list load");
     bg.µBlock.saveSelectedFilterLists(['user-filters']);
     await new Promise(resolve => bg.µBlock.loadFilterLists(resolve));
+    if (compiledProbe) {
     adapter = {};
+    for (const name of ["policy-domains", "policy-patterns"])
+      Services.scriptloader.loadSubScript("chrome://browser/content/contentengine/" + name + ".js", adapter, "UTF-8");
     Services.scriptloader.loadSubScript("chrome://browser/content/contentengine/ublock-state-probe.js", adapter, "UTF-8");
+    }
   }
   let count = bg.µBlock.staticNetFilteringEngine.acceptedCount;
   bg.µBlock.appendUserFilters("*/audit-blocked*\n127.0.0.1##.audit-ad\n");
@@ -49,6 +54,13 @@ async function run() {
   let win = window.openDialog("chrome://browser/content/browser.xul", "_blank", "chrome,all,dialog=no", "about:blank");
   await waitFor(() => win.gBrowser && win.gBrowserInit.delayedStartupFinished, "browser startup");
   let g = win.gBrowser;
+  if (automatic) {
+    const service=Components.utils.import("resource:///modules/LegacyBlockingExtensions.jsm",{}).LegacyBlockingExtensions;
+    dump('UBLOCK-AUDIT AUTO service '+JSON.stringify({entry:!!service.entry,generation:service.generation,listeners:service.listeners.size,
+      principal:Services.scriptSecurityManager.isSystemPrincipal(bg.document.nodePrincipal),schema:bg.µBlock.systemSettings,
+      adapterVersion:service.entry && service.entry.version})+'\n');
+  }
+
   await waitFor(() => win.document.getElementById(bg.vAPI.toolbarButton.id), "toolbar creation");
   dump("UBLOCK-AUDIT toolbar " + JSON.stringify({present:true, id:bg.vAPI.toolbarButton.id, path:bg.vAPI.toolbarButton.codePath}) + "\n");
   await new Promise(resolve => bg.vAPI.storage.set({contentShimAudit:'stored'}, resolve));

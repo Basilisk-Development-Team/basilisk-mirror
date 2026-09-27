@@ -66,6 +66,7 @@ var ContentEngines = {
     ContentEngineSession.init();
     ContentEngineEvents.init();
     ContentEngineRouting.init();
+    ContentEngineBlocking.init();
     window.controllers.insertControllerAt(0, ContentEngineEditController);
     gBrowser.tabContainer.addEventListener("TabSelect", this);
     gBrowser.tabContainer.addEventListener("TabClose", this);
@@ -278,10 +279,30 @@ class ExternalContentBrowser {
       },
       goBack: () => this.native.goBack(), goForward: () => this.native.goForward(),
       reload: () => this.native.reload(), reloadWithFlags: () => this.native.reload(),
-      stop: () => { delete this.pendingURI; this.native.stop(); }, focus: () => this.focus(),
+      // UXP's default methods QI the Gecko navigation object for a load group.
+      // Alternate network scheduling is backend-owned and has no such object.
+      adjustPriority: () => {}, setPriority: () => {},
+      stop: () => { delete this.pendingURI; this.preparingNavigation=null; this.tab.removeAttribute("busy"); this.native.stop(); }, focus: () => this.focus(),
       mute: () => { this.native.muted = true; }, unmute: () => { this.native.muted = false; }
     };
+    methods.reload = () => ContentEngineBlocking.prepare(this,this.native.currentURI || "about:blank").then(() => {
+      if (!this.destroyed) this.native.reload();
+    }).catch(Cu.reportError);
+    methods.reloadWithFlags = methods.reload;
     for (let name of Object.keys(methods)) this.define(name, {value: methods[name]});
+    // Browser-facing navigation operations, with no docshell/QI/DOM claims.
+    // Legacy chrome commonly reaches reload through this property.
+    const navigation = Object.freeze({
+      QueryInterface: () => {throw Components.Exception("No Gecko navigation interface",Cr.NS_ERROR_NO_INTERFACE);},
+      reload:methods.reload, stop:methods.stop, goBack:methods.goBack, goForward:methods.goForward,
+      loadURI:(uri,flags,referrer,postData,headers) => {
+        if (headers) throw Components.Exception("Alternate request headers unsupported",Cr.NS_ERROR_NOT_IMPLEMENTED);
+        ContentEngines.navigate(b,uri,{flags,referrerURI:referrer,postData});
+      },
+      get currentURI() {return b.currentURI;},
+      get canGoBack() {return b.canGoBack;}, get canGoForward() {return b.canGoForward;}
+    });
+    this.define("webNavigation",{get:()=>navigation});
     this.define("fullZoom", {get: () => this.native.zoom, set: value => { this.native.zoom = value; }});
     this.native.attach(window, this);
     this.tab.setAttribute("contentengine", this.engineId);
@@ -305,6 +326,18 @@ class ExternalContentBrowser {
       let client = ContentEngineScripts.clients.get(this.browser);
       if (client) for (let id of Array.from(client.pending.keys()))
         client.result(id, "null", "WebKit content process terminated");
+    }
+    if (topic == "content-view-navigation-prepare") {
+      const info=subject.QueryInterface(Ci.nsIWritablePropertyBag2);
+      const id=info.getPropertyAsUint32("id");
+      info.setPropertyAsBool("deferred",true);
+      ContentEngineBlocking.prepare(this,info.getPropertyAsAUTF8String("uri")).then(() => {
+        if (!this.destroyed) this.native.completeNavigationPreparation(id,true);
+      }, error => {
+        Cu.reportError(error);
+        if (!this.destroyed) this.native.completeNavigationPreparation(id,false);
+      }).catch(Cu.reportError);
+      return;
     }
     if (topic == "content-view-route") {
       let info = subject.QueryInterface(Ci.nsIWritablePropertyBag2);
@@ -372,20 +405,36 @@ class ExternalContentBrowser {
       this.browser.userTypedValue = null;
     }
     this.tab.label = this.browser.contentTitle;
-    for (let [name, value] of [["busy", this.native.loading],
+    for (let [name, value] of [["busy", this.native.loading || !!this.preparingNavigation],
                               ["soundplaying", this.native.audioPlaying], ["muted", this.native.muted]]) {
       if (value) this.tab.setAttribute(name, "true");
       else this.tab.removeAttribute(name);
     }
     gBrowser._tabAttrModified(this.tab, ["label", "busy", "soundplaying", "muted"]);
     ContentEngineSession.save(this);
+    ContentEngineBlocking.updatePage(this.browser);
     if (this.browser == gBrowser.selectedBrowser) ContentEngines.refresh();
   }
   loadURI(uri) {
     if (this.ready) { ContentEngines.loadWhenReady(this, uri); return; }
     this.browser.userTypedValue = null;
     this.requestedURI = uri || "about:blank";
-    this.native.loadURI(uri || "about:blank");
+    const request=this.requestedURI, ticket={};
+    this.preparingNavigation=ticket;
+    this.tab.setAttribute("busy","true");
+    ContentEngineBlocking.prepare(this,request).then(() => {
+      if (!this.destroyed && this.preparingNavigation===ticket) {
+        this.native.loadURI(request);
+        this.preparingNavigation=null;
+      }
+    }).catch(error => {
+      Cu.reportError(error);
+      if (!this.destroyed && this.preparingNavigation===ticket) {
+        this.preparingNavigation=null;
+        this.tab.removeAttribute("busy");
+        this.tab.label="Content policy setup failed";
+      }
+    });
     ContentEngineSession.save(this);
   }
   focus() {
