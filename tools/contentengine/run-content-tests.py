@@ -52,6 +52,14 @@ class Handler(BaseHTTPRequestHandler):
    try:self.wfile.write(data)
    except (BrokenPipeError,ConnectionResetError):pass
    return
+  if self.path.startswith('/scoped-documents'):
+   phase=parse_qs(urlparse(self.path).query).get('phase',['include'])[0]
+   body='<title>Scoped documents</title>'+''.join('<iframe src="http://%s:%d/scoped-frame?phase=%s"></iframe>'%(host,self.server.server_port,phase) for host in ['127.0.0.1','localhost'])
+   data=body.encode();self.send_response(200);self.send_header('Content-Type','text/html');self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data);return
+  if self.path.startswith('/scoped-frame'):
+   phase=parse_qs(urlparse(self.path).query).get('phase',['include'])[0]
+   data=('<script>fetch("http://127.0.0.1:%d/scope/probe?phase=%s&from="+location.hostname).catch(()=>{});</script>'%(self.server.server_port,phase)).encode()
+   self.send_response(200);self.send_header('Content-Type','text/html');self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data);return
   if self.path.startswith('/legacy-slow-script'):
    import time
    time.sleep(2)

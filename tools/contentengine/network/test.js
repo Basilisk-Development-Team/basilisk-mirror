@@ -72,6 +72,24 @@ async function run(){
  tab.linkedBrowser.loadURI(base+'/matrix?run=party');
  await waitFor(()=>tab.linkedBrowser.contentTitle=='Matrix ready'&&!tab.hasAttribute('busy'),'party control');
  let requests=await counts();check(requests['/third/script?run=party']==1,'third party falsely classified first party');
+ await api.setRequestRules('scoped',[{urlPrefix:base+'/scope/probe',resourceTypes:['fetch'],
+   documentURLPattern:'^http://127[.]0[.]0[.]1:'+port+'/'}]);
+ tab.linkedBrowser.loadURI(base+'/scoped-documents?phase=include');
+ await waitFor(()=>tab.linkedBrowser.contentTitle=='Scoped documents'&&!tab.hasAttribute('busy'),'scoped documents');
+ await delay(700);requests=await counts();
+ check(!requests['/scope/probe?phase=include&from=127.0.0.1'],'matching document escaped scope');
+ check(requests['/scope/probe?phase=include&from=localhost']==1,'top-page origin substituted for child document');
+ await api.setRequestRules('scoped',[{urlPrefix:base+'/scope/probe',resourceTypes:['fetch'],
+   documentURLPattern:'^http://127[.]0[.]0[.]1:'+port+'/',excludeDocumentURL:true}]);
+ tab.linkedBrowser.loadURI(base+'/scoped-documents?phase=exclude');
+ await waitFor(()=>tab.linkedBrowser.contentTitle=='Scoped documents'&&!tab.hasAttribute('busy'),'excluded documents');
+ await delay(700);requests=await counts();
+ check(requests['/scope/probe?phase=exclude&from=127.0.0.1']==1,'excluded document blocked');
+ check(!requests['/scope/probe?phase=exclude&from=localhost'],'non-excluded document escaped block');
+ await api.removeRequestRules('scoped');
+ dump('NETWORK PASS requesting-document conditions distinguish mixed-origin frames\n');
+ await api.setRequestRules('matrix',rules);
+ await load('after-scope',true);
  await api.setRequestRules('matrix',rules);
  tab=win.ContentEngines.switchEngine(tab,'gecko');
  await waitFor(()=>tab.linkedBrowser.contentTitle=='Matrix ready'&&!tab.hasAttribute('busy'),'Gecko switch');

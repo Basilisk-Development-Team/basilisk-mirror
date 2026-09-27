@@ -144,6 +144,19 @@ NS_IMETHODIMP WPEContentView::SetRequestRules(uint32_t request, const nsACString
       json.AppendLiteral(",\"top-url-filter-is-case-sensitive\":true,\"if-top-url\":[");
       AppendPrefix(json, top); json.Append(']');
     }
+    nsAutoCString document;
+    bool excludeDocument = false;
+    rv = rules[i]->GetDocumentURLPattern(document); NS_ENSURE_SUCCESS(rv, rv);
+    rv = rules[i]->GetExcludeDocumentURL(&excludeDocument); NS_ENSURE_SUCCESS(rv, rv);
+    NS_ENSURE_TRUE(document.Length() <= 8192 && (document.IsEmpty() || top.IsEmpty()) &&
+                   (!excludeDocument || !document.IsEmpty()), NS_ERROR_INVALID_ARG);
+    for (uint32_t j = 0; j < document.Length(); ++j)
+      NS_ENSURE_TRUE(document[j] >= 0x20 && document[j] <= 0x7e, NS_ERROR_INVALID_ARG);
+    if (!document.IsEmpty()) {
+      json.AppendLiteral(",\"frame-url-filter-is-case-sensitive\":false");
+      json.Append(excludeDocument ? ",\"unless-frame-url\":[" : ",\"if-frame-url\":[");
+      AppendPattern(json, document); json.Append(']');
+    }
     // Upstream ignore-previous-rules is scoped to this compiled list. Never
     // merge independently owned policy tokens into one list.
     json.Append(action.EqualsLiteral("allow") ?

@@ -8,7 +8,7 @@
  * URL prefix is a canonical ASCII HTTP(S)/WS(S) URI, matched case-sensitively.
  * Resource types are project-owned bits; zero matches all resource classes.
  */
-[scriptable, uuid(efeb0dc8-218f-4688-ad9f-a3896a63940e)]
+[scriptable, uuid(8352e210-460a-4a34-9527-05d2321e43cf)]
 interface nsIContentRequestRule : nsISupports
 {
   const unsigned long IMAGE = 1;
@@ -34,6 +34,10 @@ interface nsIContentRequestRule : nsISupports
   /** block or allow. allow overrides preceding rules in this policy ONLY.
    * A later block can override an earlier allow. */
   readonly attribute AUTF8String action;
+  /** Requesting document URL condition, not an inferred security origin.
+   * Mutually exclusive with topURLPrefix. */
+  readonly attribute AUTF8String documentURLPattern;
+  readonly attribute boolean excludeDocumentURL;
   readonly attribute unsigned long party;
   /** Empty means any; canonical HTTP(S) top-level document prefix otherwise. */
   readonly attribute AUTF8String topURLPrefix;

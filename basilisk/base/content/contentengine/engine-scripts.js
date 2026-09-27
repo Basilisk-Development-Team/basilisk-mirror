@@ -105,7 +105,7 @@ class ContentScriptClient {
             else view.native.executeScript(id, arguments_.source);
           }
           else if (operation == "Policy" && !arguments_.remove)
-            view.native.setRequestRules(id, arguments_.token, arguments_.rules.length, arguments_.rules.map(rule => Object.assign({party:0, topURLPrefix:"", urlPrefix:"", urlPattern:"", caseSensitive:true, action:"block"}, rule)));
+            view.native.setRequestRules(id, arguments_.token, arguments_.rules.length, arguments_.rules.map(rule => Object.assign({party:0, topURLPrefix:"", urlPrefix:"", urlPattern:"", caseSensitive:true, action:"block", documentURLPattern:"", excludeDocumentURL:false}, rule)));
           else {
             if (operation == "CSS") {
               if (arguments_.remove) view.native.removeCSS(arguments_.token);
@@ -150,7 +150,7 @@ class ContentScriptClient {
     if (typeof source != "string" || typeof token != "string" || !token || token.length > 256 || source.length > 1024 * 1024)
       return Promise.reject(new TypeError("Invalid stylesheet"));
     let definition = {source, allFrames:!!options.allFrames};
-    return this.request("CSS", Object.assign({token}, definition)).then(() => { this.styles.set(token, definition); return token; });
+    return this.request("CSS", Object.assign({token}, definition)).then(() => { if (options.persistAcrossViews !== false) this.styles.set(token, definition); else this.styles.delete(token); return token; });
   }
   removeCSS(token) {
     return this.request("CSS", {token, remove: true}).then(() => { this.styles.delete(token); });
@@ -190,13 +190,13 @@ class ContentScriptClient {
     this.ready = Promise.all(operations);
     return this.ready;
   }
-  setRequestRules(token, rules) {
+  setRequestRules(token, rules, options = {}) {
     try {
       if (typeof token != "string" || !token || token.length > 256 || !Array.isArray(rules) || !rules.length || rules.length > 100000)
         throw new TypeError("Invalid request rules");
       const types = {image:1, stylesheet:2, script:4, font:8, media:16, document:32, fetch:64, topDocument:128, subdocument:256, websocket:512, ping:1024, other:2048};
       let normalized = rules.map(rule => {
-        if (!rule || Object.keys(rule).some(key => !["urlPrefix", "urlPattern", "caseSensitive", "action", "resourceTypes", "party", "topURLPrefix"].includes(key)))
+        if (!rule || Object.keys(rule).some(key => !["urlPrefix", "urlPattern", "caseSensitive", "action", "documentURLPattern", "excludeDocumentURL", "resourceTypes", "party", "topURLPrefix"].includes(key)))
           throw new TypeError("Unknown request-rule field");
         let prefix = "", pattern = "";
         if ((rule.urlPrefix === undefined) === (rule.urlPattern === undefined))
@@ -234,11 +234,17 @@ class ContentScriptClient {
               (!top.schemeIs("http") && !top.schemeIs("https"))) throw new TypeError("Invalid top document prefix");
           topURLPrefix = top.asciiSpec;
         }
+        const documentURLPattern = rule.documentURLPattern === undefined ? "" : rule.documentURLPattern;
+        if (typeof documentURLPattern != "string" || documentURLPattern.length > 8192 ||
+            /[^\x20-\x7e]/.test(documentURLPattern) || (documentURLPattern && topURLPrefix))
+          throw new TypeError("Invalid or combined document condition");
+        if (rule.excludeDocumentURL !== undefined && (typeof rule.excludeDocumentURL != "boolean" || !documentURLPattern))
+          throw new TypeError("Document negation requires a document pattern");
         return {urlPrefix:prefix, urlPattern:pattern,
           caseSensitive:rule.caseSensitive === undefined ? true : rule.caseSensitive,
-          action, resourceTypes:mask, party, topURLPrefix};
+          action, documentURLPattern, excludeDocumentURL:!!rule.excludeDocumentURL, resourceTypes:mask, party, topURLPrefix};
       });
-      return this.request("Policy", {token, rules:normalized}).then(() => { this.policies.set(token, normalized); });
+      return this.request("Policy", {token, rules:normalized}).then(() => { if (options.persistAcrossViews !== false) this.policies.set(token, normalized); else this.policies.delete(token); });
     } catch (error) { return Promise.reject(error); }
   }
   removeRequestRules(token) {
