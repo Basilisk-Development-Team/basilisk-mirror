@@ -29,7 +29,8 @@ assert(!grouped.some(pattern=>new RegExp(pattern).test('https://host1023.example
 for(const source of ['^https?://(ads|track)[.]example/','banner([^a-z]|$)',
  '^https?://([^/?#]*@)?([^/?#:@]*\\.)?ads\\.example(:[0-9]+)?([/?#]|$)',
  'before([^a-z]|$)after','foo(bar|baz)?','(foo|bar)','(a|b)c(d|e)',
- '^a{2,4}$','^[a-z]{0,3}$','^(ab){2,}$','^(a|b){2}$','^z{0}$']) {
+ '^a{2,4}$','^[a-z]{0,3}$','^(ab){2,}$','^(a|b){2}$','^z{0}$',
+ '^[\\w\\W]{3,}$','[a\\D]','[\\S_]','[^\\w]', '^\\x61{2}$','^\\u0061+$', '[^\\u00ff]']) {
  const expanded=patterns.expand(source).map(p=>new RegExp(p));
  const original=new RegExp(source);
  for(const text of ['https://ads.example/','https://track.example/path','https://ads.example.evil/',

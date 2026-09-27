@@ -5,9 +5,24 @@
 // Equivalent finite expansion for backends without regex disjunction. This is
 // NOT a filter-list parser. Unsupported constructs reject rather than widen.
 var ContentPolicyPatterns = Object.freeze({
-  expand(source) {
+  expand(source, caseSensitive = true) {
     let pos=0;
     const limit=512;
+    // Policy URLs are serialized ASCII URLs. Lower built-in classes to an
+    // explicit ASCII set; the backend regex subset has no built-in classes.
+    function characterClass(source) {
+      const test=new RegExp('^'+source+'$',caseSensitive ? '' : 'i');
+      const ranges=[];
+      const hex=value=>'\\x'+('0'+value.toString(16)).slice(-2);
+      for (let code=1;code<128;code++) {
+        if (!test.test(String.fromCharCode(code))) continue;
+        const first=code;
+        while (code+1<128 && test.test(String.fromCharCode(code+1))) code++;
+        ranges.push(first===code ? hex(first) : hex(first)+'-'+hex(code));
+      }
+      if (!ranges.length) throw new Error('Character class cannot match an ASCII URL');
+      return '['+ranges.join('')+']';
+    }
     function bounded(values) {
       if (values.length>limit) throw new Error("Pattern expansion too large");
       return values;
@@ -44,12 +59,19 @@ var ContentPolicyPatterns = Object.freeze({
             else if (next===']') {closed=true;break;}
           }
           if (!closed) throw new Error("Unclosed character class");
-          atom=[text];
+          atom=[/\\[dDsSwWuxc0]/.test(text) ? characterClass(text) : text];
         } else if (c==='\\') {
           if (pos===source.length) throw new Error("Trailing escape");
           const next=source[pos++];
-          if (/[1-9bBpPkK]/.test(next)) throw new Error("Unsupported pattern escape");
-          atom=[next==='d' ? '[0-9]' : next==='w' ? '[a-zA-Z0-9_]' : '\\'+next];
+          if (/[0-9bBpPkK]/.test(next)) throw new Error("Unsupported pattern escape");
+          if (next==='x' || next==='u') {
+            const size=next==='x' ? 2 : 4, digits=source.slice(pos,pos+size);
+            if (digits.length!==size || !/^[0-9a-f]+$/i.test(digits)) throw new Error('Invalid hexadecimal escape');
+            const value=parseInt(digits,16);
+            if (!value || value>127) throw new Error('Character cannot occur in a serialized ASCII URL');
+            pos+=size;
+            atom=['\\x'+('0'+value.toString(16)).slice(-2)];
+          } else atom=[/[dDsSwW]/.test(next) ? characterClass('[\\'+next+']') : '\\'+next];
         } else {
           if ('*+?{}'.includes(c)) throw new Error("Unsupported pattern quantifier");
           atom=[c];
@@ -92,6 +114,8 @@ var ContentPolicyPatterns = Object.freeze({
       if (group) throw new Error("Unclosed pattern group");
       return bounded(out.concat(parts));
     }
-    return Array.from(new Set(alternatives(false)));
+    const result=Array.from(new Set(alternatives(false)));
+    if (result.some(pattern=>pattern.length>8192)) throw new Error('Expanded pattern exceeds size limit');
+    return result;
   }
 });
