@@ -93,7 +93,7 @@ def kill_webprocesses(parent):
    try:os.kill(pid,signal.SIGKILL)
    except ProcessLookupError:pass
 
-p=argparse.ArgumentParser(description=__doc__);p.add_argument('objdir',type=Path);p.add_argument('suite',choices=['webrtc','frames','network','legacy']);p.add_argument('--cycles',type=int,default=3);p.add_argument('--gst-debug');p.add_argument('--external',action='store_true');a=p.parse_args()
+p=argparse.ArgumentParser(description=__doc__);p.add_argument('objdir',type=Path);p.add_argument('suite',choices=['webrtc','frames','network','legacy','navigation-policy']);p.add_argument('--cycles',type=int,default=3);p.add_argument('--gst-debug');p.add_argument('--external',action='store_true');a=p.parse_args()
 server=ThreadingHTTPServer(('127.0.0.1',0),Handler);threading.Thread(target=server.serve_forever,daemon=True).start()
 try:
  with tempfile.TemporaryDirectory(prefix='basilisk-content-test-') as temporary:

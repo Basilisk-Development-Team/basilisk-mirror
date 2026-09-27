@@ -38,6 +38,9 @@ private:
   nsresult SendFrameOperation(uint32_t id, const char* name, _GVariant* parameters);
   nsresult EnsureFilterStore();
   void ClearRequestRules();
+  void CancelNavigationPreparations();
+  _GHashTable* mNavigationPreparations = nullptr;
+  uint32_t mNavigationPreparationId = 0;
   WPEHost* mHost = nullptr;
   _MozContainer* mContainer = nullptr;
   nsCOMPtr<nsIContentViewObserver> mListener;

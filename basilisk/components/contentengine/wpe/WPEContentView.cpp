@@ -18,6 +18,42 @@
 #include "WPEGtk.h"
 
 NS_IMPL_ISUPPORTS(WPEContentView, nsIWebContentView)
+namespace {
+struct NavigationPreparation {
+  WebKitPolicyDecision* decision;
+  WPEContentView* owner;
+  uint32_t id;
+  guint timeout = 0;
+  bool resolved = false;
+  ~NavigationPreparation() {
+    if (timeout) g_source_remove(timeout);
+    if (!resolved) webkit_policy_decision_ignore(decision);
+    g_object_unref(decision);
+  }
+};
+}
+void WPEContentView::CancelNavigationPreparations()
+{
+  if (mNavigationPreparations) {
+    auto* pending = mNavigationPreparations;
+    mNavigationPreparations = nullptr;
+    g_hash_table_unref(pending);
+  }
+}
+NS_IMETHODIMP WPEContentView::CompleteNavigationPreparation(uint32_t id, bool allow)
+{
+  auto* pending = mNavigationPreparations ? static_cast<NavigationPreparation*>(
+    g_hash_table_lookup(mNavigationPreparations, GUINT_TO_POINTER(id))) : nullptr;
+  NS_ENSURE_TRUE(pending && !mDestroyed, NS_ERROR_NOT_AVAILABLE);
+  RefPtr<WPEContentView> owner = this;
+  g_hash_table_steal(mNavigationPreparations, GUINT_TO_POINTER(id));
+  pending->resolved = true;
+  if (allow) webkit_policy_decision_use(pending->decision);
+  else webkit_policy_decision_ignore(pending->decision);
+  delete pending;
+  return NS_OK;
+}
+
 WPEContentView::~WPEContentView() { Destroy(); }
 NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewObserver* listener)
 {
@@ -180,6 +216,7 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
   g_signal_connect(mHost->webView, "load-changed", G_CALLBACK(+[](WebKitWebView*, WebKitLoadEvent event, gpointer data) {
     auto* self = static_cast<WPEContentView*>(data);
     if (event == WEBKIT_LOAD_STARTED) {
+      self->CancelNavigationPreparations();
       self->CancelScripts();
       g_hash_table_remove_all(self->mFrames);
     }
@@ -203,12 +240,35 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
       static_cast<WPEContentView*>(data)->Notify("content-view-route", static_cast<nsIWritablePropertyBag2*>(info));
       bool handled = false;
       info->GetPropertyAsBool(NS_LITERAL_STRING("handled"), &handled);
-      if (handled) webkit_policy_decision_ignore(decision);
-      return handled;
+      if (handled) { webkit_policy_decision_ignore(decision); return TRUE; }
+      RefPtr<WPEContentView> owner = static_cast<WPEContentView*>(data);
+      owner->CancelNavigationPreparations();
+      owner->mNavigationPreparations = g_hash_table_new_full(g_direct_hash, g_direct_equal, nullptr,
+        +[](gpointer item) { delete static_cast<NavigationPreparation*>(item); });
+      uint32_t id = ++owner->mNavigationPreparationId;
+      auto* pending = new NavigationPreparation;
+      pending->decision = WEBKIT_POLICY_DECISION(g_object_ref(decision));
+      pending->owner = owner.get();
+      pending->id = id;
+      g_hash_table_insert(owner->mNavigationPreparations, GUINT_TO_POINTER(id), pending);
+      pending->timeout = g_timeout_add_seconds(30, +[](gpointer item) -> gboolean {
+        auto* pending = static_cast<NavigationPreparation*>(item);
+        pending->timeout = 0;
+        pending->owner->CompleteNavigationPreparation(pending->id, false);
+        return G_SOURCE_REMOVE;
+      }, pending);
+      info->SetPropertyAsUint32(NS_LITERAL_STRING("id"), id);
+      info->SetPropertyAsBool(NS_LITERAL_STRING("deferred"), false);
+      owner->Notify("content-view-navigation-prepare", static_cast<nsIWritablePropertyBag2*>(info));
+      bool deferred = false;
+      info->GetPropertyAsBool(NS_LITERAL_STRING("deferred"), &deferred);
+      if (!deferred && !owner->mDestroyed) owner->CompleteNavigationPreparation(id, true);
+      return TRUE;
     }), this);
   g_signal_connect(mHost->webView, "web-process-terminated",
     G_CALLBACK(+[](WebKitWebView*, WebKitWebProcessTerminationReason, gpointer data) {
       auto* self = static_cast<WPEContentView*>(data);
+      self->CancelNavigationPreparations();
       self->CancelScripts();
       g_clear_object(&self->mInspectAction);
       RefPtr<WPEContentView> owner = self;
@@ -316,6 +376,7 @@ NS_IMETHODIMP WPEContentView::Destroy()
   if (mDestroyed) return NS_OK;
   mDestroyed = true;
   CancelScripts();
+  CancelNavigationPreparations();
   ClearRequestRules();
   if (mFrames) { g_hash_table_unref(mFrames); mFrames = nullptr; }
   if (mStyleSheets) { g_hash_table_unref(mStyleSheets); mStyleSheets = nullptr; }
@@ -415,6 +476,7 @@ void WPEContentView::Notify(const char* topic, nsISupports* subject)
 
 NS_IMETHODIMP WPEContentView::LoadURI(const nsACString& value)
 {
+  CancelNavigationPreparations();
   NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
   nsCOMPtr<nsIURI> uri;
   nsresult rv = NS_NewURI(getter_AddRefs(uri), value);
@@ -431,6 +493,7 @@ NS_IMETHODIMP WPEContentView::LoadURI(const nsACString& value)
 }
 NS_IMETHODIMP WPEContentView::Reload()
 {
+  CancelNavigationPreparations();
   NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
   mLastError.Truncate();
   webkit_web_view_reload(mHost->webView);
@@ -438,18 +501,21 @@ NS_IMETHODIMP WPEContentView::Reload()
 }
 NS_IMETHODIMP WPEContentView::Stop()
 {
+  CancelNavigationPreparations();
   NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
   webkit_web_view_stop_loading(mHost->webView);
   return NS_OK;
 }
 NS_IMETHODIMP WPEContentView::GoBack()
 {
+  CancelNavigationPreparations();
   NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
   webkit_web_view_go_back(mHost->webView);
   return NS_OK;
 }
 NS_IMETHODIMP WPEContentView::GoForward()
 {
+  CancelNavigationPreparations();
   NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
   webkit_web_view_go_forward(mHost->webView);
   return NS_OK;
