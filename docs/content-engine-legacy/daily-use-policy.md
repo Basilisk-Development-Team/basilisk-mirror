@@ -39,8 +39,9 @@ This is polling, not an extension-provided rule-export notification. An epoch
 invalidates discovery callbacks after disable or the last window unsubscribe.
 
 `engine-blocking.js` serializes policy/CSS replacement per alternate view.
-Chrome navigation awaits preparation; backend-originated navigation holds the
-existing public top-document response policy decision for at most 30 seconds.
+Chrome navigation and reload await cancellable preparation; backend-originated
+navigation holds the existing public top-document response policy decision for
+at most 30 seconds.
 Timeout denies that document response. Stop, replacement navigation, process
 termination and destruction cancel the decision. This gate currently covers GET
 main-document responses, not arbitrary requests or form submission semantics.
@@ -65,6 +66,9 @@ new view. Gecko keeps its existing extension implementation.
   allowed controls load; declarative and dynamically inserted cosmetic targets
   are hidden; site disable/re-enable restores/removes requests; popup current
   site and extension reload work. No harness adapter refresh is used.
+* Full-subscription stress passes 100 Gecko/WebKit/Gecko cycles with nine
+  blocked counters remaining zero and allowed content/cosmetics checked in both
+  engines after each switch.
 * The strict audit still **fails** request logger and picker assertions. Those
   checks remain enabled. No blocked-request count is fabricated.
 * Enabled and disabled incremental builds pass. The completed disabled
@@ -79,22 +83,21 @@ new view. Gecko keeps its existing extension implementation.
 ## Remaining daily-use gaps
 
 This integration is not yet the completed daily-use milestone. Private compiled
-policy storage, the full lifecycle/stress matrix, procedural/generic cosmetics,
+policy storage, the full lifecycle/stress matrix, procedural cosmetics,
 dynamic-rule enforcement, picker and logger coverage remain incomplete.
+
+The original full-list setup failure has been addressed. Full-list translation
+now stays below the backend's rule limit, and the clean default subscription set
+loads in WebKit with demonstrated pre-fetch blocking. See
+[the failure investigation and current results](policy-setup-failure.md).
 
 A full EasyList snapshot downloaded from its configured primary URL on
 2026-09-26 has SHA256
 `316c20c7172349860cf4f07a46e7711a8396f7553e7eb0a363b24c8acf9ada77`.
 The pinned extension parser accepted 61,453 network entries (36 discarded).
-Translation produced 169,732 rules, exceeding the generic 100,000-rule limit
-and the backend's 150,000-rule limit. Consequently this is **not** a successful
-full-list installation. Unsupported output includes bounded regex quantifiers,
-object requests, popup behavior, top-document behavior and generic-hide
-exceptions. Behavioral/cosmetic exceptions must be distinguished from ordinary
-network exceptions before safely expanding coverage. Currently unsupported
-exceptions reject preparation rather than silently applying an overblocking
-policy. A normal full-list installation can therefore fail navigation; the
-controlled user-filter acceptance result must not be called daily-use readiness.
+The revised translator produces 56,832 rules. This does not cover every filter
+syntax. Behavioral exceptions no longer invalidate ordinary network policies;
+unsupported ordinary network exceptions still reject preparation.
 
 Backend party classification uses the top document's registrable domain. It is
 not equivalent to uBlock's requesting-frame classification for cross-origin

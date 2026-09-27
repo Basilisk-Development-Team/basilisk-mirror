@@ -30,7 +30,7 @@ page scripts. These entry points are privileged browser-side helpers. The
 reader itself is not an authorization boundary; the eventual startup binding
 must verify the installed active extension and own its lifetime.
 
-## Tests and what they prove
+## Initial explicit probe and what it proved
 
 ```
 python3 tools/contentengine/ublock/test-state.py <pinned-clean.xpi>
@@ -59,22 +59,20 @@ uBlock to disable/re-enable the site, explicitly refreshes adapter output, and
 checks that previously blocked requests reach the server only while disabled.
 The same runner keeps its native Gecko control tests.
 
-**This is a test-driven adapter invocation, not automatic installation support.**
-The probe explicitly drives state refresh. It does not claim to observe updates
-from ordinary extension UI yet. `--require-webkit` still enforces the full
-original acceptance conditions and still fails missing page store, logger,
-picker and extension-triggered reload integration. Existing acceptance failures
-were not removed or made expected.
-
-The adapter is intentionally not yet packaged or loaded automatically. The
-fixture stages it only for the probe. No normal browsing behavior is changed by
-this partial adapter. The generic URL-pattern API itself is built and tested.
+The explicit `--compiled-policy-probe` remains a diagnostic, not evidence of
+automatic lifecycle support. Normal browsing now packages and loads the adapter
+through `LegacyBlockingExtensions.jsm`; the default audit and `--automatic`
+exercise that production path without manually refreshing policies. Page state
+and extension-triggered reload pass. The strict `--require-webkit` acceptance
+still fails logger and picker checks; those failures remain enabled.
+See [daily-use-policy.md](daily-use-policy.md) for lifecycle behavior and
+[policy-setup-failure.md](policy-setup-failure.md) for the full-list results.
 
 ## Remaining rule and integration work
 
-* Domain-constrained compiled class 13 is explicitly reported unsupported, not
-  silently widened to a top-page-only approximation. Mixed include/exclude and
-  requesting-frame semantics need generic condition support and tests.
+* Domain-constrained class 13 uses requesting-document URL predicates, including
+  mixed inclusion/exclusion. Inherited/opaque origin and navigation edge cases
+  are not equivalent to complete requesting-origin attribution.
 * Popup/popunder, inline-script/font, generichide, document strict-blocking and
   other behavioral categories are not ordinary resource blocks. Unsupported
   category entries are reported. Object/plugin classification is not mapped to
@@ -82,8 +80,8 @@ this partial adapter. The generic URL-pattern API itself is built and tested.
 * Static data-filter/CSP state and redirect-engine state are not translated.
   Blocking a redirect target works; substituting a redirect resource does not.
 * Backend-supported regex syntax is narrower than JavaScript regex syntax.
-  Unsupported expressions reject compilation transactionally. Exact real-list
-  coverage has not yet been measured.
+  Unsupported ordinary exceptions reject preparation; unsupported blocks are
+  reported as partial coverage. Full-list measurements are recorded below.
 * Dynamic firewall/URL/noop/switch rules are captured, **not translated**.
   `compileStaticNetwork` must not be mistaken for the complete effective policy.
 * Backend party classification versus uBlock's requesting-document classification
@@ -91,15 +89,16 @@ this partial adapter. The generic URL-pattern API itself is built and tested.
 * Generic DOM survey, procedural filters, scriptlets, all-frame cosmetics and
   picker execution still need the isolated content runtime integration. CSS
   matching dynamic elements does not prove procedural filtering works.
-* Automatic extension discovery/startup/shutdown, coherent update generations,
-  pre-navigation installation, session restore and tab/engine lifecycle bindings
-  remain to be implemented. Site toggles work only when the probe refreshes state.
+* Automatic discovery, update generations, navigation preparation and site toggles
+  now operate in production. The complete install/uninstall/private/session
+  lifecycle acceptance matrix is not yet complete.
 * Popup counts, logger entries and page stores are not fabricated. No compiled
   match-event accounting is implemented here.
 * Private views still reject the persistent filter-store implementation; no
   private browsing equivalence is claimed.
-* Full EasyList browsing, large-list compilation overhead and lifecycle/stress
-  acceptance remain outstanding.
+* Full default subscriptions now load and block before fetch. Cold policy setup
+  remains expensive; the immutable cache currently lasts only for the process.
+  The full lifecycle/stress matrix remains broader than the completed tests.
 
 The generic backend has no extension identity knowledge. UXP, bundled WPE/WebKit
 and the XPI remain unchanged. No deferred request broker is implemented.
