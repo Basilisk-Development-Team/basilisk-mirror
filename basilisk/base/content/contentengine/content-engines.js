@@ -217,7 +217,7 @@ var ContentEngines = {
     URLBarSetURI(browser.currentURI);
     UpdateBackForwardCommands(browser);
     gBrowser.updateTitlebar();
-    let loading = view.native.loading;
+    let loading = view.native.loading || !!view.preparingNavigation;
     gBrowser.mIsBusy = loading;
     XULBrowserWindow.isBusy = loading;
     document.getElementById("Browser:Stop").setAttribute("disabled", !loading);
@@ -282,12 +282,16 @@ class ExternalContentBrowser {
       // UXP's default methods QI the Gecko navigation object for a load group.
       // Alternate network scheduling is backend-owned and has no such object.
       adjustPriority: () => {}, setPriority: () => {},
-      stop: () => { delete this.pendingURI; this.preparingNavigation=null; this.tab.removeAttribute("busy"); this.native.stop(); }, focus: () => this.focus(),
+      stop: () => {
+        delete this.pendingURI; this.preparingNavigation=null;
+        this.tab.removeAttribute("busy"); this.native.stop();
+        this.tab.label=this.browser.contentTitle;
+        gBrowser._tabAttrModified(this.tab,["label","busy"]);
+        if (this.browser===gBrowser.selectedBrowser) ContentEngines.refresh();
+      }, focus: () => this.focus(),
       mute: () => { this.native.muted = true; }, unmute: () => { this.native.muted = false; }
     };
-    methods.reload = () => ContentEngineBlocking.prepare(this,this.native.currentURI || "about:blank").then(() => {
-      if (!this.destroyed) this.native.reload();
-    }).catch(Cu.reportError);
+    methods.reload = () => this.prepareNavigation(this.native.currentURI || "about:blank", () => this.native.reload());
     methods.reloadWithFlags = methods.reload;
     for (let name of Object.keys(methods)) this.define(name, {value: methods[name]});
     // Browser-facing navigation operations, with no docshell/QI/DOM claims.
@@ -387,7 +391,7 @@ class ExternalContentBrowser {
         case "devtools": ContentEngineDevTools.open(this.browser); break;
         case "fullscreen-enter": ContentEngineFullscreen.enter(this); break;
         case "fullscreen-exit": ContentEngineFullscreen.exit(); break;
-        case "reload": this.native.reload(); break;
+        case "reload": this.browser.reload(); break;
         case "back": this.native.goBack(); break;
         case "forward": this.native.goForward(); break;
         case "zoom-in": FullZoom.enlarge(); break;
@@ -425,12 +429,20 @@ class ExternalContentBrowser {
     if (this.ready) { ContentEngines.loadWhenReady(this, uri); return; }
     this.browser.userTypedValue = null;
     this.requestedURI = uri || "about:blank";
-    const request=this.requestedURI, ticket={};
+    const request=this.requestedURI;
+    this.prepareNavigation(request, () => this.native.loadURI(request));
+    ContentEngineSession.save(this);
+  }
+  prepareNavigation(uri, navigate) {
+    const ticket={};
     this.preparingNavigation=ticket;
     this.tab.setAttribute("busy","true");
-    ContentEngineBlocking.prepare(this,request).then(() => {
+    this.tab.label="Preparing content filters...";
+    gBrowser._tabAttrModified(this.tab,["label","busy"]);
+    if (this.browser===gBrowser.selectedBrowser) ContentEngines.refresh();
+    return ContentEngineBlocking.prepare(this,uri).then(() => {
       if (!this.destroyed && this.preparingNavigation===ticket) {
-        this.native.loadURI(request);
+        navigate();
         this.preparingNavigation=null;
       }
     }).catch(error => {
@@ -439,9 +451,10 @@ class ExternalContentBrowser {
         this.preparingNavigation=null;
         this.tab.removeAttribute("busy");
         this.tab.label="Content policy setup failed";
+        gBrowser._tabAttrModified(this.tab,["label","busy"]);
+        if (this.browser===gBrowser.selectedBrowser) ContentEngines.refresh();
       }
     });
-    ContentEngineSession.save(this);
   }
   focus() {
     if (!this.destroyed) {

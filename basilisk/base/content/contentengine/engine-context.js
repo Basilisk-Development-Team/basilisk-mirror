@@ -43,7 +43,7 @@ var ContentEngineContext = {
     return {
       shouldDisplay: true,
       browser: view.browser,
-      reload() { view.native.reload(); },
+      reload() { view.browser.reload(); },
       inspectNode() { view.native.inspectElement(); },
       openLinkInCurrent() { view.loadURI(link); },
       openLinkInTab() { ContentEngines.open(link); },

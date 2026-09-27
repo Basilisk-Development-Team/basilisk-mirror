@@ -37,6 +37,24 @@ async function run(){
  let id=await hold('prepare-allow');native.completeNavigationPreparation(id,true);
  await waitFor(()=>tab.linkedBrowser.contentTitle==='Matrix ready'&&!tab.hasAttribute('busy'),'allowed document');
  check((await counts())['/allow/script?run=prepare-allow']===1,'allowed document did not resume');stale(id);
+ // Chrome reload must be busy before asynchronous policy preparation, and
+ // Stop must invalidate the queued reload before a request reaches the engine.
+ const prepare=win.ContentEngineBlocking.prepare;
+ let release;
+ win.ContentEngineBlocking.prepare=()=>new Promise(resolve=>release=resolve);
+ const before=held.length;
+ tab.linkedBrowser.reload();
+ check(tab.hasAttribute('busy')&&view.preparingNavigation,'reload preparation not marked busy');
+ tab.linkedBrowser.stop();release();await delay(300);
+ check(held.length===before,'stopped reload reached backend');
+ check((await counts())['/matrix?run=prepare-allow']===1,'stopped reload reached server');
+ win.ContentEngineBlocking.prepare=prepare;
+ tab.linkedBrowser.reload();
+ check(tab.hasAttribute('busy'),'ordinary reload preparation not busy');
+ await waitFor(()=>held.length>before,'prepared reload response');
+ native.completeNavigationPreparation(held[held.length-1],true);
+ await waitFor(()=>tab.linkedBrowser.contentTitle==='Matrix ready'&&!tab.hasAttribute('busy'),'prepared reload completion');
+ dump('NAVIGATION-POLICY PASS reload preparation busy state and Stop cancellation\n');
  id=await hold('prepare-block');native.completeNavigationPreparation(id,false);stale(id);
  id=await hold('prepare-stop');native.stop();stale(id);
  id=await hold('prepare-replaced');const replacement=await hold('prepare-replacement');stale(id);
