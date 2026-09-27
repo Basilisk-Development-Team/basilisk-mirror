@@ -86,6 +86,17 @@ async function run(){
  await delay(700);requests=await counts();
  check(requests['/scope/probe?phase=exclude&from=127.0.0.1']==1,'excluded document blocked');
  check(!requests['/scope/probe?phase=exclude&from=localhost'],'non-excluded document escaped block');
+ await api.setRequestRules('scoped',[{urlPrefix:base+'/scope/probe',resourceTypes:['fetch'],
+   documentURLPatterns:['^http://127[.]0[.]0[.]1:'+port+'/','^http://localhost:'+port+'/']}]);
+ tab.linkedBrowser.loadURI(base+'/scoped-documents?phase=union');
+ await waitFor(()=>tab.linkedBrowser.contentTitle=='Scoped documents'&&!tab.hasAttribute('busy'),'document condition union');
+ await delay(700);requests=await counts();
+ check(!requests['/scope/probe?phase=union&from=127.0.0.1']&&!requests['/scope/probe?phase=union&from=localhost'],'condition union failed');
+ for(const condition of [[],[''],['x\ny'],['x',7]]) {
+  let rejected=false;
+  try {await api.setRequestRules('invalid',[{urlPrefix:base,documentURLPatterns:condition}]);}catch(_){rejected=true;}
+  check(rejected,'invalid document conditions accepted '+JSON.stringify(condition));
+ }
  await api.removeRequestRules('scoped');
  dump('NETWORK PASS requesting-document conditions distinguish mixed-origin frames\n');
  await api.setRequestRules('matrix',rules);

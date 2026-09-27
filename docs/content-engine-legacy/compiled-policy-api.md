@@ -23,10 +23,25 @@ important blocks without global exception leakage. It is not yet an automatic
 translation of extension dynamic rules or all uBlock precedence semantics.
 
 Existing type, party and top-URL prefix fields retain their semantics. Each
-policy accepts at most 100,000 rules, 8,192 bytes per pattern/prefix, and 32 MiB
+policy accepts at most 150,000 rules, 8,192 bytes per pattern/prefix, and 64 MiB
 of backend JSON. Installation is asynchronous and transactional: compilation
 failure retains the previous installed policy. Callers must await successful
 installation before starting the navigation they intend to protect.
+
+Requesting-document conditions accept either `documentURLPattern` or the
+nonempty `documentURLPatterns` array. Array members form a union; optional
+`excludeDocumentURL` negates that union. These cannot be combined with
+`topURLPrefix`. Each array contains at most 16,384 printable ASCII patterns,
+8,192 bytes per pattern and 1 MiB in total. The internal interface packs them
+with LF separators (LF is forbidden inside patterns); the backend emits one
+condition array rather than duplicating a complete rule per domain. A mixed
+origin iframe/server-counter test verifies that both union members apply to
+their own documents. These are document URLs, not inferred security origins.
+
+The project-owned predicate helpers lower DNS suffix inclusion/exclusion and
+bounded regex alternation/counts into this representation. Counted repetitions
+up to 64 are supported, with bounded expansion; unsupported assertions,
+backreferences and unbounded repeated alternatives still reject.
 
 Validation on the enabled LoongArch64 build:
 
@@ -43,5 +58,5 @@ Logs: `/tmp/basilisk-policy-pattern-build.log`,
 `/tmp/basilisk-pattern-disabled-build.log`.
 
 This adds no upstream WPE patch, UXP change, runtime broker, or extension identity
-knowledge to the generic interface/backend. Domain inclusion/exclusion and
-requesting-document conditions are still separate outstanding API work.
+knowledge to the generic interface/backend. Inherited/opaque origins and the
+backend's top-document party classification remain separate limitations.

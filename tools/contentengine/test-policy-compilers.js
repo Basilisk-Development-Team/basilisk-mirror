@@ -21,14 +21,21 @@ for(const [include,exclude] of [ [[],[]], [['example.com'],[]], [[],['ads.exampl
  assert(!regexes.some(re=>re.test('https://example.com.evil@bad.invalid/x')) || !include.length);
 }
 assert.throws(()=>domains.patterns(['bad/path'],[]));
+const many=Array.from({length:1024},(_,i)=>'host'+i+'.example');
+const grouped=domains.patterns(many,[]);
+assert.strictEqual(grouped.length,1024);
+assert(grouped.some(pattern=>new RegExp(pattern).test('https://sub.host1023.example/')));
+assert(!grouped.some(pattern=>new RegExp(pattern).test('https://host1023.example.evil/')));
 for(const source of ['^https?://(ads|track)[.]example/','banner([^a-z]|$)',
  '^https?://([^/?#]*@)?([^/?#:@]*\\.)?ads\\.example(:[0-9]+)?([/?#]|$)',
- 'before([^a-z]|$)after','foo(bar|baz)?','(foo|bar)','(a|b)c(d|e)']) {
+ 'before([^a-z]|$)after','foo(bar|baz)?','(foo|bar)','(a|b)c(d|e)',
+ '^a{2,4}$','^[a-z]{0,3}$','^(ab){2,}$','^(a|b){2}$','^z{0}$']) {
  const expanded=patterns.expand(source).map(p=>new RegExp(p));
  const original=new RegExp(source);
  for(const text of ['https://ads.example/','https://track.example/path','https://ads.example.evil/',
- 'banner','banner/','bannera','before/after','beforeafter','foo','foobar','foobaz','acd','bce','bar'])
+ 'banner','banner/','bannera','before/after','beforeafter','foo','foobar','foobaz','acd','bce','bar',
+ '', 'a', 'aa', 'aaa', 'aaaa', 'aaaaa', 'abab', 'ababab', 'ab', 'bb'])
   assert.strictEqual(expanded.some(re=>re.test(text)),original.test(text),source+' '+text);
 }
-for(const source of ['(?=x)x','(a|b)*','(a','[x','x\\1'])assert.throws(()=>patterns.expand(source));
+for(const source of ['(?=x)x','(a|b)*','(a','[x','x\\1','x{65}','x{3,2}','(a|b){2,}'])assert.throws(()=>patterns.expand(source));
 console.log('PASS domain inclusion/exclusion and bounded regex expansion');

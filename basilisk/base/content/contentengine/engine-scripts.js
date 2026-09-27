@@ -192,11 +192,11 @@ class ContentScriptClient {
   }
   setRequestRules(token, rules, options = {}) {
     try {
-      if (typeof token != "string" || !token || token.length > 256 || !Array.isArray(rules) || !rules.length || rules.length > 100000)
+      if (typeof token != "string" || !token || token.length > 256 || !Array.isArray(rules) || !rules.length || rules.length > 150000)
         throw new TypeError("Invalid request rules");
       const types = {image:1, stylesheet:2, script:4, font:8, media:16, document:32, fetch:64, topDocument:128, subdocument:256, websocket:512, ping:1024, other:2048};
       let normalized = rules.map(rule => {
-        if (!rule || Object.keys(rule).some(key => !["urlPrefix", "urlPattern", "caseSensitive", "action", "documentURLPattern", "excludeDocumentURL", "resourceTypes", "party", "topURLPrefix"].includes(key)))
+        if (!rule || Object.keys(rule).some(key => !["urlPrefix", "urlPattern", "caseSensitive", "action", "documentURLPattern", "documentURLPatterns", "excludeDocumentURL", "resourceTypes", "party", "topURLPrefix"].includes(key)))
           throw new TypeError("Unknown request-rule field");
         let prefix = "", pattern = "";
         if ((rule.urlPrefix === undefined) === (rule.urlPattern === undefined))
@@ -234,9 +234,18 @@ class ContentScriptClient {
               (!top.schemeIs("http") && !top.schemeIs("https"))) throw new TypeError("Invalid top document prefix");
           topURLPrefix = top.asciiSpec;
         }
-        const documentURLPattern = rule.documentURLPattern === undefined ? "" : rule.documentURLPattern;
-        if (typeof documentURLPattern != "string" || documentURLPattern.length > 8192 ||
-            /[^\x20-\x7e]/.test(documentURLPattern) || (documentURLPattern && topURLPrefix))
+        let documents=rule.documentURLPattern ? [rule.documentURLPattern] : [];
+        if (rule.documentURLPattern!==undefined && typeof rule.documentURLPattern!=="string")
+          throw new TypeError("Invalid document condition");
+        if (rule.documentURLPatterns!==undefined) {
+          if (rule.documentURLPattern!==undefined || !Array.isArray(rule.documentURLPatterns) || !rule.documentURLPatterns.length)
+            throw new TypeError("Invalid document condition list");
+          documents=rule.documentURLPatterns;
+        }
+        if (documents.length>16384 || documents.some(value=>typeof value!=="string" || !value || value.length>8192 || /[^\x20-\x7e]/.test(value)))
+          throw new TypeError("Invalid document pattern");
+        const documentURLPattern=documents.join("\n");
+        if (documentURLPattern.length>1024*1024 || (documentURLPattern && topURLPrefix))
           throw new TypeError("Invalid or combined document condition");
         if (rule.excludeDocumentURL !== undefined && (typeof rule.excludeDocumentURL != "boolean" || !documentURLPattern))
           throw new TypeError("Document negation requires a document pattern");

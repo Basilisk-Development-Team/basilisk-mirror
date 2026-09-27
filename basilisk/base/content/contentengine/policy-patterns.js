@@ -55,7 +55,31 @@ var ContentPolicyPatterns = Object.freeze({
           atom=[c];
         }
         const q=source[pos];
-        if (q==='?' || q==='*' || q==='+') {
+        if (q==='{') {
+          const match=/^\{(\d+)(?:,(\d*))?\}/.exec(source.slice(pos));
+          if (!match) throw new Error("Invalid counted quantifier");
+          const min=Number(match[1]);
+          const max=match[2]===undefined ? min : match[2]==='' ? Infinity : Number(match[2]);
+          if (min>64 || (max!==Infinity && max>64) || max<min)
+            throw new Error("Counted quantifier exceeds expansion limit");
+          pos+=match[0].length;
+          if (source[pos]==='?') pos++;
+          if (max===Infinity && atom.length!==1)
+            throw new Error("Repeated disjunction cannot be finitely expanded");
+          if (atom.length===1) {
+            const term='('+atom[0]+')';
+            atom=[term.repeat(min)+(max===Infinity ? term+'*' : (term+'?').repeat(max-min))];
+          } else {
+            let required=[''];
+            for (let i=0;i<min;i++) required=bounded(concat(required,atom));
+            let optional=[''], count=[''];
+            for (let i=min;i<max;i++) {
+              count=bounded(concat(count,atom));
+              optional=bounded(optional.concat(count));
+            }
+            atom=bounded(concat(required,optional));
+          }
+        } else if (q==='?' || q==='*' || q==='+') {
           pos++;
           if (source[pos]==='?') pos++; // Greediness does not affect a boolean match.
           if (atom.length>1) {

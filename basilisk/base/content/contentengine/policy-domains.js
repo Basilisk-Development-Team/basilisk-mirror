@@ -9,7 +9,7 @@ var ContentPolicyDomains = Object.freeze({
     const valid = value => typeof value == "string" &&
       /^[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/.test(value) && value.length <= 253;
     if (!included.concat(excluded).every(valid)) throw new Error("Unsupported domain name");
-    if (included.length + excluded.length > 256) throw new Error("Too many domain conditions");
+    if (included.length + excluded.length > 4096) throw new Error("Too many domain conditions");
     const node = () => ({include:false, exclude:false, children:new Map()});
     const root = node(); root.include = !included.length;
     for (const [domains, field] of [[included,"include"],[excluded,"exclude"]]) {
@@ -44,6 +44,10 @@ var ContentPolicyDomains = Object.freeze({
     function walk(cursor, suffix, inherited) {
       if (cursor.exclude) return;
       const active = inherited || cursor.include;
+      if (active && !cursor.children.size) {
+        hosts.push(suffix ? '([a-z0-9_-]+\\.)*'+escape(suffix) : '[a-z0-9_-]+(\\.[a-z0-9_-]+)*');
+        return;
+      }
       if (active) {
         if (suffix) hosts.push(escape(suffix));
         for (const label of otherLabels(Array.from(cursor.children.keys())))
@@ -53,7 +57,7 @@ var ContentPolicyDomains = Object.freeze({
         walk(child, label + (suffix ? '.'+suffix : ''), active);
     }
     walk(root,'',false);
-    if (hosts.length > 4096) throw new Error("Domain condition expansion too large");
+    if (hosts.length > 16384) throw new Error("Domain condition expansion too large");
     return hosts.map(host => '^https?://([^/?#]*@)?'+host+'(:[0-9]+)?/');
   }
 });

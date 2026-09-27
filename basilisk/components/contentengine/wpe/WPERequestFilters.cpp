@@ -7,8 +7,10 @@
 #include "nsHashPropertyBag.h"
 #include "nsNetUtil.h"
 #include "nsIURI.h"
+#include "nsCharSeparatedTokenizer.h"
 
 namespace {
+bool NoPatternWhitespace(char16_t) { return false; }
 struct Policy {
   uint64_t generation = 0;
   WebKitUserContentFilter* filter = nullptr;
@@ -83,7 +85,7 @@ nsresult WPEContentView::EnsureFilterStore()
 NS_IMETHODIMP WPEContentView::SetRequestRules(uint32_t request, const nsACString& identifier,
                                             uint32_t count, nsIContentRequestRule** rules)
 {
-  NS_ENSURE_TRUE(!identifier.IsEmpty() && identifier.Length() <= 256 && count && count <= 100000 && rules,
+  NS_ENSURE_TRUE(!identifier.IsEmpty() && identifier.Length() <= 256 && count && count <= 150000 && rules,
                  NS_ERROR_INVALID_ARG);
   nsAutoCString json("[");
   const char* names[] = {"image", "style-sheet", "script", "font", "media", "document", "fetch", "top-document", "child-document", "websocket", "ping", "other"};
@@ -148,21 +150,31 @@ NS_IMETHODIMP WPEContentView::SetRequestRules(uint32_t request, const nsACString
     bool excludeDocument = false;
     rv = rules[i]->GetDocumentURLPattern(document); NS_ENSURE_SUCCESS(rv, rv);
     rv = rules[i]->GetExcludeDocumentURL(&excludeDocument); NS_ENSURE_SUCCESS(rv, rv);
-    NS_ENSURE_TRUE(document.Length() <= 8192 && (document.IsEmpty() || top.IsEmpty()) &&
+    NS_ENSURE_TRUE(document.Length() <= 1024 * 1024 && (document.IsEmpty() || top.IsEmpty()) &&
                    (!excludeDocument || !document.IsEmpty()), NS_ERROR_INVALID_ARG);
-    for (uint32_t j = 0; j < document.Length(); ++j)
-      NS_ENSURE_TRUE(document[j] >= 0x20 && document[j] <= 0x7e, NS_ERROR_INVALID_ARG);
     if (!document.IsEmpty()) {
+      NS_ENSURE_TRUE(document.First() != '\n' && document.Last() != '\n' &&
+                     document.Find("\n\n") == kNotFound, NS_ERROR_INVALID_ARG);
       json.AppendLiteral(",\"frame-url-filter-is-case-sensitive\":false");
       json.Append(excludeDocument ? ",\"unless-frame-url\":[" : ",\"if-frame-url\":[");
-      AppendPattern(json, document); json.Append(']');
+      nsCCharSeparatedTokenizerTemplate<NoPatternWhitespace> patterns(document, '\n');
+      uint32_t count = 0;
+      while (patterns.hasMoreTokens()) {
+        nsAutoCString pattern(patterns.nextToken());
+        NS_ENSURE_TRUE(++count <= 16384 && !pattern.IsEmpty() && pattern.Length() <= 8192, NS_ERROR_INVALID_ARG);
+        for (uint32_t j = 0; j < pattern.Length(); ++j)
+          NS_ENSURE_TRUE(pattern[j] >= 0x20 && pattern[j] <= 0x7e, NS_ERROR_INVALID_ARG);
+        if (count > 1) json.Append(',');
+        AppendPattern(json, pattern);
+      }
+      json.Append(']');
     }
     // Upstream ignore-previous-rules is scoped to this compiled list. Never
     // merge independently owned policy tokens into one list.
     json.Append(action.EqualsLiteral("allow") ?
       "},\"action\":{\"type\":\"ignore-previous-rules\"}}" :
       "},\"action\":{\"type\":\"block\"}}");
-    NS_ENSURE_TRUE(json.Length() <= 32 * 1024 * 1024, NS_ERROR_INVALID_ARG);
+    NS_ENSURE_TRUE(json.Length() <= 64 * 1024 * 1024, NS_ERROR_INVALID_ARG);
   }
   json.Append(']');
   nsresult rv = EnsureFilterStore();
