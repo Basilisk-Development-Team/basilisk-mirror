@@ -43,6 +43,28 @@ async function run(){
   dump('NETWORK PASS server counters '+run+' blocked='+blocked+'\n');
  }
  await load('blocked',true);
+
+ // One compiled pattern covers HTTP and WebSocket resources. A subsequent
+ // policy-local exception restores the allowed control. Matching is explicitly
+ // insensitive here; uppercase patterns must match lowercase request paths.
+ const patterns=[
+  {urlPattern:'/DENY/',caseSensitive:false},
+  {urlPattern:'/deny/get[?]',action:'allow'},
+  rules[rules.length-1]
+ ];
+ await api.setRequestRules('matrix',patterns);await load('patterns',true);
+ // A broad allow in another owner's list cannot erase this policy's blocks.
+ await api.setRequestRules('other-owner',[{urlPattern:'.*',action:'allow'}]);
+ await load('owner-isolation',true);await api.removeRequestRules('other-owner');
+ let invalid=false;
+ try {await api.setRequestRules('matrix',[{urlPattern:'['}]);}catch(_){invalid=true;}
+ check(invalid,'invalid pattern compilation succeeded');
+ await load('failed-update-retains-policy',true);
+ for(let rule of [{urlPattern:'.*',urlPrefix:base},{urlPattern:'x',action:'redirect'},
+                   {urlPattern:'x\n'},{urlPattern:'x',caseSensitive:'false'}]) {
+  let rejected=false;try {await api.setRequestRules('invalid',[rule]);}catch(_){rejected=true;}
+  check(rejected,'invalid rule accepted '+JSON.stringify(rule));
+ }
  await api.removeRequestRules('matrix');await load('disabled',false);
  await api.setRequestRules('matrix',rules);await load('reenabled',true);
  // A first-party constraint on another registrable domain must not match.

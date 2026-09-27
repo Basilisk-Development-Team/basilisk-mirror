@@ -105,7 +105,7 @@ class ContentScriptClient {
             else view.native.executeScript(id, arguments_.source);
           }
           else if (operation == "Policy" && !arguments_.remove)
-            view.native.setRequestRules(id, arguments_.token, arguments_.rules.length, arguments_.rules.map(rule => Object.assign({party:0, topURLPrefix:""}, rule)));
+            view.native.setRequestRules(id, arguments_.token, arguments_.rules.length, arguments_.rules.map(rule => Object.assign({party:0, topURLPrefix:"", urlPrefix:"", urlPattern:"", caseSensitive:true, action:"block"}, rule)));
           else {
             if (operation == "CSS") {
               if (arguments_.remove) view.native.removeCSS(arguments_.token);
@@ -192,16 +192,32 @@ class ContentScriptClient {
   }
   setRequestRules(token, rules) {
     try {
-      if (typeof token != "string" || !token || token.length > 256 || !Array.isArray(rules) || !rules.length || rules.length > 1024)
+      if (typeof token != "string" || !token || token.length > 256 || !Array.isArray(rules) || !rules.length || rules.length > 100000)
         throw new TypeError("Invalid request rules");
       const types = {image:1, stylesheet:2, script:4, font:8, media:16, document:32, fetch:64, topDocument:128, subdocument:256, websocket:512, ping:1024, other:2048};
       let normalized = rules.map(rule => {
-        if (!rule || Object.keys(rule).some(key => !["urlPrefix", "resourceTypes", "party", "topURLPrefix"].includes(key)))
+        if (!rule || Object.keys(rule).some(key => !["urlPrefix", "urlPattern", "caseSensitive", "action", "resourceTypes", "party", "topURLPrefix"].includes(key)))
           throw new TypeError("Unknown request-rule field");
-        if (typeof rule.urlPrefix != "string" || rule.urlPrefix.length > 8192)
-          throw new TypeError("Invalid URL prefix");
-        let uri = Services.io.newURI(rule.urlPrefix, null, null);
-        if (!["http", "https", "ws", "wss"].some(scheme => uri.schemeIs(scheme))) throw new TypeError("Expected HTTP(S)/WS(S) prefix");
+        let prefix = "", pattern = "";
+        if ((rule.urlPrefix === undefined) === (rule.urlPattern === undefined))
+          throw new TypeError("Expected exactly one URL prefix or pattern");
+        if (rule.urlPrefix !== undefined) {
+          if (typeof rule.urlPrefix != "string" || !rule.urlPrefix || rule.urlPrefix.length > 8192)
+            throw new TypeError("Invalid URL prefix");
+          let uri = Services.io.newURI(rule.urlPrefix, null, null);
+          if (!["http", "https", "ws", "wss"].some(scheme => uri.schemeIs(scheme)))
+            throw new TypeError("Expected HTTP(S)/WS(S) prefix");
+          prefix = uri.asciiSpec;
+        } else {
+          if (typeof rule.urlPattern != "string" || !rule.urlPattern ||
+              rule.urlPattern.length > 8192 || /[^\x20-\x7e]/.test(rule.urlPattern))
+            throw new TypeError("Expected a nonempty ASCII URL pattern");
+          pattern = rule.urlPattern;
+        }
+        if (rule.caseSensitive !== undefined && typeof rule.caseSensitive != "boolean")
+          throw new TypeError("Expected boolean case sensitivity");
+        const action = rule.action === undefined ? "block" : rule.action;
+        if (action !== "block" && action !== "allow") throw new TypeError("Unsupported policy action");
         if (rule.resourceTypes !== undefined && (!Array.isArray(rule.resourceTypes) || !rule.resourceTypes.length))
           throw new TypeError("Expected resource types");
         let mask = 0;
@@ -218,7 +234,9 @@ class ContentScriptClient {
               (!top.schemeIs("http") && !top.schemeIs("https"))) throw new TypeError("Invalid top document prefix");
           topURLPrefix = top.asciiSpec;
         }
-        return {urlPrefix:uri.asciiSpec, resourceTypes:mask, party, topURLPrefix};
+        return {urlPrefix:prefix, urlPattern:pattern,
+          caseSensitive:rule.caseSensitive === undefined ? true : rule.caseSensitive,
+          action, resourceTypes:mask, party, topURLPrefix};
       });
       return this.request("Policy", {token, rules:normalized}).then(() => { this.policies.set(token, normalized); });
     } catch (error) { return Promise.reject(error); }

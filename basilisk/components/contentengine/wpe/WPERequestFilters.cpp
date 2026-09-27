@@ -31,6 +31,18 @@ void RemoveStored(WebKitUserContentFilterStore* store, const nsCString& id)
       g_clear_error(&error);
     }, nullptr);
 }
+// Pattern syntax is validated by the upstream compiler. JSON encoding must
+// not reinterpret backslashes, quotes or control characters as policy fields.
+void AppendPattern(nsCString& json, const nsCString& pattern)
+{
+  json.Append('"');
+  for (uint32_t i = 0; i < pattern.Length(); ++i) {
+    char c = pattern[i];
+    if (c == '\\' || c == '"') json.Append('\\');
+    json.Append(c);
+  }
+  json.Append('"');
+}
 // Prefix is already ASCII and URI-canonicalized. Escape regex operators, then
 // JSON string delimiters, entirely inside the backend's rule translator.
 void AppendPrefix(nsCString& json, const nsCString& prefix)
@@ -71,7 +83,7 @@ nsresult WPEContentView::EnsureFilterStore()
 NS_IMETHODIMP WPEContentView::SetRequestRules(uint32_t request, const nsACString& identifier,
                                             uint32_t count, nsIContentRequestRule** rules)
 {
-  NS_ENSURE_TRUE(!identifier.IsEmpty() && identifier.Length() <= 256 && count && count <= 1024 && rules,
+  NS_ENSURE_TRUE(!identifier.IsEmpty() && identifier.Length() <= 256 && count && count <= 100000 && rules,
                  NS_ERROR_INVALID_ARG);
   nsAutoCString json("[");
   const char* names[] = {"image", "style-sheet", "script", "font", "media", "document", "fetch", "top-document", "child-document", "websocket", "ping", "other"};
@@ -84,20 +96,31 @@ NS_IMETHODIMP WPEContentView::SetRequestRules(uint32_t request, const nsACString
     rv = rules[i]->GetResourceTypes(&types);
     NS_ENSURE_SUCCESS(rv, rv);
     NS_ENSURE_TRUE(prefix.Length() <= 8192 && !(types & ~4095u), NS_ERROR_INVALID_ARG);
+    nsAutoCString pattern, action;
+    bool caseSensitive = true;
+    rv = rules[i]->GetUrlPattern(pattern); NS_ENSURE_SUCCESS(rv, rv);
+    rv = rules[i]->GetCaseSensitive(&caseSensitive); NS_ENSURE_SUCCESS(rv, rv);
+    rv = rules[i]->GetAction(action); NS_ENSURE_SUCCESS(rv, rv);
+    NS_ENSURE_TRUE(action.EqualsLiteral("block") || action.EqualsLiteral("allow"), NS_ERROR_INVALID_ARG);
+    NS_ENSURE_TRUE(prefix.IsEmpty() != pattern.IsEmpty() && pattern.Length() <= 8192, NS_ERROR_INVALID_ARG);
+    for (uint32_t j = 0; j < pattern.Length(); ++j)
+      NS_ENSURE_TRUE(pattern[j] >= 0x20 && pattern[j] <= 0x7e, NS_ERROR_INVALID_ARG);
     nsCOMPtr<nsIURI> uri;
-    rv = NS_NewURI(getter_AddRefs(uri), prefix);
-    NS_ENSURE_SUCCESS(rv, rv);
     bool http = false, https = false, ws = false, wss = false;
-    uri->SchemeIs("http", &http); uri->SchemeIs("https", &https);
-    uri->SchemeIs("ws", &ws); uri->SchemeIs("wss", &wss);
-    NS_ENSURE_TRUE(http || https || ws || wss, NS_ERROR_INVALID_ARG);
     nsAutoCString canonical;
-    uri->GetAsciiSpec(canonical);
-    NS_ENSURE_TRUE(canonical.Equals(prefix), NS_ERROR_INVALID_ARG);
+    if (!prefix.IsEmpty()) {
+      rv = NS_NewURI(getter_AddRefs(uri), prefix); NS_ENSURE_SUCCESS(rv, rv);
+      uri->SchemeIs("http", &http); uri->SchemeIs("https", &https);
+      uri->SchemeIs("ws", &ws); uri->SchemeIs("wss", &wss);
+      NS_ENSURE_TRUE(http || https || ws || wss, NS_ERROR_INVALID_ARG);
+      uri->GetAsciiSpec(canonical);
+      NS_ENSURE_TRUE(canonical.Equals(prefix), NS_ERROR_INVALID_ARG);
+    }
     if (i) json.Append(',');
     json.AppendLiteral("{\"trigger\":{\"url-filter\":");
-    AppendPrefix(json, prefix);
-    json.AppendLiteral(",\"url-filter-is-case-sensitive\":true");
+    if (!prefix.IsEmpty()) AppendPrefix(json, prefix);
+    else AppendPattern(json, pattern);
+    json.Append(caseSensitive ? ",\"url-filter-is-case-sensitive\":true" : ",\"url-filter-is-case-sensitive\":false");
     if (types) {
       json.AppendLiteral(",\"resource-type\":[");
       bool first = true;
@@ -121,8 +144,12 @@ NS_IMETHODIMP WPEContentView::SetRequestRules(uint32_t request, const nsACString
       json.AppendLiteral(",\"top-url-filter-is-case-sensitive\":true,\"if-top-url\":[");
       AppendPrefix(json, top); json.Append(']');
     }
-    json.AppendLiteral("},\"action\":{\"type\":\"block\"}}");
-    NS_ENSURE_TRUE(json.Length() <= 1024 * 1024, NS_ERROR_INVALID_ARG);
+    // Upstream ignore-previous-rules is scoped to this compiled list. Never
+    // merge independently owned policy tokens into one list.
+    json.Append(action.EqualsLiteral("allow") ?
+      "},\"action\":{\"type\":\"ignore-previous-rules\"}}" :
+      "},\"action\":{\"type\":\"block\"}}");
+    NS_ENSURE_TRUE(json.Length() <= 32 * 1024 * 1024, NS_ERROR_INVALID_ARG);
   }
   json.Append(']');
   nsresult rv = EnsureFilterStore();
