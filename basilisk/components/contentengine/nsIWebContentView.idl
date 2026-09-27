@@ -12,7 +12,7 @@ interface nsIContentRequestRule;
  * the chrome window's client area. The chrome owner manages tab visibility
  * and must keep the native host inside its content rectangle.
  */
-[scriptable, uuid(2f751adf-2e57-410b-8372-8118ac09e4c8)]
+[scriptable, uuid(63a3a18d-62d8-4616-89b9-418370880e25)]
 interface nsIWebContentView : nsISupports
 {
   const unsigned long CAP_DEVTOOLS = 0x0001;
@@ -119,6 +119,9 @@ interface nsIWebContentView : nsISupports
                        in unsigned long count,
                        [array, size_is(count)] in nsIContentRequestRule rules);
   void removeRequestRules(in AUTF8String identifier);
+  /** Temporarily detach/reattach an already compiled policy without rebuilding
+   * it. Compilation updates preserve this enabled state. Removal destroys it. */
+  void setRequestRulesEnabled(in AUTF8String identifier, in boolean enabled);
   /** Complete an optional bounded top-document preparation decision. The
    * backend owns pending decisions; late completions fail safely. */
   void completeNavigationPreparation(in unsigned long decisionId, in boolean allow);

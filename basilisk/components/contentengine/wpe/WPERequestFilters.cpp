@@ -13,6 +13,7 @@ namespace {
 bool NoPatternWhitespace(char16_t) { return false; }
 struct Policy {
   uint64_t generation = 0;
+  bool enabled = true;
   WebKitUserContentFilter* filter = nullptr;
   nsCString storeId;
   ~Policy() { if (filter) webkit_user_content_filter_unref(filter); }
@@ -199,13 +200,13 @@ NS_IMETHODIMP WPEContentView::SetRequestRules(uint32_t request, const nsACString
       if (current && filter) {
         auto* manager = webkit_web_view_get_user_content_manager(owner->mHost->webView);
         if (policy->filter) {
-          webkit_user_content_manager_remove_filter(manager, policy->filter);
+          if (policy->enabled) webkit_user_content_manager_remove_filter(manager, policy->filter);
           webkit_user_content_filter_unref(policy->filter);
           RemoveStored(store, policy->storeId);
         }
         policy->filter = filter;
         policy->storeId = reply->storeId;
-        webkit_user_content_manager_add_filter(manager, filter);
+        if (policy->enabled) webkit_user_content_manager_add_filter(manager, filter);
       } else {
         if (filter) webkit_user_content_filter_unref(filter);
         RemoveStored(store, reply->storeId);
@@ -231,10 +232,23 @@ NS_IMETHODIMP WPEContentView::RemoveRequestRules(const nsACString& identifier)
   nsCString token(identifier);
   auto* policy = static_cast<Policy*>(g_hash_table_lookup(mRequestRules, token.get()));
   if (!policy) return NS_OK;
-  if (policy->filter && mHost) webkit_user_content_manager_remove_filter(
+  if (policy->filter && policy->enabled && mHost) webkit_user_content_manager_remove_filter(
     webkit_web_view_get_user_content_manager(mHost->webView), policy->filter);
   RemoveStored(mFilterStore, policy->storeId);
   g_hash_table_remove(mRequestRules, token.get());
+  return NS_OK;
+}
+NS_IMETHODIMP WPEContentView::SetRequestRulesEnabled(const nsACString& identifier, bool enabled)
+{
+  NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed && mRequestRules, NS_ERROR_NOT_AVAILABLE);
+  nsCString token(identifier);
+  auto* policy = static_cast<Policy*>(g_hash_table_lookup(mRequestRules, token.get()));
+  NS_ENSURE_TRUE(policy && policy->filter, NS_ERROR_NOT_AVAILABLE);
+  if (policy->enabled == enabled) return NS_OK;
+  auto* manager = webkit_web_view_get_user_content_manager(mHost->webView);
+  if (enabled) webkit_user_content_manager_add_filter(manager, policy->filter);
+  else webkit_user_content_manager_remove_filter(manager, policy->filter);
+  policy->enabled = enabled;
   return NS_OK;
 }
 void WPEContentView::ClearRequestRules()

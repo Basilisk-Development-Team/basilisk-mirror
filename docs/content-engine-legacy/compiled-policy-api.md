@@ -28,6 +28,13 @@ of backend JSON. Installation is asynchronous and transactional: compilation
 failure retains the previous installed policy. Callers must await successful
 installation before starting the navigation they intend to protect.
 
+The content-view shim additionally supports `setRequestRulesEnabled(token,
+enabled)` for application-owned policies. Disabling detaches the compiled list
+while retaining it for immediate reattachment. Updating a disabled list keeps
+it disabled; removal releases it. This avoids recompiling an entire subscription
+on each site toggle. Server-counter tests cover disable, update while disabled,
+and re-enable. It is not a new Gecko request-policy path.
+
 Requesting-document conditions accept either `documentURLPattern` or the
 nonempty `documentURLPatterns` array. Array members form a union; optional
 `excludeDocumentURL` negates that union. These cannot be combined with

@@ -43,6 +43,13 @@ async function run(){
   dump('NETWORK PASS server counters '+run+' blocked='+blocked+'\n');
  }
  await load('blocked',true);
+ const native=win.ContentEngines.get(tab.linkedBrowser).native;
+ native.setRequestRulesEnabled('matrix',false);
+ await load('retained-disabled',false);
+ await api.setRequestRules('matrix',rules);
+ await load('updated-disabled',false);
+ native.setRequestRulesEnabled('matrix',true);
+ await load('retained-reenabled',true);
 
  // One compiled pattern covers HTTP and WebSocket resources. A subsequent
  // policy-local exception restores the allowed control. Matching is explicitly
