@@ -103,3 +103,32 @@ this partial adapter. The generic URL-pattern API itself is built and tested.
 
 The generic backend has no extension identity knowledge. UXP, bundled WPE/WebKit
 and the XPI remain unchanged. No deferred request broker is implemented.
+
+## Full-list policy preparation fixes (September 2026)
+
+The reader now merges equal URL/document/party predicates within each precedence
+class by their resource masks, retains document unions as one condition, and maps
+pure domain exclusions to the generic negated union. Mixed inclusion/exclusion
+sets still use the DNS predicate compiler. Fixed-string and hostname classes
+already use the supported regular-expression subset; only general/regex classes
+need finite-pattern lowering. Cooperative translation steps let chrome yield
+between batches. The service discards a result if the extension generation or
+owning window lifetime changed while it was preparing.
+
+Popup/popunder, top-document, inline-font/script, data, redirect-replacement and
+WebRTC categories do not belong to the ordinary network resource masks. Their
+exceptions no longer reject unrelated ordinary network policies. This does not
+implement those behavioral features. Generic-hide exceptions are evaluated by
+the extension's own matcher for the top document's cosmetic state.
+
+Object/plugin attribution is unavailable. Object blocks remain unsupported;
+object exceptions retain their URL/domain/party predicates but conservatively
+allow all ordinary resource types. This can underblock those specific predicates
+and is explicitly reported as partial coverage. An unsupported ordinary network
+exception still rejects preparation rather than silently overblocking.
+
+Effective low/high generic declarative selectors now join domain-specific
+selectors, with the extension's exceptions removed. Individual CSS rules prevent
+one unsupported selector from invalidating unrelated selectors. This covers
+matching dynamically inserted elements, not procedural cosmetics or scriptlets.
+Gecko continues using the extension's native content implementation.

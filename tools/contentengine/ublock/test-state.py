@@ -14,7 +14,7 @@ if hashlib.sha256(xpi.read_bytes()).hexdigest() != expected:
 with tempfile.TemporaryDirectory(prefix='ublock-state-test-') as temporary:
     root = Path(temporary)
     with zipfile.ZipFile(xpi) as archive:
-        for name in ('utils.js', 'static-net-filtering.js', 'dynamic-net-filtering.js',
+        for name in ('utils.js', 'hntrie.js', 'static-net-filtering.js', 'dynamic-net-filtering.js',
                      'url-net-filtering.js', 'hnswitches.js'):
             # Exact fixed members only; never extract arbitrary archive paths.
             member = next(n for n in archive.namelist() if n.endswith('/js/' + name) or n == 'js/' + name)

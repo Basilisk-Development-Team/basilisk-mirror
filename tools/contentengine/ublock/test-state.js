@@ -4,7 +4,7 @@ const fs = require('fs'), vm = require('vm'), assert = require('assert');
 const root = process.argv[2];
 const context = vm.createContext({console, setTimeout, clearTimeout, punycode:require("punycode")});
 vm.runInContext(`var µBlock = {URI:{domainFromHostname: () => { throw Error("Unexpected request evaluation"); }}}, vAPI = {setTimeout: () => 0};`, context);
-for (const file of ['utils.js', 'static-net-filtering.js', 'dynamic-net-filtering.js',
+for (const file of ['utils.js', 'hntrie.js', 'static-net-filtering.js', 'dynamic-net-filtering.js',
                     'url-net-filtering.js', 'hnswitches.js']) {
   vm.runInContext(fs.readFileSync(root + '/js/' + file, 'utf8'), context, {filename:file});
 }
@@ -63,12 +63,15 @@ compile(['||ads.example^', '@@||ads.example/allowed',
 `, context);
 const compiled = vm.runInContext('UBlockStateAdapter.compileStaticNetwork(UBlockStateAdapter.snapshot("1.16.6.1", {µBlock}))', context);
 assert.strictEqual(compiled.unsupported.length, 0);
-for (const url of ['https://ads.example/x', 'https://ads.example/allowed',
+for (const input of ['https://ads.example/x', 'https://ads.example/allowed',
                    'https://ads.example/important', 'https://notads.example/x',
                    'https://sub.ads.example/x', 'https://ads.example:pw@safe.example/x',
                    'https://user@ads.example:443/x', 'https://elsewhere.example/banner/a',
                    'https://exact.example/path', 'https://exact.example/path2',
-                   'https://scripts.example/x', 'https://third.example/x']) {
+                   'https://scripts.example/x', 'https://third.example/x',
+                   'http://ads.example', 'http://ads.example?query', 'ws://ads.example',
+                   'wss://user@ads.example:444?query']) {
+  const url=new URL(input).href;
   for (const type of ['script', 'image']) {
     const host = new URL(url).hostname;
     const request = {requestURL:url, requestHostname:host, requestType:type,
@@ -85,9 +88,42 @@ for (const url of ['https://ads.example/x', 'https://ads.example/allowed',
 }
 vm.runInContext(`compile(['||domain.example^$domain=page.example']);`, context);
 assert(vm.runInContext('UBlockStateAdapter.compileStaticNetwork(UBlockStateAdapter.snapshot("1.16.6.1", {µBlock})).unsupported.length', context) === 0);
+vm.runInContext(`
+µBlock.staticNetFilteringEngine.reset();
+compile(['||negative.example^$domain=~safe.example|~other.example',
+         '||mixed.example^$domain=example|~safe.example']);
+`,context);
+const domains=vm.runInContext('UBlockStateAdapter.compileStaticNetwork(UBlockStateAdapter.snapshot("1.16.6.1", {µBlock}))',context);
+assert(domains.rules.some(rule=>rule.excludeDocumentURL && rule.documentURLPatterns.length===2));
+for(const pageHostname of ['safe.example','sub.safe.example','other.example','page.example','unrelated.test']) {
+  for(const requestHostname of ['negative.example','mixed.example']) {
+    const requestURL='https://'+requestHostname+'/script';
+    const request={requestURL,requestHostname,requestType:'script',pageHostname,pageDomain:'example'};
+    const native=engine.matchString(request)===1;
+    let translated=false;
+    for(const rule of domains.rules) {
+      const match=rule.documentURLPatterns.some(pattern=>new RegExp(pattern,'i').test('https://'+pageHostname+'/'));
+      if (match===!!rule.excludeDocumentURL || !new RegExp(rule.urlPattern,'i').test(requestURL)) continue;
+      translated=rule.action==='block';
+    }
+    assert.strictEqual(translated,native,requestURL+' from '+pageHostname);
+  }
+}
 context.µBlock.loadingFilterLists = true;
 assert.throws(read, /not ready/);
 context.µBlock.loadingFilterLists = false;
+vm.runInContext(`
+µBlock.staticNetFilteringEngine.reset();
+compile(['||shared.example^$script,image', '@@||shared.example/safe$script',
+         '@@||popup.example^$popup', '@@||cosmetic.example^$generichide',
+         '@@||object.example/safe$object,domain=page.example']);
+`,context);
+const projection=vm.runInContext('UBlockStateAdapter.compileStaticNetwork(UBlockStateAdapter.snapshot("1.16.6.1", {µBlock}))',context);
+assert(!projection.unsupported.some(item=>(item.category&1)&&item.networkException!==false));
+assert(projection.unsupported.some(item=>item.conservativeException));
+assert(projection.rules.some(rule=>rule.action==='block'&&rule.resourceTypes.includes('script')&&rule.resourceTypes.includes('image')));
+assert(!projection.rules.some(rule=>rule.urlPattern.includes('popup')||rule.urlPattern.includes('cosmetic')));
+assert(projection.rules.some(rule=>rule.action==='allow'&&rule.urlPattern.includes('object')&&rule.documentURLPatterns));
 context.µBlock.systemSettings.compiledMagic++;
 assert.throws(read, /schema/);
 console.log('PASS live effective state, badfilter, selfie restore, user edits, session rules, whitelist, immutable ownership, version/schema/readiness guards');
@@ -103,9 +139,12 @@ if(process.argv[3]) {
     const key=JSON.stringify(item);
     reasons[key]=(reasons[key]||0)+1;
   }
+  console.log('LARGEST RULES '+JSON.stringify(result.rules.map(rule=>({bytes:JSON.stringify(rule).length,documents:(rule.documentURLPatterns||[]).length,action:rule.action,pattern:rule.urlPattern})).sort((a,b)=>b.bytes-a.bytes).slice(0,10)));
   console.log('LIST TRANSLATION '+JSON.stringify({
     sha256:require('crypto').createHash('sha256').update(fs.readFileSync(process.argv[3])).digest('hex'),
     accepted:engine.acceptedCount,discarded:engine.discardedCount,rules:result.rules.length,
     parserMS:parsed-start,translationMS:Date.now()-parsed,unsupported:reasons
   }));
+  for (const category of read().network.categories)
+    if (category[0]===49) console.log('OBJECT EXCEPTIONS '+JSON.stringify(category));
 }
