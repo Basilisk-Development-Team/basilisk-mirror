@@ -2,6 +2,17 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+# These are root compile-graph prerequisites, not directory traversal order:
+# parallel builds must finish WPE's headers and library before either consumer
+# starts. libxul already depends on the contentengine/wpe target.
+ifdef WPE_BUILD_FROM_SOURCE
+.PHONY: wpe-runtime
+basilisk/components/contentengine/wpe/target basilisk/components/contentengine/wpe/extension/target: wpe-runtime
+
+wpe-runtime:
+	+$(PYTHON) $(WPE_SOURCE_ROOT)/tools/wpe/build-runtime.py --prepare-source --build "$(WPE_BUILD_DIR)" --stage "$(WPE_RUNTIME_PREFIX)/.." $(if $(WPE_INTERPRETER),--interpreter)
+endif
+
 installer:
 	@$(MAKE) -C basilisk/installer installer
 

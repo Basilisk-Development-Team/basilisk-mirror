@@ -24,6 +24,15 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def git_environment(directory):
+    # TMPDIR can itself be inside the application's worktree. Keep git apply
+    # independent of both enclosing repositories and caller Git overrides.
+    environment = dict(os.environ, GIT_CEILING_DIRECTORIES=str(Path(directory).resolve().parent))
+    for name in ('GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'):
+        environment.pop(name, None)
+    return environment
+
+
 def safe_path(name):
     path = PurePosixPath(name)
     if not name or path.is_absolute() or '..' in path.parts or '.git' in path.parts or '\\' in name:
@@ -78,7 +87,13 @@ def expected_tree(archive, pin, patches):
     for patch in patches:
         if re.search(rb'^(?:new file mode|old mode|new mode) (?:120000|160000)$', patch.read_bytes(), re.M):
             raise ValueError('Symlink/gitlink patches unsupported: ' + str(patch))
-        output = subprocess.check_output(['git', 'apply', '--numstat', '-z', str(patch)])
+        # git apply filters paths when invoked beneath a repository's root.
+        # mach invokes us from the object directory, so inspect patches outside
+        # any repository just as we do when applying them to the sparse tree.
+        with tempfile.TemporaryDirectory(prefix='wpe-patch-inventory-') as directory:
+            output = subprocess.check_output(
+                ['git', 'apply', '--numstat', '-z', str(patch)], cwd=directory,
+                env=git_environment(directory))
         for entry in output.split(b'\0'):
             if not entry:
                 continue
@@ -115,8 +130,10 @@ def expected_tree(archive, pin, patches):
                 else:
                     raise ValueError('Unsupported archive member: ' + member.name)
         for patch in patches:
-            subprocess.check_call(['git', 'apply', '--check', '--whitespace=error-all', str(patch)], cwd=sparse)
-            subprocess.check_call(['git', 'apply', '--whitespace=error-all', str(patch)], cwd=sparse)
+            subprocess.check_call(['git', 'apply', '--check', '--whitespace=error-all', str(patch)],
+                                  cwd=sparse, env=git_environment(sparse))
+            subprocess.check_call(['git', 'apply', '--whitespace=error-all', str(patch)],
+                                  cwd=sparse, env=git_environment(sparse))
         actual_patch_tree = inventory(sparse)
         if set(actual_patch_tree) - touched:
             raise ValueError('Patch wrote an undeclared path')

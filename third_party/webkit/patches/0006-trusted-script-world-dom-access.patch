@@ -1,0 +1,110 @@
+From: Basilisk contributors
+Subject: [PATCH] Scope trusted extension DOM access to explicitly opted-in isolated worlds
+
+diff --git a/Source/WebCore/Headers.cmake b/Source/WebCore/Headers.cmake
+--- a/Source/WebCore/Headers.cmake
++++ b/Source/WebCore/Headers.cmake
+@@ -922,6 +922,7 @@
+     bindings/js/JSCSSStyleDeclarationCustom.h
+     bindings/js/JSDOMBinding.h
+     bindings/js/JSDOMBindingFacade.h
++    bindings/js/PrivilegedScriptWorld.h
+     bindings/js/JSDOMBindingSecurity.h
+     bindings/js/JSDOMCastThisValue.h
+     bindings/js/JSDOMConvert.h
+diff --git a/Source/WebCore/bindings/js/JSDOMBindingSecurity.cpp b/Source/WebCore/bindings/js/JSDOMBindingSecurity.cpp
+--- a/Source/WebCore/bindings/js/JSDOMBindingSecurity.cpp
++++ b/Source/WebCore/bindings/js/JSDOMBindingSecurity.cpp
+@@ -23,6 +23,10 @@
+ #include "JSDOMBindingSecurity.h"
+ 
+ #include "DocumentSecurityOrigin.h"
++#include "DOMWrapperWorld.h"
++#include "PrivilegedScriptWorld.h"
++#include <wtf/NeverDestroyed.h>
++#include <wtf/WeakHashSet.h>
+ #include "FrameDestructionObserverInlines.h"
+ #include "HTTPParsers.h"
+ #include "JSDOMExceptionHandling.h"
+@@ -40,6 +44,23 @@
+ namespace WebCore {
+ using namespace JSC;
+ 
++static SingleThreadWeakHashSet<DOMWrapperWorld>& privilegedScriptWorlds()
++{
++    static NeverDestroyed<SingleThreadWeakHashSet<DOMWrapperWorld>> worlds;
++    return worlds;
++}
++
++void setScriptWorldCrossOriginAccess(DOMWrapperWorld& world, bool enabled)
++{
++    if (world.isNormal())
++        return;
++    if (enabled)
++        privilegedScriptWorlds().add(world);
++    else
++        privilegedScriptWorlds().remove(world);
++}
++
++
+ void printErrorMessageForFrame(LocalFrame* frame, const String& message)
+ {
+     if (!frame)
+@@ -72,6 +93,9 @@
+ 
+ static inline bool canAccessTargetOrigin(JSC::JSGlobalObject* lexicalGlobalObject, SecurityOrigin& targetSecurityOrigin, DOMWindow* targetDOMWindow, SecurityReportingOption reportingOption)
+ {
++    auto& world = currentWorld(*lexicalGlobalObject);
++    if (!world.isNormal() && privilegedScriptWorlds().contains(world))
++        return true;
+     Ref active = activeDOMWindow(*lexicalGlobalObject);
+ 
+     if (protect(active->document()->securityOrigin())->isSameOriginDomain(targetSecurityOrigin))
+diff --git a/Source/WebCore/bindings/js/PrivilegedScriptWorld.h b/Source/WebCore/bindings/js/PrivilegedScriptWorld.h
+new file mode 100644
+--- /dev/null
++++ b/Source/WebCore/bindings/js/PrivilegedScriptWorld.h
+@@ -0,0 +1,8 @@
++/* Downstream embedding API. MPL 2.0. */
++#pragma once
++#include "PlatformExportMacros.h"
++namespace WebCore {
++class DOMWrapperWorld;
++// Never grants permissions to the normal page world or changes its origin.
++WEBCORE_EXPORT void setScriptWorldCrossOriginAccess(DOMWrapperWorld&, bool);
++}
+diff --git a/Source/WebKit/WebProcess/InjectedBundle/API/glib/WebKitScriptWorld.cpp b/Source/WebKit/WebProcess/InjectedBundle/API/glib/WebKitScriptWorld.cpp
+--- a/Source/WebKit/WebProcess/InjectedBundle/API/glib/WebKitScriptWorld.cpp
++++ b/Source/WebKit/WebProcess/InjectedBundle/API/glib/WebKitScriptWorld.cpp
+@@ -21,6 +21,7 @@
+ #include "WebKitScriptWorld.h"
+ 
+ #include "WebKitScriptWorldPrivate.h"
++#include <WebCore/PrivilegedScriptWorld.h>
+ #include <wtf/HashMap.h>
+ #include <wtf/NeverDestroyed.h>
+ #include <wtf/glib/WTFGType.h>
+@@ -192,3 +193,9 @@
+ 
+     return world->priv->name.data();
+ }
++
++void webkit_script_world_set_cross_origin_access(WebKitScriptWorld* world, gboolean enabled)
++{
++    g_return_if_fail(WEBKIT_IS_SCRIPT_WORLD(world));
++    setScriptWorldCrossOriginAccess(webkitScriptWorldGetInjectedBundleScriptWorld(world)->coreWorld(), enabled);
++}
+diff --git a/Source/WebKit/WebProcess/InjectedBundle/API/glib/WebKitScriptWorld.h.in b/Source/WebKit/WebProcess/InjectedBundle/API/glib/WebKitScriptWorld.h.in
+--- a/Source/WebKit/WebProcess/InjectedBundle/API/glib/WebKitScriptWorld.h.in
++++ b/Source/WebKit/WebProcess/InjectedBundle/API/glib/WebKitScriptWorld.h.in
+@@ -63,6 +63,10 @@
+ WEBKIT_API const char *
+ webkit_script_world_get_name      (WebKitScriptWorld *world);
+ 
++/* Explicit opt-in for trusted embedding code; not for userscript sandboxes. */
++WEBKIT_API void
++webkit_script_world_set_cross_origin_access (WebKitScriptWorld *world, gboolean enabled);
++
+ G_END_DECLS
+ 
+ #endif

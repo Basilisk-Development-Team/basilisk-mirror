@@ -44,35 +44,100 @@ Inspector-resource and platform-module lookup variables from UXP's application
 directory before creating any WPE session/view. It never falls back to the
 development install or honors an unrelated runtime supplied through those variables.
 
-`tools/wpe/build-runtime.py` uses pristine upstream CMake with Release optimization,
-developer lookup enabled, tests/MiniBrowser/clangd setup disabled, and the normal
-bubblewrap sandbox enabled. Developer sandbox-debug permissions are not enabled.
-Upstream developer mode also adds read-only sandbox bindings for executable/helper
-parent directories; this is upstream behavior, not a disabled sandbox or private
-WebKit patch. A future nondeveloper relocatable-helper API would remove the need
-for this build option.
+With `ac_add_options --enable-webkit`, **`./mach build` builds WebKit** as
+part of the application build. No separately installed WPE runtime or manual
+invocation of the helper is required. Configuration checks the public system
+dependencies and build tools without downloading or compiling WebKit.
+The root build wrapper tracks application `moz.configure` files as configure
+inputs, so existing object directories pick up these rules on `mach build` too.
+Install the upstream WPE development dependencies, including CMake, Ninja,
+gperf, and unifdef. Locally installed host tools in
+`build-wpe-deps/prefix/bin` are accepted after the normal system PATH; this does
+not select runtime libraries from that prefix.
 
-The compiled install prefix is conventional `/usr`, so sandbox bind arguments and
-fallback paths do not name the source/dependency checkout. `DESTDIR` installs into
-a private staging directory, **never the host `/usr`**. Only build-time pkg-config
-metadata is adjusted to find that staged install. It is not shipped in the app.
-JSC JIT is not required. Example using an already configured dependency build:
+The application's root compile graph makes both the native adapter and the
+WebProcess extension depend on `wpe-runtime`. That target invokes
+`tools/wpe/build-runtime.py` before either consumer compiles; libxul's existing
+dependency on the adapter also orders its link. Independent UXP compilation can
+run concurrently. A failed source check, CMake configuration, or WPE compilation
+fails the application build. All hooks live outside `platform`.
 
-```sh
-python3 tools/wpe/build-runtime.py \
-  --build build-wpe-deps/wpe-build --interpreter --jobs 16
-export PKG_CONFIG_PATH="$PWD/build-wpe-deps/runtime-stage/usr/lib64/pkgconfig"
-MOZCONFIG=/path/to/enabled.mozconfig ./mach configure
-MOZCONFIG=/path/to/enabled.mozconfig ./mach build
+On first build, missing sources are downloaded from the pinned URL, checked
+against the recorded SHA-256, extracted into the source cache, and patched using
+`third_party/webkit/patches/series`. Existing sources are verified, never repaired
+or patched again. The source/archive cache is under `build-wpe-deps`; WPE's build
+outputs and private install are per-object-directory:
+
+```
+OBJDIR/webkit/build/       CMake/Ninja build
+OBJDIR/webkit/stage/usr/   private installed runtime and development files
+OBJDIR/dist/bin/webkit/    packaged application runtime
 ```
 
-Configure remains explicitly opt-in with `--enable-webkit`. It normally obtains
-the runtime prefix from WPE pkg-config; `--with-wpe-runtime=/installed/prefix`
-can select a matching installed runtime explicitly. `patchelf` is an enabled-build
-staging dependency, not a runtime dependency. Additional upstream dependency or
-feature options can be passed to the build helper after `--`; existing CMake cache
-options are retained. Upstream may require a new build directory when changing an
-explicitly stamped developer-mode identity. No source patch is needed.
+Subsequent builds verify the source and let Ninja rebuild affected WPE targets.
+GNU make's FIFO jobserver is shared with Ninja 1.13 or newer; older combinations
+use a bounded four-job WPE build. Clobbering the object directory removes WPE's
+build/install too, while retaining the downloaded source cache.
+
+The helper uses upstream CMake with Release optimization, developer runtime
+lookup enabled, API/layout tests, MiniBrowser, documentation/introspection and
+clangd setup disabled, and the normal bubblewrap sandbox. It explicitly selects
+WPEPlatform 2.0, disables the legacy libwpe API
+and unused DRM/Wayland platform backends, and retains the headless backend.
+Targets without a supported JSC JIT use CLoop. Restricted JSC development options
+and developer sandbox-debug permissions remain disabled. Upstream developer mode adds read-only sandbox bindings for
+executable/helper parent directories; this is upstream behavior, not a disabled
+sandbox or private WebKit patch.
+
+The compiled prefix remains `/usr`, so fallback paths never name the checkout.
+`DESTDIR` installs into the object directory, **never the host `/usr`**. Only
+build-time pkg-config metadata is rewritten to refer to that private install.
+`patchelf` is required for enabled-build staging, not at runtime. GStreamer and
+its installed codec/transport plugins remain system dependencies. With the
+pinned GStreamer 1.28.1 configuration, mach also builds the existing narrow
+WebRTC/NICE supplement using Meson in `OBJDIR/webkit/media`, sharing only its
+verified download cache. Other GStreamer versions use matching system WebRTC
+plugins. The separate `tools/wpe/build-webrtc-plugins.py` helper remains available
+for explicitly managed prebuilt prefixes.
+
+For developers deliberately supplying their own runtime,
+`ac_add_options --with-wpe-runtime=/installed/prefix` bypasses the WPE build and
+uses that prefix's headers, libraries, and helpers. The prefix must be complete
+at configure time. Automatic source builds currently require a native build;
+cross builds must select a runtime built for their target with this override.
+The build no longer silently selects an old source-tree
+staging directory or a system WPE install. `--disable-webkit` does not inspect,
+fetch, compile, or stage WPE, even if a prebuilt prefix was also specified.
+
+Standalone builds and custom upstream CMake settings remain available through
+`tools/wpe/build-runtime.py`; additional CMake options follow `--`. Existing cache
+options are retained. Select the resulting install with `--with-wpe-runtime`.
+
+Build integration checks:
+
+```sh
+OBJDIR/_virtualenv/bin/python tools/wpe/test-configure.py
+OBJDIR/_virtualenv/bin/python tools/wpe/test-build-configure.py
+python3 tools/wpe/test-build-integration.py
+python3 tools/wpe/test-verify-source.py
+```
+
+Validated on LoongArch64: an enabled `mach build` configured and compiled WPE in
+a new object-directory WPE build tree, built/staged the WebRTC supplement, then
+compiled the adapter/extension and linked Basilisk. The full build and following
+incremental build both finished with zero compiler warnings. The incremental
+run reused engine objects, regenerated an upstream resource bundle and relinked;
+it completed in about 79 seconds. Changing the application configure rules also
+triggered reconfiguration through `mach build` without a manual configure step.
+
+The configure, parallel-ordering/failure, source-preparation and source-integrity
+regressions passed. Clean extraction of the real pinned archive plus patch series
+matched all 38,842 source entries. Real disabled and explicit-prebuilt configure
+runs created no managed WPE build tree. The relocated runtime's 40 ELF files
+resolved without `LD_LIBRARY_PATH`; Gecko, WPE HTTP/HTTPS, page scripts and the
+Inspector passed with the checkout hidden. This does not change the previously
+documented WebRTC ICE transport limitation. No `platform` source changes were
+made for the integration.
 
 ## Relocation validation
 
@@ -166,3 +231,10 @@ helpers/resources and the same explicit RTC transport limitation. The disabled
 archive contains **22 ELF files** and no WebKit component/interface/resource or
 library dependency. Neither archive includes temporary test chrome. See the
 [full result ledger](content-engine-navigation-webrtc-results.md).
+
+### Extension API patch requirement
+
+The extension integration now uses downstream WPE APIs from
+`third_party/webkit/patches/series`. A runtime selected with `--with-wpe-runtime`
+must include that series; an upstream-only 2.54.0 build lacks the required symbols.
+The default managed `mach build` prepares and applies the series automatically.

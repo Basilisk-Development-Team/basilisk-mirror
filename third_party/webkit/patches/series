@@ -1,2 +1,7 @@
 # Ordered downstream patches, relative to this directory.
-# No downstream WebKit patch has been implemented yet.
+0001-wpe-handle-failed-clipboard-text-reads.patch
+0002-deferred-resource-policy.patch
+0003-content-extension-services.patch
+0004-deferred-websocket-policy.patch
+0005-content-process-resource-policy.patch
+0006-trusted-script-world-dom-access.patch

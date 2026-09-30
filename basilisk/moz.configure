@@ -16,6 +16,9 @@ option('--enable-webkit', default=False,
 @checking('whether WPE WebKit content support is enabled')
 def webkit(value, toolkit, target):
     if value:
+        if target.kernel == 'WINNT':
+            die('--enable-webkit is not supported on Windows; '
+                'no supported WebKit embedding backend is available')
         if target.os != 'GNU' or target.kernel != 'Linux' or toolkit != 'gtk3':
             die('--enable-webkit currently requires Linux and cairo-gtk3')
         return True
@@ -26,26 +29,121 @@ def webkit(value, toolkit, target):
 set_config('MOZ_WEBKIT', webkit)
 set_define('MOZ_WEBKIT', webkit)
 
-pkg_check_modules('WPE_WEBKIT', 'wpe-webkit-2.0 >= 2.54.0', when=webkit)
-pkg_check_modules('WPE_PLATFORM', 'wpe-platform-2.0 >= 2.54.0', when=webkit)
-pkg_check_modules('WPE_GSTREAMER', 'gstreamer-1.0 >= 1.20', when=webkit)
-
 option('--with-wpe-runtime', nargs=1,
-       help='Installed WPE runtime prefix to bundle (defaults to pkg-config prefix)')
+       help='Use a prebuilt WPE prefix instead of building the pinned WebKit sources')
 
-@depends_when(pkg_config, '--with-wpe-runtime', when=webkit)
+@depends_when('--with-wpe-runtime', check_build_environment,
+              '--with-external-source-dir', when=webkit)
+@imports('os')
+def wpe_paths(value, build_env, external_source_dir):
+    source = build_env.topsrcdir
+    if external_source_dir:
+        source = os.path.join(source, external_source_dir[0])
+    work = os.path.join(build_env.topobjdir, 'webkit')
+    return namespace(source=os.path.abspath(source),
+                     build=os.path.join(work, 'build'),
+                     prefix=os.path.abspath(value[0]) if value else
+                            os.path.join(work, 'stage', 'usr'),
+                     managed=not bool(value))
+
+
+@depends_when(pkg_config, wpe_paths, when=webkit)
+@imports('os')
+def wpe_pkg_config(pkg_config, paths):
+    if not pkg_config:
+        die('--enable-webkit requires pkg-config')
+    environment = dict(os.environ)
+    if not paths.managed:
+        search = [os.path.join(paths.prefix, lib, 'pkgconfig')
+                  for lib in ('lib64', 'lib', 'share')]
+        for package in ('wpe-webkit-2.0', 'wpe-platform-2.0'):
+            if not any(os.path.isfile(os.path.join(path, package + '.pc'))
+                       for path in search):
+                die('Missing %s.pc beneath the explicit --with-wpe-runtime '
+                    'prefix %s', package, paths.prefix)
+        if environment.get('PKG_CONFIG_PATH'):
+            search.append(environment['PKG_CONFIG_PATH'])
+        environment['PKG_CONFIG_PATH'] = os.pathsep.join(search)
+    # Scope private dependency paths to WPE checks, never Gecko's checks.
+    return namespace(program=pkg_config, environment=environment)
+
+
+@template
+def wpe_check_modules(var, package, managed_package=None, include=None):
+    @depends_when(wpe_pkg_config, wpe_paths, when=webkit)
+    @checking('for %s dependencies' % var, callback=lambda _: 'yes')
+    @imports('os')
+    @imports('subprocess')
+    def flags(config, paths):
+        # The pinned WPE headers and library are produced during mach build.
+        # Query only their public system dependencies during configuration.
+        query = managed_package if paths.managed and managed_package else package
+        try:
+            subprocess.check_output(
+                [config.program, '--print-errors', '--exists', query],
+                env=config.environment, stderr=subprocess.STDOUT)
+            cflags = subprocess.check_output(
+                [config.program, '--cflags', query], env=config.environment,
+                stderr=subprocess.STDOUT).decode().split()
+            libs = subprocess.check_output(
+                [config.program, '--libs', query], env=config.environment,
+                stderr=subprocess.STDOUT).decode().replace(
+                    '-Wl,--export-dynamic', '').split()
+        except subprocess.CalledProcessError as error:
+            die('%s', error.output.decode(errors='replace'))
+        if paths.managed and include:
+            cflags.insert(0, '-I' + os.path.join(paths.prefix, 'include', include))
+            cflags.insert(0, '-I' + os.path.join(paths.prefix, 'include',
+                                              'wpe-webkit-2.0/wpe-platform'))
+            libs = ['-L' + os.path.join(paths.prefix, 'lib64'),
+                    '-lWPEWebKit-2.0'] + libs
+        return namespace(cflags=tuple(cflags), libs=tuple(libs))
+
+    @depends_if(flags)
+    def cflags(flags):
+        return flags.cflags
+
+    @depends_if(flags)
+    def libs(flags):
+        return flags.libs
+
+    set_config('%s_CFLAGS' % var, cflags)
+    set_config('%s_LIBS' % var, libs)
+
+
+wpe_check_modules('WPE_WEBKIT', 'wpe-webkit-2.0 >= 2.54.0',
+                  'glib-2.0 >= 2.70 gio-2.0 libsoup-3.0 >= 3.0', 'wpe-webkit-2.0')
+wpe_check_modules('WPE_PLATFORM', 'wpe-platform-2.0 >= 2.54.0',
+                  'glib-2.0 >= 2.70 gobject-2.0 gio-2.0', 'wpe-webkit-2.0/wpe-platform')
+wpe_check_modules('WPE_GSTREAMER', 'gstreamer-1.0 >= 1.20')
+
+
+@depends_when(wpe_paths, host, target, wpe_pkg_config, when=webkit)
 @imports('os')
 @imports('shutil')
-def wpe_runtime(pkg_config, value):
-    prefix = value[0] if value else check_cmd_output(
-        pkg_config, '--variable=prefix', 'wpe-webkit-2.0').strip()
-    prefix = os.path.abspath(prefix)
-    if not os.path.isfile(os.path.join(prefix, 'libexec', 'wpe-webkit-2.0', 'WPEWebProcess')):
-        die('WPE runtime helpers are missing beneath %s; install WPE or use --with-wpe-runtime', prefix)
+@imports('subprocess')
+def wpe_runtime(paths, host, target, config):
+    if paths.managed:
+        if host.cpu != target.cpu or host.kernel != target.kernel:
+            die('Automatic WPE builds currently require a native build; '
+                'use --with-wpe-runtime for a cross-compiled WPE runtime')
+        search = os.pathsep.join([os.environ.get('PATH', ''),
+                                  os.path.join(paths.source, 'build-wpe-deps', 'prefix', 'bin')])
+        tools = ['cmake', 'ninja', 'gperf', 'unifdef']
+        gst_version = subprocess.check_output(
+            [config.program, '--modversion', 'gstreamer-1.0'],
+            env=config.environment).decode().strip()
+        if gst_version == '1.28.1':
+            tools.append('meson')
+        for tool in tools:
+            if not shutil.which(tool, path=search):
+                die('--enable-webkit requires %s to build WebKit', tool)
+    elif not os.path.isfile(os.path.join(paths.prefix, 'libexec', 'wpe-webkit-2.0', 'WPEWebProcess')):
+        die('WPE runtime helpers are missing beneath %s', paths.prefix)
     patchelf = shutil.which('patchelf')
     if not patchelf:
         die('--enable-webkit requires patchelf to stage a relocatable runtime')
-    return namespace(prefix=prefix, patchelf=patchelf)
+    return namespace(prefix=paths.prefix, patchelf=patchelf)
 
 @depends_if(wpe_runtime)
 def wpe_runtime_prefix(runtime):
@@ -55,5 +153,26 @@ def wpe_runtime_prefix(runtime):
 def wpe_patchelf(runtime):
     return runtime.patchelf
 
+@depends_if(wpe_paths)
+def wpe_build_from_source(paths):
+    return True if paths.managed else None
+
+@depends_if(wpe_paths)
+def wpe_source_root(paths):
+    return paths.source if paths.managed else None
+
+@depends_if(wpe_paths)
+def wpe_build_dir(paths):
+    return paths.build if paths.managed else None
+
+@depends_when(target, when=wpe_build_from_source)
+def wpe_interpreter(target):
+    # Upstream JSC has no JIT backend for these UXP-supported architectures.
+    return True if target.cpu not in ('x86_64', 'aarch64', 'arm') else None
+
 set_config('WPE_RUNTIME_PREFIX', wpe_runtime_prefix)
 set_config('WPE_PATCHELF', wpe_patchelf)
+set_config('WPE_BUILD_FROM_SOURCE', wpe_build_from_source)
+set_config('WPE_SOURCE_ROOT', wpe_source_root)
+set_config('WPE_BUILD_DIR', wpe_build_dir)
+set_config('WPE_INTERPRETER', wpe_interpreter)

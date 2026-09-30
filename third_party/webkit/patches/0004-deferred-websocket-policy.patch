@@ -1,0 +1,258 @@
+From: Basilisk contributors
+Subject: [PATCH] Hold WebSocket creation with cancellable attributed policy
+
+diff --git a/Source/WebKit/NetworkProcess/NetworkConnectionToWebProcess.cpp b/Source/WebKit/NetworkProcess/NetworkConnectionToWebProcess.cpp
+--- a/Source/WebKit/NetworkProcess/NetworkConnectionToWebProcess.cpp
++++ b/Source/WebKit/NetworkProcess/NetworkConnectionToWebProcess.cpp
+@@ -542,14 +542,17 @@
+     protect(m_networkProcess->parentProcessConnection())->send(Messages::NetworkProcessProxy::TerminateWebProcess(m_webProcessIdentifier), 0);
+ }
+ 
+-void NetworkConnectionToWebProcess::createSocketChannel(const ResourceRequest& request, const String& protocol, WebSocketIdentifier identifier, WebPageProxyIdentifier webPageProxyID, std::optional<FrameIdentifier> frameID, std::optional<PageIdentifier> pageID, const ClientOrigin& clientOrigin, bool hadMainFrameMainResourcePrivateRelayed, bool allowPrivacyProxy, OptionSet<AdvancedPrivacyProtections> advancedPrivacyProtections, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, WebCore::IsInitiatedByDedicatedWorker isInitiatedByDedicatedWorker)
++void NetworkConnectionToWebProcess::createSocketChannel(const ResourceRequest& request, const String& protocol, WebSocketIdentifier identifier, WebPageProxyIdentifier webPageProxyID, std::optional<FrameIdentifier> frameID, std::optional<PageIdentifier> pageID, const ClientOrigin& clientOrigin, bool hadMainFrameMainResourcePrivateRelayed, bool allowPrivacyProxy, OptionSet<AdvancedPrivacyProtections> advancedPrivacyProtections, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, WebCore::IsInitiatedByDedicatedWorker isInitiatedByDedicatedWorker, bool resourceLoadPolicyEnabled, std::optional<WebCore::FrameIdentifier> parentFrameID, const String& documentURL)
+ {
+     MESSAGE_CHECK(request.url().isValid());
+     MESSAGE_CHECK(m_networkProcess->allowsFirstPartyForCookies(m_webProcessIdentifier, request.firstPartyForCookies()) != NetworkProcess::AllowCookieAccess::Terminate);
+ 
+     ASSERT(!m_networkSocketChannels.contains(identifier));
+-    if (RefPtr channel = NetworkSocketChannel::create(*this, m_sessionID, request, protocol, identifier, webPageProxyID, frameID, pageID, clientOrigin, hadMainFrameMainResourcePrivateRelayed, allowPrivacyProxy, advancedPrivacyProtections, storedCredentialsPolicy, isInitiatedByDedicatedWorker))
+-        m_networkSocketChannels.add(identifier, channel.releaseNonNull());
++    if (RefPtr channel = NetworkSocketChannel::create(*this, m_sessionID, request, protocol, identifier, webPageProxyID, frameID, pageID, clientOrigin, hadMainFrameMainResourcePrivateRelayed, allowPrivacyProxy, advancedPrivacyProtections, storedCredentialsPolicy, isInitiatedByDedicatedWorker, resourceLoadPolicyEnabled, parentFrameID, documentURL))
++    {
++        m_networkSocketChannels.add(identifier, Ref { *channel });
++        channel->startResourcePolicy();
++    }
+ }
+ 
+ void NetworkConnectionToWebProcess::removeSocketChannel(WebSocketIdentifier identifier)
+diff --git a/Source/WebKit/NetworkProcess/NetworkConnectionToWebProcess.h b/Source/WebKit/NetworkProcess/NetworkConnectionToWebProcess.h
+--- a/Source/WebKit/NetworkProcess/NetworkConnectionToWebProcess.h
++++ b/Source/WebKit/NetworkProcess/NetworkConnectionToWebProcess.h
+@@ -359,7 +359,7 @@
+ 
+     void setCaptureExtraNetworkLoadMetricsEnabled(bool);
+ 
+-    void createSocketChannel(const WebCore::ResourceRequest&, const String& protocol, WebCore::WebSocketIdentifier, WebPageProxyIdentifier, std::optional<WebCore::FrameIdentifier>, std::optional<WebCore::PageIdentifier>, const WebCore::ClientOrigin&, bool hadMainFrameMainResourcePrivateRelayed, bool allowPrivacyProxy, OptionSet<WebCore::AdvancedPrivacyProtections>, WebCore::StoredCredentialsPolicy, WebCore::IsInitiatedByDedicatedWorker);
++    void createSocketChannel(const WebCore::ResourceRequest&, const String& protocol, WebCore::WebSocketIdentifier, WebPageProxyIdentifier, std::optional<WebCore::FrameIdentifier>, std::optional<WebCore::PageIdentifier>, const WebCore::ClientOrigin&, bool hadMainFrameMainResourcePrivateRelayed, bool allowPrivacyProxy, OptionSet<WebCore::AdvancedPrivacyProtections>, WebCore::StoredCredentialsPolicy, WebCore::IsInitiatedByDedicatedWorker, bool resourceLoadPolicyEnabled, std::optional<WebCore::FrameIdentifier> parentFrameID, const String& documentURL);
+     void countWebSocketChannelsForTesting(CompletionHandler<void(uint32_t)>&&);
+ 
+     void establishSharedWorkerServerConnection();
+diff --git a/Source/WebKit/NetworkProcess/NetworkConnectionToWebProcess.messages.in b/Source/WebKit/NetworkProcess/NetworkConnectionToWebProcess.messages.in
+--- a/Source/WebKit/NetworkProcess/NetworkConnectionToWebProcess.messages.in
++++ b/Source/WebKit/NetworkProcess/NetworkConnectionToWebProcess.messages.in
+@@ -80,7 +80,7 @@
+ 
+     SetCaptureExtraNetworkLoadMetricsEnabled(bool enabled)
+ 
+-    [EnabledBy=WebSocketEnabled] CreateSocketChannel(WebCore::ResourceRequest request, String protocol, WebCore::WebSocketIdentifier identifier, WebKit::WebPageProxyIdentifier webPageProxyID, std::optional<WebCore::FrameIdentifier> frameID, std::optional<WebCore::PageIdentifier> pageID, struct WebCore::ClientOrigin clientOrigin, bool hadMainFrameMainResourcePrivateRelayed, bool allowPrivacyProxy, OptionSet<WebCore::AdvancedPrivacyProtections> protections, enum:uint8_t WebCore::StoredCredentialsPolicy storedCredentialsPolicy, enum:bool WebCore::IsInitiatedByDedicatedWorker isInitiatedByDedicatedWorker)
++    [EnabledBy=WebSocketEnabled] CreateSocketChannel(WebCore::ResourceRequest request, String protocol, WebCore::WebSocketIdentifier identifier, WebKit::WebPageProxyIdentifier webPageProxyID, std::optional<WebCore::FrameIdentifier> frameID, std::optional<WebCore::PageIdentifier> pageID, struct WebCore::ClientOrigin clientOrigin, bool hadMainFrameMainResourcePrivateRelayed, bool allowPrivacyProxy, OptionSet<WebCore::AdvancedPrivacyProtections> protections, enum:uint8_t WebCore::StoredCredentialsPolicy storedCredentialsPolicy, enum:bool WebCore::IsInitiatedByDedicatedWorker isInitiatedByDedicatedWorker, bool resourceLoadPolicyEnabled, std::optional<WebCore::FrameIdentifier> parentFrameID, String documentURL)
+ 
+     CountWebSocketChannelsForTesting() -> (uint32_t count)
+ 
+diff --git a/Source/WebKit/NetworkProcess/NetworkSocketChannel.cpp b/Source/WebKit/NetworkProcess/NetworkSocketChannel.cpp
+--- a/Source/WebKit/NetworkProcess/NetworkSocketChannel.cpp
++++ b/Source/WebKit/NetworkProcess/NetworkSocketChannel.cpp
+@@ -29,10 +29,12 @@
+ #include "MessageSenderInlines.h"
+ #include "NetworkConnectionToWebProcess.h"
+ #include "NetworkProcess.h"
++#include "NetworkProcessProxyMessages.h"
+ #include "NetworkSession.h"
+ #include "WebSocketChannelMessages.h"
+ #include "WebSocketTask.h"
+ #include <wtf/TZoneMallocInlines.h>
++#include <wtf/text/MakeString.h>
+ 
+ #if PLATFORM(COCOA)
+ #include "NetworkSessionCocoa.h"
+@@ -43,17 +45,21 @@
+ 
+ WTF_MAKE_TZONE_ALLOCATED_IMPL(NetworkSocketChannel);
+ 
+-RefPtr<NetworkSocketChannel> NetworkSocketChannel::create(NetworkConnectionToWebProcess& connection, PAL::SessionID sessionID, const ResourceRequest& request, const String& protocol, WebSocketIdentifier identifier, WebPageProxyIdentifier webPageProxyID, std::optional<FrameIdentifier> frameID, std::optional<PageIdentifier> pageID, const WebCore::ClientOrigin& clientOrigin, bool hadMainFrameMainResourcePrivateRelayed, bool allowPrivacyProxy, OptionSet<AdvancedPrivacyProtections> advancedPrivacyProtections, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, IsInitiatedByDedicatedWorker isInitiatedByDedicatedWorker)
+-{
+-    Ref result = adoptRef(*new NetworkSocketChannel(connection, connection.networkProcess().networkSession(sessionID), request, protocol, identifier, webPageProxyID, frameID, pageID, clientOrigin, hadMainFrameMainResourcePrivateRelayed, allowPrivacyProxy, advancedPrivacyProtections, storedCredentialsPolicy, isInitiatedByDedicatedWorker));
+-    if (!result->m_socket) {
++RefPtr<NetworkSocketChannel> NetworkSocketChannel::create(NetworkConnectionToWebProcess& connection, PAL::SessionID sessionID, const ResourceRequest& request, const String& protocol, WebSocketIdentifier identifier, WebPageProxyIdentifier webPageProxyID, std::optional<FrameIdentifier> frameID, std::optional<PageIdentifier> pageID, const WebCore::ClientOrigin& clientOrigin, bool hadMainFrameMainResourcePrivateRelayed, bool allowPrivacyProxy, OptionSet<AdvancedPrivacyProtections> advancedPrivacyProtections, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, IsInitiatedByDedicatedWorker isInitiatedByDedicatedWorker, bool resourceLoadPolicyEnabled, std::optional<WebCore::FrameIdentifier> parentFrameID, const String& documentURL)
++{
++    Ref result = adoptRef(*new NetworkSocketChannel(connection, connection.networkProcess().networkSession(sessionID), request, protocol, identifier, webPageProxyID, frameID, pageID, clientOrigin, hadMainFrameMainResourcePrivateRelayed, allowPrivacyProxy, advancedPrivacyProtections, storedCredentialsPolicy, isInitiatedByDedicatedWorker, resourceLoadPolicyEnabled, parentFrameID, documentURL));
++    if (!result->m_socket
++#if PLATFORM(GTK) || PLATFORM(WPE)
++        && !result->m_resourcePolicy
++#endif
++    ) {
+         result->didClose(0, "Cannot create a web socket task"_s);
+         return nullptr;
+     }
+     return result;
+ }
+ 
+-NetworkSocketChannel::NetworkSocketChannel(NetworkConnectionToWebProcess& connection, NetworkSession* session, const ResourceRequest& request, const String& protocol, WebSocketIdentifier identifier, WebPageProxyIdentifier webPageProxyID, std::optional<FrameIdentifier> frameID, std::optional<PageIdentifier> pageID, const WebCore::ClientOrigin& clientOrigin, bool hadMainFrameMainResourcePrivateRelayed, bool allowPrivacyProxy, OptionSet<AdvancedPrivacyProtections> advancedPrivacyProtections, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, IsInitiatedByDedicatedWorker isInitiatedByDedicatedWorker)
++NetworkSocketChannel::NetworkSocketChannel(NetworkConnectionToWebProcess& connection, NetworkSession* session, const ResourceRequest& request, const String& protocol, WebSocketIdentifier identifier, WebPageProxyIdentifier webPageProxyID, std::optional<FrameIdentifier> frameID, std::optional<PageIdentifier> pageID, const WebCore::ClientOrigin& clientOrigin, bool hadMainFrameMainResourcePrivateRelayed, bool allowPrivacyProxy, OptionSet<AdvancedPrivacyProtections> advancedPrivacyProtections, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, IsInitiatedByDedicatedWorker isInitiatedByDedicatedWorker, bool resourceLoadPolicyEnabled, std::optional<WebCore::FrameIdentifier> parentFrameID, const String& documentURL)
+     : m_connectionToWebProcess(connection)
+     , m_identifier(identifier)
+     , m_session(session)
+@@ -64,6 +70,11 @@
+     if (!session)
+         return;
+ 
++    auto startSocket = [this, frameID, pageID, protocol, clientOrigin, hadMainFrameMainResourcePrivateRelayed, allowPrivacyProxy, advancedPrivacyProtections, storedCredentialsPolicy, isInitiatedByDedicatedWorker](const ResourceRequest& request) {
++        auto* session = m_session.get();
++        if (!session || m_state != State::Open)
++            return;
++        auto webPageProxyID = m_webPageProxyID;
+     m_socket = session->createWebSocketTask(webPageProxyID, frameID, pageID, *this, request, protocol, clientOrigin, hadMainFrameMainResourcePrivateRelayed, allowPrivacyProxy, advancedPrivacyProtections, storedCredentialsPolicy, isInitiatedByDedicatedWorker);
+     if (RefPtr socket = m_socket.get()) {
+ #if PLATFORM(COCOA)
+@@ -71,10 +82,54 @@
+ #endif
+         socket->resume();
+     }
++    };
++#if PLATFORM(GTK) || PLATFORM(WPE)
++    if (resourceLoadPolicyEnabled) {
++        auto snapshot = NetworkResourcePolicy::snapshot(request, { }, false);
++        snapshot->setString("id"_s, makeString("socket:"_s, identifier.toUInt64()));
++        snapshot->setString("frameId"_s, frameID ? String::number(frameID->toUInt64()) : emptyString());
++        snapshot->setString("parentFrameId"_s, parentFrameID ? String::number(parentFrameID->toUInt64()) : emptyString());
++        snapshot->setString("documentURL"_s, documentURL);
++        snapshot->setString("sourceOrigin"_s, clientOrigin.clientOrigin.toString());
++        snapshot->setString("topOrigin"_s, clientOrigin.topOrigin.toString());
++        snapshot->setInteger("type"_s, 15);
++        snapshot->setBoolean("mainResource"_s, false);
++        snapshot->setBoolean("mainFrame"_s, false);
++        m_policySnapshot = snapshot->toJSONString();
++        m_resourcePolicy = NetworkResourcePolicy::create([weakThis = WeakPtr { *this }, request = ResourceRequest { request }, startSocket = WTF::move(startSocket)](RefPtr<JSON::Object>&& decision) mutable {
++            if (!weakThis || weakThis->m_state != State::Open)
++                return;
++            RefPtr channel = weakThis.get();
++            if (decision && decision->getBoolean("allow"_s).value_or(false)) {
++                NetworkResourcePolicy::applyHeaders(request, *decision);
++                startSocket(request);
++                if (channel->m_socket)
++                    return;
++            }
++            channel->didReceiveMessageError("WebSocket blocked by resource policy"_s);
++            channel->didClose(1006, "Resource policy denied"_s);
++        });
++        return;
++    }
++#endif
++    startSocket(request);
++}
++
++void NetworkSocketChannel::startResourcePolicy()
++{
++#if PLATFORM(GTK) || PLATFORM(WPE)
++    if (m_resourcePolicy)
++        m_resourcePolicy->start(*m_connectionToWebProcess->networkProcess().parentProcessConnection(), m_webPageProxyID, m_policySnapshot);
++#endif
+ }
+ 
+ NetworkSocketChannel::~NetworkSocketChannel()
+ {
++    m_state = State::Closed;
++#if PLATFORM(GTK) || PLATFORM(WPE)
++    if (m_resourcePolicy)
++        m_connectionToWebProcess->networkProcess().parentProcessConnection()->send(Messages::NetworkProcessProxy::ResourceLoadPolicyFinished(m_webPageProxyID, makeString("socket:"_s, m_identifier.toUInt64())), 0);
++#endif
+     if (RefPtr socket = m_socket.get()) {
+ #if PLATFORM(COCOA)
+         if (RefPtr sessionSet = m_session ? socket->sessionSet() : nullptr)
+@@ -86,11 +141,13 @@
+ 
+ void NetworkSocketChannel::sendString(std::span<const uint8_t> message, CompletionHandler<void()>&& callback)
+ {
++    if (!m_socket) { callback(); return; }
+     protect(m_socket)->sendString(message, WTF::move(callback));
+ }
+ 
+ void NetworkSocketChannel::sendData(std::span<const uint8_t> data, CompletionHandler<void()>&& callback)
+ {
++    if (!m_socket) { callback(); return; }
+     protect(m_socket)->sendData(data, WTF::move(callback));
+ }
+ 
+@@ -107,6 +164,18 @@
+ 
+ void NetworkSocketChannel::close(int32_t code, const String& reason)
+ {
++    if (!m_socket) {
++        Ref protectedThis { *this };
++        m_state = State::Closed;
++        m_errorTimer.stop();
++#if PLATFORM(GTK) || PLATFORM(WPE)
++        if (m_resourcePolicy)
++            m_resourcePolicy->cancel();
++#endif
++        send(Messages::WebSocketChannel::DidClose { 1006, reason });
++        protect(m_connectionToWebProcess)->removeSocketChannel(m_identifier);
++        return;
++    }
+     protect(m_socket)->close(code, reason);
+     finishClosingIfPossible();
+ }
+diff --git a/Source/WebKit/NetworkProcess/NetworkSocketChannel.h b/Source/WebKit/NetworkProcess/NetworkSocketChannel.h
+--- a/Source/WebKit/NetworkProcess/NetworkSocketChannel.h
++++ b/Source/WebKit/NetworkProcess/NetworkSocketChannel.h
+@@ -24,6 +24,9 @@
+  */
+ 
+ #pragma once
++#if PLATFORM(GTK) || PLATFORM(WPE)
++#include "NetworkResourcePolicy.h"
++#endif
+ 
+ #include "MessageReceiver.h"
+ #include "MessageSender.h"
+@@ -62,8 +65,9 @@
+ class NetworkSocketChannel : public IPC::MessageSender, public IPC::MessageReceiver, public RefCounted<NetworkSocketChannel> {
+     WTF_MAKE_TZONE_ALLOCATED(NetworkSocketChannel);
+ public:
+-    static RefPtr<NetworkSocketChannel> create(NetworkConnectionToWebProcess&, PAL::SessionID, const WebCore::ResourceRequest&, const String& protocol, WebCore::WebSocketIdentifier, WebPageProxyIdentifier, std::optional<WebCore::FrameIdentifier>, std::optional<WebCore::PageIdentifier>, const WebCore::ClientOrigin&, bool hadMainFrameMainResourcePrivateRelayed, bool allowPrivacyProxy, OptionSet<WebCore::AdvancedPrivacyProtections>, WebCore::StoredCredentialsPolicy, WebCore::IsInitiatedByDedicatedWorker);
++    static RefPtr<NetworkSocketChannel> create(NetworkConnectionToWebProcess&, PAL::SessionID, const WebCore::ResourceRequest&, const String& protocol, WebCore::WebSocketIdentifier, WebPageProxyIdentifier, std::optional<WebCore::FrameIdentifier>, std::optional<WebCore::PageIdentifier>, const WebCore::ClientOrigin&, bool hadMainFrameMainResourcePrivateRelayed, bool allowPrivacyProxy, OptionSet<WebCore::AdvancedPrivacyProtections>, WebCore::StoredCredentialsPolicy, WebCore::IsInitiatedByDedicatedWorker, bool resourceLoadPolicyEnabled, std::optional<WebCore::FrameIdentifier> parentFrameID, const String& documentURL);
+     ~NetworkSocketChannel();
++    void startResourcePolicy();
+ 
+     void ref() const final { RefCounted::ref(); }
+     void deref() const final { RefCounted::deref(); }
+@@ -75,7 +79,7 @@
+     friend class WebSocketTask;
+ 
+ private:
+-    NetworkSocketChannel(NetworkConnectionToWebProcess&, NetworkSession*, const WebCore::ResourceRequest&, const String& protocol, WebCore::WebSocketIdentifier, WebPageProxyIdentifier, std::optional<WebCore::FrameIdentifier>, std::optional<WebCore::PageIdentifier>, const WebCore::ClientOrigin&, bool hadMainFrameMainResourcePrivateRelayed, bool allowPrivacyProxy, OptionSet<WebCore::AdvancedPrivacyProtections>, WebCore::StoredCredentialsPolicy, WebCore::IsInitiatedByDedicatedWorker);
++    NetworkSocketChannel(NetworkConnectionToWebProcess&, NetworkSession*, const WebCore::ResourceRequest&, const String& protocol, WebCore::WebSocketIdentifier, WebPageProxyIdentifier, std::optional<WebCore::FrameIdentifier>, std::optional<WebCore::PageIdentifier>, const WebCore::ClientOrigin&, bool hadMainFrameMainResourcePrivateRelayed, bool allowPrivacyProxy, OptionSet<WebCore::AdvancedPrivacyProtections>, WebCore::StoredCredentialsPolicy, WebCore::IsInitiatedByDedicatedWorker, bool resourceLoadPolicyEnabled, std::optional<WebCore::FrameIdentifier> parentFrameID, const String& documentURL);
+ 
+     void didConnect(const String& subprotocol, const String& extensions);
+     void didReceiveText(const String&);
+@@ -101,6 +105,10 @@
+     WebCore::WebSocketIdentifier m_identifier;
+     WeakPtr<NetworkSession> m_session;
+     RefPtr<WebSocketTask> m_socket;
++#if PLATFORM(GTK) || PLATFORM(WPE)
++    RefPtr<NetworkResourcePolicy> m_resourcePolicy;
++    String m_policySnapshot;
++#endif
+ 
+     enum class State { Open, Closing, Closed };
+     State m_state { State::Open };
+diff --git a/Source/WebKit/WebProcess/Network/WebSocketChannel.cpp b/Source/WebKit/WebProcess/Network/WebSocketChannel.cpp
+--- a/Source/WebKit/WebProcess/Network/WebSocketChannel.cpp
++++ b/Source/WebKit/WebProcess/Network/WebSocketChannel.cpp
+@@ -36,6 +36,7 @@
+ #include <WebCore/ClientOrigin.h>
+ #include <WebCore/DocumentInlines.h>
+ #include <WebCore/DocumentLoader.h>
++#include <WebCore/Settings.h>
+ #include <WebCore/DocumentPage.h>
+ #include <WebCore/ExceptionCode.h>
+ #include <WebCore/FrameDestructionObserverInlines.h>
+@@ -174,7 +175,7 @@
+         return mainFrame;
+     }();
+ 
+-    MessageSender::send(Messages::NetworkConnectionToWebProcess::CreateSocketChannel { *request, protocol, identifier(), m_webPageProxyID, std::optional(frame->frameID()), frame->pageID(), document->clientOrigin(), WebProcess::singleton().hadMainFrameMainResourcePrivateRelayed(), policySourceFrame->allowPrivacyProxy(), policySourceFrame->advancedPrivacyProtections(), storedCredentialsPolicy, m_isInitiatedByDedicatedWorker });
++    MessageSender::send(Messages::NetworkConnectionToWebProcess::CreateSocketChannel { *request, protocol, identifier(), m_webPageProxyID, std::optional(frame->frameID()), frame->pageID(), document->clientOrigin(), WebProcess::singleton().hadMainFrameMainResourcePrivateRelayed(), policySourceFrame->allowPrivacyProxy(), policySourceFrame->advancedPrivacyProtections(), storedCredentialsPolicy, m_isInitiatedByDedicatedWorker, document->settings().resourceLoadPolicyEnabled(), frame->tree().parent() ? std::optional { frame->tree().parent()->frameID() } : std::nullopt, document->url().string() });
+     m_needsToCallClose = true;
+     return ConnectStatus::OK;
+ }

@@ -311,6 +311,7 @@ $(CONFIGURES): %: %.in $(EXTRA_CONFIG_DEPS)
 CONFIG_STATUS_DEPS := \
   $(wildcard $(MOZILLA_DIR)/ldap/sdks/c-sdk/configure) \
   $(wildcard $(TOPSRCDIR)/*/confvars.sh) \
+  $(wildcard $(TOPSRCDIR)/*/moz.configure) \
   $(CONFIGURES) \
   $(MOZILLA_DIR)/CLOBBER \
   $(MOZILLA_DIR)/nsprpub/configure \

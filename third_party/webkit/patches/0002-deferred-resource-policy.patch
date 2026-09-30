@@ -1,0 +1,483 @@
+From: Basilisk contributors
+Subject: [PATCH] Add opt-in deferred resource policy for GLib embedders
+
+diff --git a/Source/WTF/Scripts/Preferences/UnifiedWebPreferences.yaml b/Source/WTF/Scripts/Preferences/UnifiedWebPreferences.yaml
+--- a/Source/WTF/Scripts/Preferences/UnifiedWebPreferences.yaml
++++ b/Source/WTF/Scripts/Preferences/UnifiedWebPreferences.yaml
+@@ -7254,6 +7254,17 @@
+       "PLATFORM(IOS_FAMILY)": true
+       default: false
+ 
++ResourceLoadPolicyEnabled:
++  type: bool
++  status: embedder
++  defaultValue:
++    WebKitLegacy:
++      default: false
++    WebKit:
++      default: false
++    WebCore:
++      default: false
++
+ ResourceLoadSchedulingEnabled:
+   type: bool
+   status: internal
+diff --git a/Source/WebKit/NetworkProcess/NetworkResourceLoadParameters.h b/Source/WebKit/NetworkProcess/NetworkResourceLoadParameters.h
+--- a/Source/WebKit/NetworkProcess/NetworkResourceLoadParameters.h
++++ b/Source/WebKit/NetworkProcess/NetworkResourceLoadParameters.h
+@@ -95,6 +95,7 @@
+     bool shouldEnableCrossOriginResourcePolicy { false };
+     Vector<Ref<WebCore::SecurityOrigin>> frameAncestorOrigins { };
+     bool pageHasResourceLoadClient { false };
++    bool resourceLoadPolicyEnabled { false };
+     std::optional<WebCore::FrameIdentifier> parentFrameID { };
+     bool crossOriginAccessControlCheckEnabled { true };
+     URL documentURL { };
+diff --git a/Source/WebKit/NetworkProcess/NetworkResourceLoadParameters.serialization.in b/Source/WebKit/NetworkProcess/NetworkResourceLoadParameters.serialization.in
+--- a/Source/WebKit/NetworkProcess/NetworkResourceLoadParameters.serialization.in
++++ b/Source/WebKit/NetworkProcess/NetworkResourceLoadParameters.serialization.in
+@@ -73,6 +73,7 @@
+     
+     Vector<Ref<WebCore::SecurityOrigin>> frameAncestorOrigins;
+     bool pageHasResourceLoadClient;
++    bool resourceLoadPolicyEnabled;
+     std::optional<WebCore::FrameIdentifier> parentFrameID;
+     bool crossOriginAccessControlCheckEnabled;
+     
+diff --git a/Source/WebKit/NetworkProcess/NetworkResourceLoader.cpp b/Source/WebKit/NetworkProcess/NetworkResourceLoader.cpp
+--- a/Source/WebKit/NetworkProcess/NetworkResourceLoader.cpp
++++ b/Source/WebKit/NetworkProcess/NetworkResourceLoader.cpp
+@@ -226,8 +226,71 @@
+ 
+ void NetworkResourceLoader::start()
+ {
++#if PLATFORM(GTK) || PLATFORM(WPE)
++    decideResourcePolicy(originalRequest(), { }, false, [weakThis = WeakPtr { *this }](ResourceRequest&& request, ResourceResponse&&) {
++        if (weakThis && !request.isNull())
++            weakThis->startRequest(request);
++    });
++#else
+     startRequest(originalRequest());
+-}
++#endif
++}
++
++#if PLATFORM(GTK) || PLATFORM(WPE)
++void NetworkResourceLoader::decideResourcePolicy(ResourceRequest request, ResourceResponse response, bool isResponse, CompletionHandler<void(ResourceRequest&&, ResourceResponse&&)>&& completion)
++{
++    if (!m_parameters.resourceLoadPolicyEnabled) {
++        completion(WTF::move(request), WTF::move(response));
++        return;
++    }
++    auto info = resourceLoadInfo();
++    auto snapshot = NetworkResourcePolicy::snapshot(request, response, isResponse);
++    snapshot->setString("id"_s, String::number(info.resourceLoadID.toUInt64()));
++    snapshot->setString("frameId"_s, info.frameID ? String::number(info.frameID->toUInt64()) : emptyString());
++    snapshot->setString("parentFrameId"_s, info.parentFrameID ? String::number(info.parentFrameID->toUInt64()) : emptyString());
++    snapshot->setString("documentId"_s, info.documentID ? info.documentID->toString() : emptyString());
++    snapshot->setString("documentURL"_s, m_parameters.documentURL.string());
++    snapshot->setString("originalURL"_s, info.originalURL.string());
++    snapshot->setString("sourceOrigin"_s, m_parameters.sourceOrigin ? m_parameters.sourceOrigin->toString() : emptyString());
++    snapshot->setString("topOrigin"_s, m_parameters.topOrigin ? m_parameters.topOrigin->toString() : emptyString());
++    snapshot->setInteger("type"_s, static_cast<int>(info.type));
++    snapshot->setBoolean("mainResource"_s, isMainResource());
++    snapshot->setBoolean("mainFrame"_s, isMainFrameLoad());
++    snapshot->setInteger("redirectCount"_s, m_redirectCount);
++    auto serialized = snapshot->toJSONString();
++    m_resourcePolicy = NetworkResourcePolicy::create([weakThis = WeakPtr { *this }, request = WTF::move(request), response = WTF::move(response), isResponse, completion = WTF::move(completion)](RefPtr<JSON::Object>&& decision) mutable {
++        if (!weakThis || weakThis->m_resourcePolicyCancelled) {
++            completion({ }, { });
++            return;
++        }
++        RefPtr loader = weakThis.get();
++        if (!decision || !decision->getBoolean("allow"_s).value_or(false)) {
++            completion({ }, { });
++            if (!loader->m_resourcePolicyCancelled)
++                loader->didFailLoading(ResourceError { "WebKitResourcePolicy"_s, 1, request.url(), "Blocked by resource policy"_s });
++            return;
++        }
++        if (isResponse)
++            NetworkResourcePolicy::applyHeaders(response, *decision);
++        else {
++            NetworkResourcePolicy::applyHeaders(request, *decision);
++            auto redirect = decision->getString("redirectURL"_s);
++            if (!redirect.isEmpty()) {
++                URL url { redirect };
++                if (!url.isValid() || !(url.protocolIsInHTTPFamily() || url.protocolIsData())) {
++                    completion({ }, { });
++                    if (!loader->m_resourcePolicyCancelled)
++                        loader->didFailLoading(ResourceError { "WebKitResourcePolicy"_s, 2, request.url(), "Invalid policy redirect"_s });
++                    return;
++                }
++                request.setURL(WTF::move(url));
++            }
++        }
++        completion(WTF::move(request), WTF::move(response));
++    });
++    m_resourcePolicy->start(*connectionToWebProcess().networkProcess().parentProcessConnection(), webPageProxyID(), serialized);
++}
++#endif
+ 
+ void NetworkResourceLoader::startRequest(const ResourceRequest& newRequest)
+ {
+@@ -589,6 +652,15 @@
+ 
+ void NetworkResourceLoader::cleanup(LoadResult result)
+ {
++#if PLATFORM(GTK) || PLATFORM(WPE)
++    if (m_parameters.resourceLoadPolicyEnabled)
++        connectionToWebProcess().networkProcess().parentProcessConnection()->send(Messages::NetworkProcessProxy::ResourceLoadPolicyFinished(webPageProxyID(), String::number(m_resourceLoadID.toUInt64())), 0);
++#endif
++#if PLATFORM(GTK) || PLATFORM(WPE)
++    m_resourcePolicyCancelled = true;
++    if (m_resourcePolicy)
++        m_resourcePolicy->cancel();
++#endif
+     ASSERT(RunLoop::isMain());
+     LOADER_RELEASE_LOG("cleanup: (result=%u)", static_cast<unsigned>(result));
+ 
+@@ -649,10 +721,15 @@
+ 
+ void NetworkResourceLoader::abort()
+ {
++#if PLATFORM(GTK) || PLATFORM(WPE)
++    m_resourcePolicyCancelled = true;
++    if (m_resourcePolicy)
++        m_resourcePolicy->cancel();
++#endif
+     LOADER_RELEASE_LOG("abort: (hasNetworkLoad=%d)", !!m_networkLoad);
+     ASSERT(RunLoop::isMain());
+ 
+-    if (m_parameters.options.keepAlive && m_response.isNull() && !m_isKeptAlive) {
++    if (m_parameters.options.keepAlive && !m_parameters.resourceLoadPolicyEnabled && m_response.isNull() && !m_isKeptAlive) {
+         m_isKeptAlive = true;
+         LOADER_RELEASE_LOG("abort: Keeping network load alive due to keepalive option");
+         protect(connectionToWebProcess())->transferKeptAliveLoad(*this);
+@@ -929,6 +1006,23 @@
+ }
+ 
+ void NetworkResourceLoader::didReceiveResponse(ResourceResponse&& receivedResponse, PrivateRelayed privateRelayed, ResponseCompletionHandler&& completionHandler)
++{
++#if PLATFORM(GTK) || PLATFORM(WPE)
++    auto request = originalRequest();
++    request.setURL(URL { receivedResponse.url() });
++    decideResourcePolicy(WTF::move(request), WTF::move(receivedResponse), true, [weakThis = WeakPtr { *this }, privateRelayed, completion = WTF::move(completionHandler)](ResourceRequest&& request, ResourceResponse&& response) mutable {
++        if (!weakThis || request.isNull()) {
++            completion(PolicyAction::Ignore);
++            return;
++        }
++        weakThis->didReceiveResponseAfterPolicy(WTF::move(response), privateRelayed, WTF::move(completion));
++    });
++#else
++    didReceiveResponseAfterPolicy(WTF::move(receivedResponse), privateRelayed, WTF::move(completionHandler));
++#endif
++}
++
++void NetworkResourceLoader::didReceiveResponseAfterPolicy(ResourceResponse&& receivedResponse, PrivateRelayed privateRelayed, ResponseCompletionHandler&& completionHandler)
+ {
+     LOADER_RELEASE_LOG("didReceiveResponse: (httpStatusCode=%d, MIMEType=%" PUBLIC_LOG_STRING ", expectedContentLength=%lld, hasCachedEntryForValidation=%d, hasNetworkLoadChecker=%d)", receivedResponse.httpStatusCode(), receivedResponse.mimeType().utf8().data(), receivedResponse.expectedContentLength(), !!m_cacheEntryForValidation, !!m_networkLoadChecker);
+ 
+@@ -1339,6 +1433,21 @@
+ 
+ void NetworkResourceLoader::willSendRedirectedRequestInternal(ResourceRequest&& request, ResourceRequest&& redirectRequest, ResourceResponse&& redirectResponse, IsFromServiceWorker isFromServiceWorker, CompletionHandler<void(WebCore::ResourceRequest&&)>&& completionHandler)
+ {
++#if PLATFORM(GTK) || PLATFORM(WPE)
++    decideResourcePolicy(WTF::move(redirectRequest), WTF::move(redirectResponse), false, [weakThis = WeakPtr { *this }, request = WTF::move(request), isFromServiceWorker, completion = WTF::move(completionHandler)](ResourceRequest&& next, ResourceResponse&& response) mutable {
++        if (!weakThis || next.isNull()) {
++            completion({ });
++            return;
++        }
++        weakThis->willSendRedirectedRequestAfterPolicy(WTF::move(request), WTF::move(next), WTF::move(response), isFromServiceWorker, WTF::move(completion));
++    });
++#else
++    willSendRedirectedRequestAfterPolicy(WTF::move(request), WTF::move(redirectRequest), WTF::move(redirectResponse), isFromServiceWorker, WTF::move(completionHandler));
++#endif
++}
++
++void NetworkResourceLoader::willSendRedirectedRequestAfterPolicy(ResourceRequest&& request, ResourceRequest&& redirectRequest, ResourceResponse&& redirectResponse, IsFromServiceWorker isFromServiceWorker, CompletionHandler<void(WebCore::ResourceRequest&&)>&& completionHandler)
++{
+     LOADER_RELEASE_LOG("willSendRedirectedRequest:");
+     ++m_redirectCount;
+     m_redirectResponse = redirectResponse;
+@@ -2187,6 +2296,18 @@
+ 
+ void NetworkResourceLoader::startWithServiceWorker()
+ {
++#if PLATFORM(GTK) || PLATFORM(WPE)
++    decideResourcePolicy(originalRequest(), { }, false, [weakThis = WeakPtr { *this }](ResourceRequest&& request, ResourceResponse&&) {
++        if (weakThis && !request.isNull())
++            weakThis->startWithServiceWorkerAfterPolicy(WTF::move(request));
++    });
++#else
++    startWithServiceWorkerAfterPolicy(ResourceRequest { originalRequest() });
++#endif
++}
++
++void NetworkResourceLoader::startWithServiceWorkerAfterPolicy(ResourceRequest&& newRequest)
++{
+     LOADER_RELEASE_LOG("startWithServiceWorker:");
+ 
+     CompletionHandler<void(ResourceRequest)> completionHandler = [protectedThis = Ref { *this }](ResourceRequest&& request) {
+@@ -2208,7 +2329,6 @@
+         protectedThis->startRequest(WTF::move(request));
+     };
+ 
+-    ResourceRequest newRequest { originalRequest() };
+ #if ENABLE(CONTENT_FILTERING)
+     startContentFiltering(WTF::move(newRequest), WTF::move(completionHandler));
+ #else
+diff --git a/Source/WebKit/NetworkProcess/NetworkResourceLoader.h b/Source/WebKit/NetworkProcess/NetworkResourceLoader.h
+--- a/Source/WebKit/NetworkProcess/NetworkResourceLoader.h
++++ b/Source/WebKit/NetworkProcess/NetworkResourceLoader.h
+@@ -30,6 +30,9 @@
+ #include "NetworkCache.h"
+ #include "NetworkConnectionToWebProcess.h"
+ #include "NetworkLoadClient.h"
++#if PLATFORM(GTK) || PLATFORM(WPE)
++#include "NetworkResourcePolicy.h"
++#endif
+ #include "NetworkResourceLoadIdentifier.h"
+ #include "NetworkResourceLoadParameters.h"
+ #include "PrivateRelayed.h"
+@@ -288,6 +291,14 @@
+     void continueWillSendRedirectedRequestAfterContentFiltering(WebCore::ResourceRequest&&, WebCore::ResourceRequest&& redirectRequest, WebCore::ResourceResponse&&, IsFromServiceWorker, CompletionHandler<void(WebCore::ResourceRequest&&)>&&);
+     std::optional<WebCore::NetworkLoadMetrics> computeResponseMetrics(const WebCore::ResourceResponse&) const;
+ 
++#if PLATFORM(GTK) || PLATFORM(WPE)
++    void decideResourcePolicy(WebCore::ResourceRequest, WebCore::ResourceResponse, bool, CompletionHandler<void(WebCore::ResourceRequest&&, WebCore::ResourceResponse&&)>&&);
++    RefPtr<NetworkResourcePolicy> m_resourcePolicy;
++    bool m_resourcePolicyCancelled { false };
++#endif
++    void startWithServiceWorkerAfterPolicy(WebCore::ResourceRequest&&);
++    void didReceiveResponseAfterPolicy(WebCore::ResourceResponse&&, PrivateRelayed, ResponseCompletionHandler&&);
++    void willSendRedirectedRequestAfterPolicy(WebCore::ResourceRequest&&, WebCore::ResourceRequest&&, WebCore::ResourceResponse&&, IsFromServiceWorker, CompletionHandler<void(WebCore::ResourceRequest&&)>&&);
+     void startRequest(const WebCore::ResourceRequest&);
+     bool abortIfServiceWorkersOnly();
+ 
+diff --git a/Source/WebKit/NetworkProcess/NetworkResourcePolicy.h b/Source/WebKit/NetworkProcess/NetworkResourcePolicy.h
+new file mode 100644
+--- /dev/null
++++ b/Source/WebKit/NetworkProcess/NetworkResourcePolicy.h
+@@ -0,0 +1,78 @@
++/* Generic, opt-in embedder resource policy. Copyright 2026.
++ * Distributed under the BSD 2-Clause license, like the surrounding WebKit code.
++ */
++#pragma once
++
++#include "NetworkProcessProxyMessages.h"
++#include <WebCore/ResourceRequest.h>
++#include <WebCore/ResourceResponse.h>
++#include <WebCore/Timer.h>
++#include <wtf/JSONValues.h>
++#include <wtf/WeakPtr.h>
++#include <wtf/RefCounted.h>
++#include <wtf/FastMalloc.h>
++
++namespace WebKit {
++
++// Owned by the actual loader. A timed-out, cancelled or destroyed decision can
++// never resume it. IPC callbacks retain only a weak decision reference.
++class NetworkResourcePolicy : public RefCounted<NetworkResourcePolicy>, public CanMakeWeakPtr<NetworkResourcePolicy> {
++    WTF_DEPRECATED_MAKE_FAST_ALLOCATED(NetworkResourcePolicy);
++public:
++    using Completion = CompletionHandler<void(RefPtr<JSON::Object>&&)>;
++    static Ref<NetworkResourcePolicy> create(Completion&& completion)
++    { return adoptRef(*new NetworkResourcePolicy(WTF::move(completion))); }
++    explicit NetworkResourcePolicy(Completion&& completion)
++        : m_timer(*this, &NetworkResourcePolicy::timedOut)
++        , m_completion(WTF::move(completion)) { }
++    ~NetworkResourcePolicy() { if (auto completion = std::exchange(m_completion, { })) completion(nullptr); }
++
++    void start(IPC::Connection& connection, WebPageProxyIdentifier page, const String& snapshot)
++    {
++        m_timer.startOneShot(30_s);
++        connection.sendWithAsyncReply(Messages::NetworkProcessProxy::DecideResourceLoadPolicy(page, snapshot), [weakThis = WeakPtr { *this }](String&& decision) {
++            if (!weakThis)
++                return;
++            auto value = decision.length() <= 1024 * 1024 ? JSON::Value::parseJSON(decision) : nullptr;
++            weakThis->finish(value ? value->asObject() : nullptr);
++        }, 0);
++    }
++    void cancel() { finish(nullptr); }
++    static Ref<JSON::Object> snapshot(const WebCore::ResourceRequest& request, const WebCore::ResourceResponse& response, bool isResponse)
++    {
++        auto result = JSON::Object::create();
++        result->setString("phase"_s, isResponse ? "response"_s : "request"_s);
++        result->setString("url"_s, request.url().string());
++        result->setString("method"_s, request.httpMethod());
++        result->setInteger("status"_s, response.httpStatusCode());
++        auto headers = JSON::Object::create();
++        for (const auto& header : isResponse ? response.httpHeaderFields() : request.httpHeaderFields())
++            headers->setString(header.key, header.value);
++        result->setObject("headers"_s, WTF::move(headers));
++        return result;
++    }
++    template<typename T> static void applyHeaders(T& target, JSON::Object& decision)
++    {
++        if (auto headers = decision.getObject("headers"_s)) {
++            target.setHTTPHeaderFields({ });
++            for (const auto& entry : *headers) {
++                auto value = entry.value->asString();
++                if (!value.isNull() && !entry.key.contains('\r') && !entry.key.contains('\n') && !value.contains('\r') && !value.contains('\n'))
++                    target.setHTTPHeaderField(entry.key, value);
++            }
++        }
++    }
++private:
++    void timedOut() { finish(nullptr); }
++    void finish(RefPtr<JSON::Object>&& decision)
++    {
++        Ref protectedThis { *this };
++        m_timer.stop();
++        // The completion may destroy this decision and its loader.
++        if (auto completion = std::exchange(m_completion, { }))
++            completion(WTF::move(decision));
++    }
++    WebCore::Timer m_timer;
++    Completion m_completion;
++};
++}
+diff --git a/Source/WebKit/UIProcess/API/glib/WebKitWebView.cpp b/Source/WebKit/UIProcess/API/glib/WebKitWebView.cpp
+--- a/Source/WebKit/UIProcess/API/glib/WebKitWebView.cpp
++++ b/Source/WebKit/UIProcess/API/glib/WebKitWebView.cpp
+@@ -5595,6 +5595,12 @@
+  *
+  * Since: 2.28
+  */
++void webkit_web_view_set_resource_policy_enabled(WebKitWebView* webView, gboolean enabled)
++{
++    g_return_if_fail(WEBKIT_IS_WEB_VIEW(webView));
++    getPage(webView).preferences().setResourceLoadPolicyEnabled(enabled);
++}
++
+ void webkit_web_view_send_message_to_page(WebKitWebView* webView, WebKitUserMessage* message, GCancellable* cancellable, GAsyncReadyCallback callback, gpointer userData)
+ {
+     g_return_if_fail(WEBKIT_IS_WEB_VIEW(webView));
+diff --git a/Source/WebKit/UIProcess/API/glib/WebKitWebView.h.in b/Source/WebKit/UIProcess/API/glib/WebKitWebView.h.in
+--- a/Source/WebKit/UIProcess/API/glib/WebKitWebView.h.in
++++ b/Source/WebKit/UIProcess/API/glib/WebKitWebView.h.in
+@@ -511,6 +511,12 @@
+ webkit_web_view_get_website_data_manager             (WebKitWebView             *web_view);
+ #endif
+ 
++/* Opt-in resource policy, delivered as WebKitResourcePolicy user messages.
++ * Requests remain suspended until the embedder replies, up to 30 seconds. */
++WEBKIT_API void
++webkit_web_view_set_resource_policy_enabled           (WebKitWebView *web_view,
++                                                       gboolean enabled);
++
+ WEBKIT_API WebKitWebContext *
+ webkit_web_view_get_context                          (WebKitWebView             *web_view);
+ 
+diff --git a/Source/WebKit/UIProcess/Network/NetworkProcessProxy.cpp b/Source/WebKit/UIProcess/Network/NetworkProcessProxy.cpp
+--- a/Source/WebKit/UIProcess/Network/NetworkProcessProxy.cpp
++++ b/Source/WebKit/UIProcess/Network/NetworkProcessProxy.cpp
+@@ -24,6 +24,11 @@
+  */
+ 
+ #include "config.h"
++#if PLATFORM(GTK) || PLATFORM(WPE)
++#include "UserMessage.h"
++#include <wtf/JSONValues.h>
++#include <wtf/glib/GRefPtr.h>
++#endif
+ #include "NetworkProcessProxy.h"
+ 
+ #include "APIContentRuleList.h"
+@@ -678,6 +683,45 @@
+         page->logDiagnosticMessageWithValue(message, description, value, significantFigures, shouldSample);
+ }
+ 
++#if PLATFORM(GTK) || PLATFORM(WPE)
++void NetworkProcessProxy::resourceLoadPolicyFinished(WebPageProxyIdentifier pageID, String&& identifier)
++{
++    RefPtr page = WebProcessProxy::webPage(pageID);
++    if (!page)
++        return;
++    auto snapshot = JSON::Object::create();
++    snapshot->setString("phase"_s, "complete"_s);
++    snapshot->setString("id"_s, identifier);
++    UserMessage message;
++    message.type = UserMessage::Type::Message;
++    message.name = "WebKitResourcePolicy";
++    message.parameters = g_variant_new("(s)", snapshot->toJSONString().utf8().data());
++    page->sendMessageToWebView(WTF::move(message));
++}
++
++void NetworkProcessProxy::decideResourceLoadPolicy(WebPageProxyIdentifier pageID, String&& snapshot, CompletionHandler<void(String&&)>&& completionHandler)
++{
++    RefPtr page = WebProcessProxy::webPage(pageID);
++    if (!page) {
++        completionHandler({ });
++        return;
++    }
++    UserMessage message;
++    message.type = UserMessage::Type::Message;
++    message.name = "WebKitResourcePolicy";
++    message.parameters = g_variant_new("(s)", snapshot.utf8().data());
++    page->sendMessageToWebViewWithReply(WTF::move(message), [completionHandler = WTF::move(completionHandler)](UserMessage&& reply) mutable {
++        if (reply.type != UserMessage::Type::Message || !reply.parameters || !g_variant_is_of_type(reply.parameters.get(), G_VARIANT_TYPE("(s)"))) {
++            completionHandler({ });
++            return;
++        }
++        const char* json;
++        g_variant_get(reply.parameters.get(), "(&s)", &json);
++        completionHandler(String::fromUTF8(json));
++    });
++}
++#endif
++
+ void NetworkProcessProxy::resourceLoadDidSendRequest(WebPageProxyIdentifier pageID, ResourceLoadInfo&& loadInfo, WebCore::ResourceRequest&& request, std::optional<IPC::FormDataReference>&& httpBody)
+ {
+     RefPtr page = WebProcessProxy::webPage(pageID);
+diff --git a/Source/WebKit/UIProcess/Network/NetworkProcessProxy.h b/Source/WebKit/UIProcess/Network/NetworkProcessProxy.h
+--- a/Source/WebKit/UIProcess/Network/NetworkProcessProxy.h
++++ b/Source/WebKit/UIProcess/Network/NetworkProcessProxy.h
+@@ -276,6 +276,10 @@
+     void reportNetworkIssue(WebPageProxyIdentifier, const URL&);
+ #endif
+ 
++#if PLATFORM(GTK) || PLATFORM(WPE)
++    void resourceLoadPolicyFinished(WebPageProxyIdentifier, String&&);
++    void decideResourceLoadPolicy(WebPageProxyIdentifier, String&&, CompletionHandler<void(String&&)>&&);
++#endif
+     void resourceLoadDidSendRequest(WebPageProxyIdentifier, ResourceLoadInfo&&, WebCore::ResourceRequest&&, std::optional<IPC::FormDataReference>&&);
+     void resourceLoadDidPerformHTTPRedirection(WebPageProxyIdentifier, ResourceLoadInfo&&, WebCore::ResourceResponse&&, WebCore::ResourceRequest&&);
+     void resourceLoadDidReceiveChallenge(WebPageProxyIdentifier, ResourceLoadInfo&&, WebCore::AuthenticationChallenge&&);
+diff --git a/Source/WebKit/UIProcess/Network/NetworkProcessProxy.messages.in b/Source/WebKit/UIProcess/Network/NetworkProcessProxy.messages.in
+--- a/Source/WebKit/UIProcess/Network/NetworkProcessProxy.messages.in
++++ b/Source/WebKit/UIProcess/Network/NetworkProcessProxy.messages.in
+@@ -69,6 +69,10 @@
+ 
+     IncreaseQuota(PAL::SessionID sessionID, struct WebCore::ClientOrigin origin, WebKit::QuotaIncreaseRequestIdentifier identifier, uint64_t quota, uint64_t currentSize, uint64_t spaceRequested)
+ 
++#if PLATFORM(GTK) || PLATFORM(WPE)
++    ResourceLoadPolicyFinished(WebKit::WebPageProxyIdentifier pageIdentifier, String identifier)
++    DecideResourceLoadPolicy(WebKit::WebPageProxyIdentifier pageIdentifier, String snapshot) -> (String decision)
++#endif
+     ResourceLoadDidSendRequest(WebKit::WebPageProxyIdentifier pageIdentifier, struct WebKit::ResourceLoadInfo resourceLoadInfo, WebCore::ResourceRequest request, std::optional<IPC::FormDataReference> httpBody)
+     ResourceLoadDidPerformHTTPRedirection(WebKit::WebPageProxyIdentifier pageIdentifier, struct WebKit::ResourceLoadInfo resourceLoadInfo, WebCore::ResourceResponse resourceResponse, WebCore::ResourceRequest request)
+     ResourceLoadDidReceiveChallenge(WebKit::WebPageProxyIdentifier pageIdentifier, struct WebKit::ResourceLoadInfo resourceLoadInfo, WebCore::AuthenticationChallenge challenge)
+diff --git a/Source/WebKit/UIProcess/WebPageProxy.h b/Source/WebKit/UIProcess/WebPageProxy.h
+--- a/Source/WebKit/UIProcess/WebPageProxy.h
++++ b/Source/WebKit/UIProcess/WebPageProxy.h
+@@ -753,6 +753,7 @@
+ using WebUndoStepID = ObjectIdentifier<WebUndoStepIDType>;
+ 
+ class WebPageProxy final : public API::ObjectImpl<API::Object::Type::Page>, public IPC::MessageReceiver {
++    friend class NetworkProcessProxy;
+ public:
+     static Ref<WebPageProxy> create(PageClient&, WebProcessProxy&, Ref<API::PageConfiguration>&&);
+     virtual ~WebPageProxy();
+diff --git a/Source/WebKit/WebProcess/Network/WebLoaderStrategy.cpp b/Source/WebKit/WebProcess/Network/WebLoaderStrategy.cpp
+--- a/Source/WebKit/WebProcess/Network/WebLoaderStrategy.cpp
++++ b/Source/WebKit/WebProcess/Network/WebLoaderStrategy.cpp
+@@ -377,6 +377,8 @@
+ 
+ static void addParametersShared(const LocalFrame* frame, NetworkResourceLoadParameters& parameters, bool isMainFrameNavigation = false)
+ {
++    if (frame)
++        parameters.resourceLoadPolicyEnabled = frame->settings().resourceLoadPolicyEnabled();
+     parameters.crossOriginAccessControlCheckEnabled = CrossOriginAccessControlCheckDisabler::singleton().crossOriginAccessControlCheckEnabled();
+     parameters.hadMainFrameMainResourcePrivateRelayed = WebProcess::singleton().hadMainFrameMainResourcePrivateRelayed();
+ 

@@ -1,0 +1,28 @@
+diff --git a/Source/WebKit/UIProcess/wpe/WebPasteboardProxyWPE.cpp b/Source/WebKit/UIProcess/wpe/WebPasteboardProxyWPE.cpp
+--- a/Source/WebKit/UIProcess/wpe/WebPasteboardProxyWPE.cpp
++++ b/Source/WebKit/UIProcess/wpe/WebPasteboardProxyWPE.cpp
+@@ -77,9 +77,9 @@
+ #if ENABLE(WPE_PLATFORM)
+     if (WKWPE::isUsingWPEPlatformAPI()) {
+         auto* clipboard = wpe_display_get_clipboard(wpe_display_get_primary());
+-        gsize textLength;
++        gsize textLength = 0;
+         GUniquePtr<char> text(wpe_clipboard_read_text(clipboard, pasteboardType.utf8().data(), &textLength));
+-        completionHandler(String::fromUTF8(unsafeMakeSpan(text.get(), textLength)));
++        completionHandler(text ? String::fromUTF8(unsafeMakeSpan(text.get(), textLength)) : String());
+         return;
+     }
+ #endif
+diff --git a/Source/WebKit/WPEPlatform/wpe/WPEClipboard.cpp b/Source/WebKit/WPEPlatform/wpe/WPEClipboard.cpp
+--- a/Source/WebKit/WPEPlatform/wpe/WPEClipboard.cpp
++++ b/Source/WebKit/WPEPlatform/wpe/WPEClipboard.cpp
+@@ -313,6 +313,9 @@
+  */
+ char* wpe_clipboard_read_text(WPEClipboard* clipboard, const char* format, gsize* size)
+ {
++    if (size)
++        *size = 0;
++
+     g_return_val_if_fail(WPE_IS_CLIPBOARD(clipboard), nullptr);
+     g_return_val_if_fail(format && *format, nullptr);
+ 

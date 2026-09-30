@@ -1,0 +1,262 @@
+From: Basilisk contributors
+Subject: [PATCH] Expose attributed pre-dispatch policy to content-process extensions
+
+diff --git a/Source/WebKit/NetworkProcess/NetworkResourceLoader.cpp b/Source/WebKit/NetworkProcess/NetworkResourceLoader.cpp
+--- a/Source/WebKit/NetworkProcess/NetworkResourceLoader.cpp
++++ b/Source/WebKit/NetworkProcess/NetworkResourceLoader.cpp
+@@ -567,73 +567,7 @@
+         return false;
+     };
+ 
+-    auto resourceType = [] (WebCore::ResourceRequestRequester requester, WebCore::FetchOptions::Destination destination) {
+-        switch (requester) {
+-        case WebCore::ResourceRequestRequester::XHR:
+-            return ResourceLoadInfo::Type::XMLHTTPRequest;
+-        case WebCore::ResourceRequestRequester::Fetch:
+-            return ResourceLoadInfo::Type::Fetch;
+-        case WebCore::ResourceRequestRequester::Ping:
+-            return ResourceLoadInfo::Type::Ping;
+-        case WebCore::ResourceRequestRequester::Beacon:
+-            return ResourceLoadInfo::Type::Beacon;
+-        default:
+-            break;
+-        }
+-
+-        switch (destination) {
+-        case WebCore::FetchOptions::Destination::EmptyString:
+-            return ResourceLoadInfo::Type::Other;
+-        case WebCore::FetchOptions::Destination::Audio:
+-            return ResourceLoadInfo::Type::Media;
+-        case WebCore::FetchOptions::Destination::Audioworklet:
+-            return ResourceLoadInfo::Type::Other;
+-        case WebCore::FetchOptions::Destination::Document:
+-        case WebCore::FetchOptions::Destination::Iframe:
+-            return ResourceLoadInfo::Type::Document;
+-        case WebCore::FetchOptions::Destination::Json:
+-            return ResourceLoadInfo::Type::Script;
+-        case WebCore::FetchOptions::Destination::Embed:
+-            return ResourceLoadInfo::Type::Object;
+-        case WebCore::FetchOptions::Destination::Environmentmap:
+-            return ResourceLoadInfo::Type::Media;
+-        case WebCore::FetchOptions::Destination::Font:
+-            return ResourceLoadInfo::Type::Font;
+-        case WebCore::FetchOptions::Destination::Image:
+-            return ResourceLoadInfo::Type::Image;
+-        case WebCore::FetchOptions::Destination::Manifest:
+-            return ResourceLoadInfo::Type::ApplicationManifest;
+-        case WebCore::FetchOptions::Destination::Model:
+-            return ResourceLoadInfo::Type::Media;
+-        case WebCore::FetchOptions::Destination::Object:
+-            return ResourceLoadInfo::Type::Object;
+-        case WebCore::FetchOptions::Destination::Paintworklet:
+-            return ResourceLoadInfo::Type::Other;
+-        case WebCore::FetchOptions::Destination::Report:
+-            return ResourceLoadInfo::Type::CSPReport;
+-        case WebCore::FetchOptions::Destination::Script:
+-            return ResourceLoadInfo::Type::Script;
+-        case WebCore::FetchOptions::Destination::Serviceworker:
+-            return ResourceLoadInfo::Type::Other;
+-        case WebCore::FetchOptions::Destination::Sharedworker:
+-            return ResourceLoadInfo::Type::Other;
+-        case WebCore::FetchOptions::Destination::Speculationrules:
+-            return ResourceLoadInfo::Type::Other;
+-        case WebCore::FetchOptions::Destination::Style:
+-            return ResourceLoadInfo::Type::Stylesheet;
+-        case WebCore::FetchOptions::Destination::Track:
+-            return ResourceLoadInfo::Type::Media;
+-        case WebCore::FetchOptions::Destination::Video:
+-            return ResourceLoadInfo::Type::Media;
+-        case WebCore::FetchOptions::Destination::Worker:
+-            return ResourceLoadInfo::Type::Other;
+-        case WebCore::FetchOptions::Destination::Xslt:
+-            return ResourceLoadInfo::Type::XSLT;
+-        }
+-
+-        ASSERT_NOT_REACHED();
+-        return ResourceLoadInfo::Type::Other;
+-    };
++
+ 
+     return {
+         m_resourceLoadID,
+@@ -644,7 +578,7 @@
+         originalRequest().httpMethod(),
+         WallTime::now(),
+         loadedFromCache(m_response),
+-        resourceType(originalRequest().requester(), m_parameters.options.destination)
++        ResourceLoadInfo::typeForRequest(originalRequest().requester(), m_parameters.options.destination)
+     };
+ }
+ 
+diff --git a/Source/WebKit/Shared/ResourceLoadInfo.h b/Source/WebKit/Shared/ResourceLoadInfo.h
+--- a/Source/WebKit/Shared/ResourceLoadInfo.h
++++ b/Source/WebKit/Shared/ResourceLoadInfo.h
+@@ -26,6 +26,8 @@
+ #pragma once
+ 
+ #include "NetworkResourceLoadIdentifier.h"
++#include <WebCore/FetchOptions.h>
++#include <WebCore/ResourceRequest.h>
+ #include <WebCore/FrameIdentifier.h>
+ #include <wtf/Markable.h>
+ #include <wtf/URL.h>
+@@ -53,6 +55,74 @@
+         XSLT
+     };
+ 
++    static Type typeForRequest(WebCore::ResourceRequestRequester requester, WebCore::FetchOptions::Destination destination) {
++        switch (requester) {
++        case WebCore::ResourceRequestRequester::XHR:
++            return ResourceLoadInfo::Type::XMLHTTPRequest;
++        case WebCore::ResourceRequestRequester::Fetch:
++            return ResourceLoadInfo::Type::Fetch;
++        case WebCore::ResourceRequestRequester::Ping:
++            return ResourceLoadInfo::Type::Ping;
++        case WebCore::ResourceRequestRequester::Beacon:
++            return ResourceLoadInfo::Type::Beacon;
++        default:
++            break;
++        }
++
++        switch (destination) {
++        case WebCore::FetchOptions::Destination::EmptyString:
++            return ResourceLoadInfo::Type::Other;
++        case WebCore::FetchOptions::Destination::Audio:
++            return ResourceLoadInfo::Type::Media;
++        case WebCore::FetchOptions::Destination::Audioworklet:
++            return ResourceLoadInfo::Type::Other;
++        case WebCore::FetchOptions::Destination::Document:
++        case WebCore::FetchOptions::Destination::Iframe:
++            return ResourceLoadInfo::Type::Document;
++        case WebCore::FetchOptions::Destination::Json:
++            return ResourceLoadInfo::Type::Script;
++        case WebCore::FetchOptions::Destination::Embed:
++            return ResourceLoadInfo::Type::Object;
++        case WebCore::FetchOptions::Destination::Environmentmap:
++            return ResourceLoadInfo::Type::Media;
++        case WebCore::FetchOptions::Destination::Font:
++            return ResourceLoadInfo::Type::Font;
++        case WebCore::FetchOptions::Destination::Image:
++            return ResourceLoadInfo::Type::Image;
++        case WebCore::FetchOptions::Destination::Manifest:
++            return ResourceLoadInfo::Type::ApplicationManifest;
++        case WebCore::FetchOptions::Destination::Model:
++            return ResourceLoadInfo::Type::Media;
++        case WebCore::FetchOptions::Destination::Object:
++            return ResourceLoadInfo::Type::Object;
++        case WebCore::FetchOptions::Destination::Paintworklet:
++            return ResourceLoadInfo::Type::Other;
++        case WebCore::FetchOptions::Destination::Report:
++            return ResourceLoadInfo::Type::CSPReport;
++        case WebCore::FetchOptions::Destination::Script:
++            return ResourceLoadInfo::Type::Script;
++        case WebCore::FetchOptions::Destination::Serviceworker:
++            return ResourceLoadInfo::Type::Other;
++        case WebCore::FetchOptions::Destination::Sharedworker:
++            return ResourceLoadInfo::Type::Other;
++        case WebCore::FetchOptions::Destination::Speculationrules:
++            return ResourceLoadInfo::Type::Other;
++        case WebCore::FetchOptions::Destination::Style:
++            return ResourceLoadInfo::Type::Stylesheet;
++        case WebCore::FetchOptions::Destination::Track:
++            return ResourceLoadInfo::Type::Media;
++        case WebCore::FetchOptions::Destination::Video:
++            return ResourceLoadInfo::Type::Media;
++        case WebCore::FetchOptions::Destination::Worker:
++            return ResourceLoadInfo::Type::Other;
++        case WebCore::FetchOptions::Destination::Xslt:
++            return ResourceLoadInfo::Type::XSLT;
++        }
++
++        ASSERT_NOT_REACHED();
++        return ResourceLoadInfo::Type::Other;
++    }
++
+     NetworkResourceLoadIdentifier resourceLoadID;
+     std::optional<WebCore::FrameIdentifier> frameID;
+     std::optional<WebCore::FrameIdentifier> parentFrameID;
+diff --git a/Source/WebKit/WebProcess/InjectedBundle/API/APIInjectedBundlePageResourceLoadClient.h b/Source/WebKit/WebProcess/InjectedBundle/API/APIInjectedBundlePageResourceLoadClient.h
+--- a/Source/WebKit/WebProcess/InjectedBundle/API/APIInjectedBundlePageResourceLoadClient.h
++++ b/Source/WebKit/WebProcess/InjectedBundle/API/APIInjectedBundlePageResourceLoadClient.h
+@@ -47,6 +47,7 @@
+     WTF_MAKE_TZONE_ALLOCATED_INLINE(ResourceLoadClient);
+ public:
+     virtual ~ResourceLoadClient() = default;
++    virtual bool allowResourceLoad(WebKit::WebPage&, WebKit::WebFrame&, const WebCore::ResourceRequest&, unsigned) { return true; }
+ 
+     virtual void didInitiateLoadForResource(WebKit::WebPage&, WebKit::WebFrame&, WebCore::ResourceLoaderIdentifier, const WebCore::ResourceRequest&, bool /*pageIsProvisionallyLoading*/) { }
+     virtual void willSendRequestForFrame(WebKit::WebPage&, WebKit::WebFrame&, WebCore::ResourceLoaderIdentifier, WebCore::ResourceRequest&, const WebCore::ResourceResponse&) { }
+diff --git a/Source/WebKit/WebProcess/InjectedBundle/API/glib/WebKitWebPage.cpp b/Source/WebKit/WebProcess/InjectedBundle/API/glib/WebKitWebPage.cpp
+--- a/Source/WebKit/WebProcess/InjectedBundle/API/glib/WebKitWebPage.cpp
++++ b/Source/WebKit/WebProcess/InjectedBundle/API/glib/WebKitWebPage.cpp
+@@ -82,6 +82,7 @@
+ enum {
+     DOCUMENT_LOADED,
+     SEND_REQUEST,
++    RESOURCE_POLICY,
+     CONTEXT_MENU,
+     CONSOLE_MESSAGE_SENT,
+ #if !ENABLE(2022_GLIB_API)
+@@ -310,6 +311,14 @@
+     }
+ 
+ private:
++    bool allowResourceLoad(WebPage&, WebFrame& frame, const ResourceRequest& request, unsigned type) override
++    {
++        auto uriRequest = adoptGRef(webkitURIRequestCreateForResourceRequest(request));
++        gboolean blocked = FALSE;
++        g_signal_emit(m_webPage, signals[RESOURCE_POLICY], 0, webkitFrameGetOrCreate(&frame), uriRequest.get(), type, &blocked);
++        return !blocked;
++    }
++
+     void willSendRequestForFrame(WebPage& page, WebFrame&, WebCore::ResourceLoaderIdentifier identifier, ResourceRequest& resourceRequest, const ResourceResponse& redirectResourceResponse) override
+     {
+         GRefPtr<WebKitURIRequest> request = adoptGRef(webkitURIRequestCreateForResourceRequest(resourceRequest));
+@@ -512,6 +521,11 @@
+ 
+ static void webkit_web_page_class_init(WebKitWebPageClass* klass)
+ {
++    // TRUE blocks the load before NetworkProcess dispatch. Type follows
++    // ResourceLoadInfo::Type, with 15 reserved for WebSocket handshakes.
++    signals[RESOURCE_POLICY] = g_signal_new("resource-policy", G_TYPE_FROM_CLASS(klass), G_SIGNAL_RUN_LAST,
++        0, g_signal_accumulator_true_handled, nullptr, g_cclosure_marshal_generic, G_TYPE_BOOLEAN,
++        3, WEBKIT_TYPE_FRAME, WEBKIT_TYPE_URI_REQUEST, G_TYPE_UINT);
+     GObjectClass* gObjectClass = G_OBJECT_CLASS(klass);
+     gObjectClass->dispose = webkitWebPageDispose;
+     gObjectClass->get_property = webkitWebPageGetProperty;
+diff --git a/Source/WebKit/WebProcess/Network/WebLoaderStrategy.cpp b/Source/WebKit/WebProcess/Network/WebLoaderStrategy.cpp
+--- a/Source/WebKit/WebProcess/Network/WebLoaderStrategy.cpp
++++ b/Source/WebKit/WebProcess/Network/WebLoaderStrategy.cpp
+@@ -31,6 +31,8 @@
+ #include "NetworkConnectionToWebProcessMessages.h"
+ #include "NetworkProcessConnection.h"
+ #include "NetworkResourceLoadParameters.h"
++#include "APIInjectedBundlePageResourceLoadClient.h"
++#include "ResourceLoadInfo.h"
+ #include "PreconnectRequest.h"
+ #include "RemoteWorkerFrameLoaderClient.h"
+ #include "WebCompiledContentRuleList.h"
+@@ -648,6 +650,12 @@
+     if (RefPtr handle = resourceLoader.cachedResource())
+         loadParameters.isInitiatorPrefetch = handle->type() == CachedResource::Type::LinkPrefetch;
+ 
++    if (loadParameters.resourceLoadPolicyEnabled && webFrame) {
++        if (RefPtr page = webFrame->page(); page && !page->injectedBundleResourceLoadClient().allowResourceLoad(*page, *webFrame, request, static_cast<unsigned>(ResourceLoadInfo::typeForRequest(request.requester(), loadParameters.options.destination)))) {
++            RunLoop::mainSingleton().dispatch([loader = Ref { resourceLoader }, error = blockedError(request)] { loader->didFail(error); });
++            return;
++        }
++    }
+     std::optional<NetworkResourceLoadIdentifier> existingNetworkResourceLoadIdentifierToResume;
+     if (loadParameters.isMainFrameNavigation) {
+         existingNetworkResourceLoadIdentifierToResume = std::exchange(m_existingNetworkResourceLoadIdentifierToResume, std::nullopt);
+@@ -908,6 +916,10 @@
+ #endif
+     addParametersShared(protect(webFrame->coreLocalFrame()).get(), loadParameters);
+ 
++    if (RefPtr policyPage = webFrame->page(); loadParameters.resourceLoadPolicyEnabled && policyPage && !policyPage->injectedBundleResourceLoadClient().allowResourceLoad(*policyPage, *webFrame, request, static_cast<unsigned>(ResourceLoadInfo::typeForRequest(request.requester(), loadParameters.options.destination)))) {
++        error = blockedError(request);
++        return;
++    }
+     data.shrink(0);
+ 
+     HangDetectionDisabler hangDetectionDisabler;
