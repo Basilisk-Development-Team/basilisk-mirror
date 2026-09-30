@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 """Run isolated frame, network-policy or WebRTC fixtures against a completed copied distribution."""
-import argparse, json, os, shutil, signal, subprocess, tempfile, threading
+import argparse, json, os, shutil, signal, subprocess, sys, tempfile, threading
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 class Handler(BaseHTTPRequestHandler):
@@ -95,7 +95,12 @@ class Handler(BaseHTTPRequestHandler):
 
 def kill_webprocesses(parent):
  parents,commands={},{}
- for proc in Path('/proc').iterdir():
+ if sys.platform=='darwin':
+  for line in subprocess.check_output(['ps','-axo','pid=,ppid=,comm='],text=True).splitlines():
+   row=line.strip().split(None,2)
+   if len(row)==3:
+    parents[int(row[0])]=int(row[1]);commands[int(row[0])]=row[2].encode()
+ for proc in ([] if sys.platform=='darwin' else Path('/proc').iterdir()):
   if not proc.name.isdecimal():continue
   try:
    pid=int(proc.name);parents[pid]=int((proc/'stat').read_text().rsplit(')',1)[1].split()[1]);commands[pid]=(proc/'cmdline').read_bytes().split(b'\0')[0]
@@ -115,7 +120,12 @@ if a.suite=='greasemonkey' and not a.xpi:p.error('greasemonkey requires --xpi po
 server=ThreadingHTTPServer(('127.0.0.1',0),Handler);threading.Thread(target=server.serve_forever,daemon=True).start()
 try:
  with tempfile.TemporaryDirectory(prefix='basilisk-content-test-') as temporary:
-  root=Path(temporary);app=root/'distribution/application';shutil.copytree(a.objdir.resolve()/'dist/bin',app,symlinks=False)
+  root=Path(temporary)
+  if sys.platform=='darwin':
+   bundle=root/'Basilisk.app';shutil.copytree(a.objdir.resolve()/'dist/Basilisk.app',bundle,symlinks=False)
+   app=bundle/'Contents/Resources';binary=bundle/'Contents/MacOS/basilisk'
+  else:
+   app=root/'distribution/application';shutil.copytree(a.objdir.resolve()/'dist/bin',app,symlinks=False);binary=app/'basilisk'
   fixture=Path(__file__).resolve().parent/a.suite;shutil.copytree(fixture,app/'content-test')
   with (app/'chrome.manifest').open('a') as f:f.write('\ncontent content-test content-test/\n')
   profile=root/'profile';profile.mkdir()
@@ -142,14 +152,14 @@ try:
   prefs={'browser.tabs.warnOnClose':False,'extensions.autoDisableScopes':0,'extensions.enabledScopes':15,'browser.shell.checkDefaultBrowser':False,'browser.dom.window.dump.enabled':True,'content.test.port':server.server_port,'content.test.cycles':a.cycles,'content.test.external':a.external}
   if a.suite=='enabled':prefs['webkit.enabled']=False
   (profile/'user.js').write_text('\n'.join('user_pref(%s,%s);'%(json.dumps(k),json.dumps(v)) for k,v in prefs.items()))
-  env={k:v for k,v in os.environ.items() if not k.startswith(('LD_','WEBKIT_','WPE_','GST_'))}
+  env={k:v for k,v in os.environ.items() if not k.startswith(('DYLD_','LD_','WEBKIT_','WPE_','GST_'))}
   env['GST_REGISTRY_1_0']=str(root/'gst-registry.bin')
   if a.gst_debug:env['GST_DEBUG']=a.gst_debug
   phases=['seed','dormant-clear','manual','lifetime-read','sanitize-read'] if a.suite=='cookies' else ['write','read'] if a.suite=='containers' else ['default']
   for phase in phases:
    prefs['content.test.phase']=phase
    (profile/'user.js').write_text('\n'.join('user_pref(%s,%s);'%(json.dumps(k),json.dumps(v)) for k,v in prefs.items()))
-   process=subprocess.Popen([str(app/'basilisk'),'-no-remote','-profile',str(profile),'-chrome','chrome://content-test/content/test.xul'],env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,start_new_session=True)
+   process=subprocess.Popen([str(binary),'-no-remote','-profile',str(profile),'-chrome','chrome://content-test/content/test.xul'],env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,start_new_session=True)
    clipboard=None
    timer=threading.Timer(max(300,a.cycles*10),process.kill);timer.start();output=[]
    try:

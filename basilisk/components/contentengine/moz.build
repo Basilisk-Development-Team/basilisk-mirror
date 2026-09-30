@@ -7,8 +7,11 @@ SOURCES += ['ContentMessageBridge.cpp', 'ContentRequestChannel.cpp', 'ContentVie
 LOCAL_INCLUDES += ['/platform/dom/base', '/platform/layout/base']
 LOCAL_INCLUDES += ['!/ipc/ipdl/_ipdlheaders', '/platform/ipc/chromium/src', '/platform/ipc/glue']
 DEFINES['OS_POSIX'] = 1
-DEFINES['OS_LINUX'] = 1
+if CONFIG['OS_ARCH'] == 'Darwin':
+    DEFINES['OS_MACOSX'] = 1
+else:
+    DEFINES['OS_LINUX'] = 1
 FINAL_LIBRARY = 'xul'
 # Platform selection belongs here, never in shared browser chrome.
-if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gtk3':
+if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('gtk3', 'cocoa'):
     DIRS += ['wpe']

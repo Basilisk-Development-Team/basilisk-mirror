@@ -89,6 +89,19 @@ endif
 INSTALL_SDK = 1
 
 include $(MOZILLA_SRCDIR)/toolkit/mozapps/installer/signing.mk
+
+# The existing prepared-package hook runs after stripping and precomplete
+# generation. Refresh local arm64 execution signatures there, before the DMG.
+# Configured release signing retains ownership of distribution signatures.
+ifdef MOZ_WEBKIT
+ifeq (Darwin,$(OS_ARCH))
+ifndef MOZ_SIGN_CMD
+ifndef MOZ_SIGN_PREPARED_PACKAGE_CMD
+MOZ_SIGN_PREPARED_PACKAGE_CMD = $(PYTHON) $(topsrcdir)/tools/wpe/sign-darwin-package.py
+endif
+endif
+endif
+endif
 include $(MOZILLA_SRCDIR)/toolkit/mozapps/installer/packager-uxp.mk
 
 ifeq (bundle, $(MOZ_FS_LAYOUT))

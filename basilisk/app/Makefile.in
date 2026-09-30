@@ -38,8 +38,13 @@ include $(topsrcdir)/config/rules.mk
 # Run after libraries have reached dist/bin. Only enabled builds stage/relocate
 # the optional runtime; package-manifest.in includes this same directory.
 ifdef MOZ_WEBKIT
+ifeq ($(OS_ARCH),Darwin)
+tools::
+	$(PYTHON) $(topsrcdir)/tools/wpe/package-darwin-runtime.py --prefix "$(WPE_RUNTIME_PREFIX)" --dist "$(DIST)/bin"
+else
 tools::
 	$(PYTHON) $(topsrcdir)/tools/wpe/package-runtime.py --prefix "$(WPE_RUNTIME_PREFIX)" --dist "$(DIST)/bin" --patchelf "$(WPE_PATCHELF)"
+endif
 else
 tools::
 	$(RM) -r "$(DIST)/bin/webkit"
