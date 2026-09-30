@@ -1,0 +1,38 @@
+diff --git a/Source/WebCore/platform/graphics/angle/PlatformDisplayANGLE.cpp b/Source/WebCore/platform/graphics/angle/PlatformDisplayANGLE.cpp
+index 100e61c99..8f0072815 100644
+--- a/Source/WebCore/platform/graphics/angle/PlatformDisplayANGLE.cpp
++++ b/Source/WebCore/platform/graphics/angle/PlatformDisplayANGLE.cpp
+@@ -51,7 +51,7 @@ EGLDisplay PlatformDisplay::angleEGLDisplay() const
+         EGL_NONE,
+     };
+ 
+-    auto angleDisplay = EGL_GetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE, m_angleNativeDisplay ? m_angleNativeDisplay : EGL_DEFAULT_DISPLAY, displayAttributes.span().data());
++    auto angleDisplay = EGL_GetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE, m_angleNativeDisplay, displayAttributes.span().data());
+     if (angleDisplay == EGL_NO_DISPLAY)
+         return EGL_NO_DISPLAY;
+ 
+diff --git a/Source/WebCore/platform/graphics/egl/PlatformDisplaySurfaceless.cpp b/Source/WebCore/platform/graphics/egl/PlatformDisplaySurfaceless.cpp
+index f7ad5f605..b9f2b2f25 100644
+--- a/Source/WebCore/platform/graphics/egl/PlatformDisplaySurfaceless.cpp
++++ b/Source/WebCore/platform/graphics/egl/PlatformDisplaySurfaceless.cpp
+@@ -39,9 +39,9 @@ std::unique_ptr<PlatformDisplaySurfaceless> PlatformDisplaySurfaceless::create()
+ 
+     RefPtr<GLDisplay> glDisplay;
+     if (GLContext::isExtensionSupported(extensions, "EGL_EXT_platform_base"))
+-        glDisplay = GLDisplay::create(eglGetPlatformDisplayEXT(EGL_PLATFORM_SURFACELESS_MESA, EGL_DEFAULT_DISPLAY, nullptr));
++        glDisplay = GLDisplay::create(eglGetPlatformDisplayEXT(EGL_PLATFORM_SURFACELESS_MESA, nullptr, nullptr));
+     else if (GLContext::isExtensionSupported(extensions, "EGL_KHR_platform_base"))
+-        glDisplay = GLDisplay::create(eglGetPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA, EGL_DEFAULT_DISPLAY, nullptr));
++        glDisplay = GLDisplay::create(eglGetPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA, nullptr, nullptr));
+ 
+     if (!glDisplay) {
+         WTFLogAlways("Could not create surfaceless EGL display: %s. Aborting...", GLContext::lastErrorString());
+@@ -56,7 +56,7 @@ PlatformDisplaySurfaceless::PlatformDisplaySurfaceless(Ref<GLDisplay>&& glDispla
+ {
+ #if ENABLE(WEBGL)
+     m_anglePlatform = EGL_PLATFORM_SURFACELESS_MESA;
+-    m_angleNativeDisplay = EGL_DEFAULT_DISPLAY;
++    m_angleNativeDisplay = nullptr;
+ #endif
+ }
+ 

@@ -1,0 +1,54 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>WPE media pending</title>
+<style>body { background: #369; color: white; }</style>
+<audio id="audio" src="tone.wav" muted preload="auto"></audio>
+<video id="video" src="red.webm" muted preload="auto" width="160" height="90"></video>
+<pre id="results"></pre>
+<script>
+'use strict';
+const record = message => results.textContent += message + '\n';
+const check = (value, label) => { if (!value) throw Error(label); record('PASS ' + label); };
+function wait(test, label) {
+    return new Promise((resolve, reject) => {
+        const end = performance.now() + 10000;
+        function poll() {
+            if (test()) return resolve();
+            if (performance.now() >= end) return reject(Error('Timeout ' + label));
+            setTimeout(poll, 20);
+        }
+        poll();
+    });
+}
+async function run() {
+    for (const media of [audio, video]) {
+        await wait(() => media.readyState >= 2 || media.error, media.id + ' decode');
+        check(!media.error, media.id + ' decoded, error=' + (media.error && media.error.code));
+        check(Math.abs(media.duration - 3) < .15, media.id + ' duration');
+        await media.play();
+        await wait(() => media.currentTime > .15, media.id + ' playback advances');
+        media.pause();
+        media.currentTime = 2;
+        await wait(() => !media.seeking && media.readyState >= 2, media.id + ' seek');
+        check(media.paused && Math.abs(media.currentTime - 2) < .1, media.id + ' pause and seek');
+    }
+    check(video.videoWidth === 160 && video.videoHeight === 90, 'video dimensions');
+    const canvas = document.createElement('canvas');
+    canvas.width = 160; canvas.height = 90;
+    const context = canvas.getContext('2d');
+    context.drawImage(video, 0, 0);
+    const pixel = context.getImageData(80, 45, 1, 1).data;
+    // Account for the generator's actual red intensity and lossy YUV/RGB
+    // conversion. VP8's generator uses 255; the AVFoundation fixture uses 220.
+    const expectedRed = 255;
+    check(Math.abs(pixel[0] - expectedRed) < 32 && pixel[1] < 40 && pixel[2] < 40,
+        'rendered red frame ' + Array.from(pixel));
+    const offline = new OfflineAudioContext(1, 4410, 44100);
+    const oscillator = offline.createOscillator();
+    oscillator.connect(offline.destination); oscillator.start();
+    const buffer = await offline.startRendering();
+    check(buffer.length === 4410 && buffer.getChannelData(0).some(value => Math.abs(value) > .1), 'WebAudio renders samples');
+    document.title = 'PASS WPE media';
+}
+run().catch(error => { record(String(error)); document.title = 'FAIL ' + error; });
+</script>

@@ -1,0 +1,60 @@
+diff --git a/Source/WTF/wtf/PlatformWPE.cmake b/Source/WTF/wtf/PlatformWPE.cmake
+index 0f9abb336..e40ed391b 100644
+--- a/Source/WTF/wtf/PlatformWPE.cmake
++++ b/Source/WTF/wtf/PlatformWPE.cmake
+@@ -20,9 +20,6 @@ list(APPEND WTF_SOURCES
+     glib/TimeZoneGLib.cpp
+     glib/URLGLib.cpp
+ 
+-    linux/CurrentProcessMemoryStatus.cpp
+-    linux/RealTimeThreads.cpp
+-
+     posix/CPUTimePOSIX.cpp
+     posix/FileHandlePOSIX.cpp
+     posix/FileSystemPOSIX.cpp
+@@ -37,7 +34,30 @@ list(APPEND WTF_SOURCES
+     unix/UniStdExtrasUnix.cpp
+ )
+ 
+-if (ANDROID)
++if (APPLE)
++    file(COPY mac/MachExceptions.defs DESTINATION ${WTF_DERIVED_SOURCES_DIR})
++    add_custom_command(
++        OUTPUT
++            ${WTF_DERIVED_SOURCES_DIR}/MachExceptionsServer.h
++            ${WTF_DERIVED_SOURCES_DIR}/mach_exc.h
++            ${WTF_DERIVED_SOURCES_DIR}/mach_excServer.c
++            ${WTF_DERIVED_SOURCES_DIR}/mach_excUser.c
++        MAIN_DEPENDENCY mac/MachExceptions.defs
++        WORKING_DIRECTORY ${WTF_DERIVED_SOURCES_DIR}
++        COMMAND ${Mig_EXECUTABLE} -header mach_exc.h -user mach_excUser.c
++            -sheader MachExceptionsServer.h -server mach_excServer.c
++            -DMACH_EXC_SERVER_TASKIDTOKEN_STATE -isysroot ${CMAKE_OSX_SYSROOT}
++            MachExceptions.defs
++        VERBATIM)
++    list(APPEND WTF_SOURCES
++        cocoa/MemoryFootprintCocoa.cpp
++
++        generic/MemoryPressureHandlerGeneric.cpp
++
++        ${WTF_DERIVED_SOURCES_DIR}/mach_excServer.c
++        ${WTF_DERIVED_SOURCES_DIR}/mach_excUser.c
++    )
++elseif (ANDROID)
+     list(APPEND WTF_SOURCES
+         generic/MemoryFootprintGeneric.cpp
+         generic/MemoryPressureHandlerGeneric.cpp
+@@ -50,6 +70,13 @@ else ()
+     )
+ endif ()
+ 
++if (NOT APPLE)
++    list(APPEND WTF_SOURCES
++        linux/CurrentProcessMemoryStatus.cpp
++        linux/RealTimeThreads.cpp
++    )
++endif ()
++
+ list(APPEND WTF_PUBLIC_HEADERS
+     PlatformEnableGlib.h
+ 

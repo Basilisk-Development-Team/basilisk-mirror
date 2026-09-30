@@ -1,0 +1,22 @@
+diff --git a/Source/WebKit/CMakeLists.txt b/Source/WebKit/CMakeLists.txt
+index 85b2d74e8..aed59c321 100644
+--- a/Source/WebKit/CMakeLists.txt
++++ b/Source/WebKit/CMakeLists.txt
+@@ -774,7 +774,7 @@ set(WebKit_FRAMEWORKS
+     WebCore
+     bmalloc
+ )
+-if (APPLE)
++if ("${PORT}" STREQUAL "Mac" OR "${PORT}" STREQUAL "IOS")
+     list(APPEND WebKit_FRAMEWORKS WebKitLegacy)
+ endif ()
+ if (USE_APPLE_INTERNAL_SDK)
+@@ -1505,6 +1505,8 @@ endif ()
+ 
+ if (APPLE)
+     WEBKIT_ADD_TARGET_CXX_FLAGS(WebKit -fobjc-weak)
++endif ()
++if ("${PORT}" STREQUAL "Mac" OR "${PORT}" STREQUAL "IOS")
+     set_property(TARGET WebKit
+         PROPERTY LINK_LIBRARY_OVERRIDE_WebKitLegacy REEXPORT_FRAMEWORK)
+ endif ()

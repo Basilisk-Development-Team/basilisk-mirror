@@ -1,0 +1,237 @@
+diff --git a/Source/WebKit/Platform/IPC/glib/ConnectionGLib.cpp b/Source/WebKit/Platform/IPC/glib/ConnectionGLib.cpp
+index d5b3cce63..432eb0cfb 100644
+--- a/Source/WebKit/Platform/IPC/glib/ConnectionGLib.cpp
++++ b/Source/WebKit/Platform/IPC/glib/ConnectionGLib.cpp
+@@ -250,17 +250,44 @@ static ssize_t readBytesFromSocket(GSocket* socket, Vector<uint8_t>& buffer, Vec
+     GUniqueOutPtr<GSocketControlMessage*> messages;
+     gint messagesCount = 0;
+     gint flags = 0;
++#if OS(DARWIN)
++    // Unix stream sockets preserve descriptor ordering, but not message boundaries.
++    // Read only to the next boundary so ancillary descriptors cannot migrate to
++    // the following message. Keep partial bytes and descriptors across EAGAIN.
++    size_t previousSize = buffer.size();
++    size_t targetSize = sizeof(MessageInfo);
++    if (previousSize >= sizeof(MessageInfo)) {
++        const auto& info = reinterpretCastSpanStartTo<MessageInfo>(buffer.span());
++        if (info.attachmentCount() > s_attachmentMaxAmount || (!info.isBodyOutOfLine() && info.bodySize() > s_messageMaxSize)) {
++            g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA, "Invalid IPC message size");
++            return -1;
++        }
++        targetSize += info.attachmentCount() * sizeof(AttachmentInfo);
++        if (!info.isBodyOutOfLine())
++            targetSize += info.bodySize();
++    }
++    if (targetSize <= previousSize || targetSize > s_messageMaxSize) {
++        g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA, "Invalid IPC frame size");
++        return -1;
++    }
++    buffer.grow(targetSize);
++    GInputVector inputVector = { buffer.mutableSpan().data() + previousSize, targetSize - previousSize };
++#else
+     GInputVector inputVector = { buffer.mutableSpan().data(), buffer.size() };
++#endif
+     auto bytesRead = g_socket_receive_message(socket, nullptr, &inputVector, 1, &messages.outPtr(), &messagesCount, &flags, cancellable, error);
+-    if (bytesRead <= 0)
++    if (bytesRead <= 0) {
++#if OS(DARWIN)
++        buffer.shrink(previousSize);
++#endif
+         return bytesRead;
+-
+-    if (flags & MSG_CTRUNC) {
+-        // Control data has been discarded, so consider this a read failure.
+-        return -1;
+     }
+ 
++#if OS(DARWIN)
++    buffer.shrink(previousSize + bytesRead);
++#else
+     buffer.shrink(bytesRead);
++#endif
+     for (int i = 0; i < messagesCount; ++i) {
+         GRefPtr<GSocketControlMessage> controlMessage = adoptGRef(G_SOCKET_CONTROL_MESSAGE(messages.get()[i]));
+         if (!G_IS_UNIX_FD_MESSAGE(controlMessage.get()))
+@@ -279,6 +306,10 @@ static ssize_t readBytesFromSocket(GSocket* socket, Vector<uint8_t>& buffer, Vec
+         }
+     }
+ 
++    if (flags & MSG_CTRUNC) {
++        g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA, "Truncated IPC descriptors");
++        return -1;
++    }
+     return bytesRead;
+ }
+ IGNORE_CLANG_WARNINGS_END
+@@ -298,8 +329,10 @@ void Connection::readyReadHandler()
+ #endif
+ 
+     while (true) {
++#if !OS(DARWIN)
+         m_readBuffer.grow(m_readBuffer.capacity());
+         m_fileDescriptors.shrink(0);
++#endif
+ 
+         GUniqueOutPtr<GError> error;
+         auto bytesRead = readBytesFromSocket(m_socket.get(), m_readBuffer, m_fileDescriptors, m_cancellable.get(), &error.outPtr());
+@@ -324,6 +357,23 @@ void Connection::readyReadHandler()
+             return;
+         }
+ 
++#if OS(DARWIN)
++        if (m_readBuffer.size() < sizeof(MessageInfo))
++            continue;
++        const auto& info = reinterpretCastSpanStartTo<MessageInfo>(m_readBuffer.span());
++        if (info.attachmentCount() > s_attachmentMaxAmount || (!info.isBodyOutOfLine() && info.bodySize() > s_messageMaxSize)) {
++            connectionDidClose();
++            return;
++        }
++        size_t expectedSize = sizeof(MessageInfo) + info.attachmentCount() * sizeof(AttachmentInfo) + (info.isBodyOutOfLine() ? 0 : info.bodySize());
++        if (expectedSize > s_messageMaxSize) {
++            connectionDidClose();
++            return;
++        }
++        if (m_readBuffer.size() < expectedSize)
++            continue;
++#endif
++
+ #if OS(ANDROID)
+         RELEASE_ASSERT(m_readBuffer.size() >= sizeof(MessageInfo));
+         const auto& messageInfo = reinterpretCastSpanStartTo<MessageInfo>(m_readBuffer.span());
+@@ -338,8 +388,14 @@ void Connection::readyReadHandler()
+ 
+         if (auto decoder = createMessageDecoder())
+             processIncomingMessage(makeUniqueRefFromNonNullUniquePtr(WTF::move(decoder)));
+-        else
++        else {
+             connectionDidClose();
++            return;
++        }
++#if OS(DARWIN)
++        m_readBuffer.shrink(0);
++        m_fileDescriptors.shrink(0);
++#endif
+     }
+ }
+ 
+@@ -462,7 +518,22 @@ bool Connection::sendOutputMessage(UnixMessage&& outputMessage)
+     if (!messageInfo.isBodyOutOfLine() && outputMessage.bodySize())
+         outputVector[outputVectorLength++] = { reinterpret_cast<void*>(outputMessage.body().data()), outputMessage.bodySize() };
+ 
++#if OS(DARWIN)
++    size_t skipped = outputMessage.bytesSent();
++    size_t remaining = 0;
++    for (int i = 0; i < outputVectorLength; ++i) {
++        size_t skip = std::min(skipped, outputVector[i].size);
++        outputVector[i].buffer = static_cast<const uint8_t*>(outputVector[i].buffer) + skip;
++        outputVector[i].size -= skip;
++        skipped -= skip;
++        remaining += outputVector[i].size;
++    }
++    RELEASE_ASSERT(!skipped && remaining);
++    // SCM_RIGHTS is sent once, together with the first successfully written byte.
++    auto* controlMessagePtr = outputMessage.bytesSent() ? nullptr : controlMessage.get();
++#else
+     auto* controlMessagePtr = controlMessage.get();
++#endif
+     GUniqueOutPtr<GError> error;
+     auto bytesWritten = g_socket_send_message(m_socket.get(), nullptr, outputVector, outputVectorLength,
+         controlMessagePtr ? &controlMessagePtr : nullptr, controlMessagePtr ? 1 : 0, 0, m_cancellable.get(), &error.outPtr());
+@@ -470,7 +541,17 @@ bool Connection::sendOutputMessage(UnixMessage&& outputMessage)
+         // File descriptors are owned by UnixMessage, so steal them from the control message to avoid a double close.
+         g_free(g_unix_fd_message_steal_fds(G_UNIX_FD_MESSAGE(controlMessage.get()), nullptr));
+     }
+-    if (bytesWritten >= 0) {
++    bool completed = bytesWritten >= 0;
++#if OS(DARWIN)
++    if (bytesWritten > 0) {
++        outputMessage.didSendBytes(bytesWritten);
++        completed = static_cast<size_t>(bytesWritten) == remaining;
++    } else if (!bytesWritten) {
++        connectionDidClose();
++        return false;
++    }
++#endif
++    if (completed) {
+ #if OS(ANDROID)
+         RELEASE_ASSERT(m_outgoingHardwareBuffers.isEmpty());
+         m_outgoingHardwareBuffers = WTF::move(hardwareBuffers);
+@@ -480,7 +561,7 @@ bool Connection::sendOutputMessage(UnixMessage&& outputMessage)
+         return true;
+     }
+ 
+-    if (g_error_matches(error.get(), G_IO_ERROR, G_IO_ERROR_WOULD_BLOCK)) {
++    if (bytesWritten > 0 || g_error_matches(error.get(), G_IO_ERROR, G_IO_ERROR_WOULD_BLOCK)) {
+         m_hasPendingOutputMessage = true;
+         m_writeSocketMonitor.start(m_socket.get(), G_IO_OUT, m_connectionQueue->runLoop(), m_cancellable.get(), [this, protectedThis = protect(*this), message = WTF::move(outputMessage)] (GIOCondition condition) mutable -> gboolean {
+             if (condition & G_IO_OUT) {
+@@ -513,7 +594,13 @@ IGNORE_CLANG_WARNINGS_END
+ 
+ std::optional<Connection::ConnectionIdentifierPair> Connection::createConnectionIdentifierPair()
+ {
+-    SocketPair socketPair = createPlatformConnection(SOCK_SEQPACKET);
++    SocketPair socketPair = createPlatformConnection(
++#if OS(DARWIN)
++        SOCK_STREAM
++#else
++        SOCK_SEQPACKET
++#endif
++    );
+     return { { Identifier { WTF::move(socketPair.server) }, ConnectionHandle { WTF::move(socketPair.client) } } };
+ }
+ 
+diff --git a/Source/WebKit/Platform/IPC/unix/UnixMessage.h b/Source/WebKit/Platform/IPC/unix/UnixMessage.h
+index 10932fbbf..1f2bd3cef 100644
+--- a/Source/WebKit/Platform/IPC/unix/UnixMessage.h
++++ b/Source/WebKit/Platform/IPC/unix/UnixMessage.h
+@@ -113,6 +113,9 @@ public:
+     UnixMessage(UnixMessage&& other)
+         : m_attachments(WTF::move(other.m_attachments))
+         , m_messageInfo(WTF::move(other.m_messageInfo))
++#if OS(DARWIN) && USE(GLIB)
++        , m_bytesSent(other.m_bytesSent)
++#endif
+     {
+         if (other.m_bodyOwned) {
+             std::swap(m_body, other.m_body);
+@@ -140,6 +143,11 @@ WTF_ALLOW_UNSAFE_BUFFER_USAGE_END
+     std::span<uint8_t> body() const { return m_body; }
+     size_t bodySize() const  { return m_messageInfo.bodySize(); }
+ 
++#if OS(DARWIN) && USE(GLIB)
++    size_t bytesSent() const { return m_bytesSent; }
++    void didSendBytes(size_t count) { m_bytesSent += count; }
++#endif
++
+     void appendAttachment(Attachment&& attachment)
+     {
+         m_attachments.append(WTF::move(attachment));
+@@ -166,6 +174,9 @@ private:
+     MessageInfo m_messageInfo;
+     std::span<uint8_t> m_body;
+     bool m_bodyOwned { false };
++#if OS(DARWIN) && USE(GLIB)
++    size_t m_bytesSent { 0 };
++#endif
+ };
+ 
+ } // namespace IPC
+diff --git a/Source/WebKit/UIProcess/Launcher/glib/ProcessLauncherGLib.cpp b/Source/WebKit/UIProcess/Launcher/glib/ProcessLauncherGLib.cpp
+index 63a1abdff..65fd886b7 100644
+--- a/Source/WebKit/UIProcess/Launcher/glib/ProcessLauncherGLib.cpp
++++ b/Source/WebKit/UIProcess/Launcher/glib/ProcessLauncherGLib.cpp
+@@ -105,7 +105,13 @@ void ProcessLauncher::launchProcess()
+ 
+     GUniquePtr<gchar> processIdentifier(g_strdup_printf("%" PRIu64, m_launchOptions.processIdentifier.toUInt64()));
+ 
+-    IPC::SocketPair webkitSocketPair = IPC::createPlatformConnection(SOCK_SEQPACKET, connectionOptions());
++    IPC::SocketPair webkitSocketPair = IPC::createPlatformConnection(
++#if OS(DARWIN)
++        SOCK_STREAM,
++#else
++        SOCK_SEQPACKET,
++#endif
++        connectionOptions());
+     GUniquePtr<gchar> webkitSocket(g_strdup_printf("%d", webkitSocketPair.client.value()));
+ 
+ #if OS(ANDROID)

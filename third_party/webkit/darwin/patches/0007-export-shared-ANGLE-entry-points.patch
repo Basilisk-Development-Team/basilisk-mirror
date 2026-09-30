@@ -1,0 +1,17 @@
+diff --git a/Source/ThirdParty/ANGLE/PlatformWPE.cmake b/Source/ThirdParty/ANGLE/PlatformWPE.cmake
+--- a/Source/ThirdParty/ANGLE/PlatformWPE.cmake
++++ b/Source/ThirdParty/ANGLE/PlatformWPE.cmake
+@@ -2,6 +2,13 @@
+     include(PlatformMac.cmake)
+     set(GLESv2_LIBRARY_TYPE SHARED)
+     set(EGL_LIBRARY_TYPE SHARED)
++    # The Cocoa port normally links these entry points statically. WPE's EGL
++    # dispatcher resolves the public C entry points from the shared libraries.
++    set_source_files_properties(
++        src/libEGL/libEGL_autogen.cpp
++        src/libGLESv2/libGLESv2_autogen.cpp
++        PROPERTIES COMPILE_OPTIONS "-fvisibility=default"
++    )
+     return()
+ endif ()
+ 

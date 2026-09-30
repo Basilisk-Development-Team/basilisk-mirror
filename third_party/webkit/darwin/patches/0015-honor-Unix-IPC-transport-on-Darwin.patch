@@ -1,0 +1,114 @@
+diff --git a/Source/WebKit/NetworkProcess/NetworkProcess.cpp b/Source/WebKit/NetworkProcess/NetworkProcess.cpp
+index f897c4c92..7e80a37b0 100644
+--- a/Source/WebKit/NetworkProcess/NetworkProcess.cpp
++++ b/Source/WebKit/NetworkProcess/NetworkProcess.cpp
+@@ -1895,7 +1895,7 @@ void NetworkProcess::deleteWebsiteData(PAL::SessionID sessionID, OptionSet<Websi
+         if (connection->sessionID() != sessionID || activeWebProcesses.contains(identifier))
+             continue;
+ 
+-#if OS(DARWIN)
++#if OS(DARWIN) && !USE(UNIX_DOMAIN_SOCKETS)
+         Ref ipcConnection = connection->connection();
+         auto remoteProcessID = ipcConnection->remoteProcessID();
+         // Connection is not available.
+diff --git a/Source/WebKit/Platform/IPC/Attachment.h b/Source/WebKit/Platform/IPC/Attachment.h
+index 606d48b9e..c590e478f 100644
+--- a/Source/WebKit/Platform/IPC/Attachment.h
++++ b/Source/WebKit/Platform/IPC/Attachment.h
+@@ -26,7 +26,7 @@
+ 
+ #pragma once
+ 
+-#if OS(DARWIN)
++#if OS(DARWIN) && !USE(UNIX_DOMAIN_SOCKETS)
+ #include <wtf/MachSendRight.h>
+ #endif
+ 
+@@ -43,7 +43,7 @@ namespace IPC {
+ 
+ // IPC::Attachment is a type representing objects that cannot be transferred as data,
+ // rather they are transferred via operating system cross-process communication primitives.
+-#if OS(DARWIN)
++#if OS(DARWIN) && !USE(UNIX_DOMAIN_SOCKETS)
+ using Attachment = MachSendRight;
+ #elif OS(WINDOWS)
+ struct Attachment { }; // Windows does not need attachments at the moment.
+diff --git a/Source/WebKit/Platform/IPC/Connection.cpp b/Source/WebKit/Platform/IPC/Connection.cpp
+index 4eb090320..2a0a12d35 100644
+--- a/Source/WebKit/Platform/IPC/Connection.cpp
++++ b/Source/WebKit/Platform/IPC/Connection.cpp
+@@ -669,7 +669,7 @@ Error Connection::sendMessageImpl(UniqueRef<Encoder>&& encoder, OptionSet<SendOp
+     }
+ 
+     if (shouldNotifyOfQueueGrowingLarge) {
+-#if OS(DARWIN)
++#if OS(DARWIN) && !USE(UNIX_DOMAIN_SOCKETS)
+         RELEASE_LOG_ERROR(IPC, "Connection::sendMessage(): Too many messages (%zu) in the queue to remote PID: %d (most common: %u %" PUBLIC_LOG_STRING " messages), notifying client", outgoingMessagesCount, remoteProcessID(), maxOutgoingMessageNameCount, maxOutgoingMessageName.characters());
+ #else
+         RELEASE_LOG_ERROR(IPC, "Connection::sendMessage(): Too many messages (%zu) in the queue, notifying client (most common: %u %" PUBLIC_LOG_STRING " messages)", outgoingMessagesCount, maxOutgoingMessageNameCount, maxOutgoingMessageName.characters());
+@@ -999,7 +999,7 @@ auto Connection::waitForSyncReply(SyncRequestID syncRequestID, MessageName messa
+         timedOut = !protect(m_syncState)->wait(timeout);
+     }
+ 
+-#if OS(DARWIN)
++#if OS(DARWIN) && !USE(UNIX_DOMAIN_SOCKETS)
+     RELEASE_LOG_ERROR(IPC, "Connection::waitForSyncReply: Timed-out while waiting for reply for %" PUBLIC_LOG_STRING " from process %d, id=%" PRIu64, description(messageName).characters(), remoteProcessID(), syncRequestID.toUInt64());
+ #else
+     RELEASE_LOG_ERROR(IPC, "Connection::waitForSyncReply: Timed-out while waiting for reply for %s, id=%" PRIu64, description(messageName).characters(), syncRequestID.toUInt64());
+diff --git a/Source/WebKit/Platform/IPC/Connection.h b/Source/WebKit/Platform/IPC/Connection.h
+index 915dc5e5b..bc6880bbb 100644
+--- a/Source/WebKit/Platform/IPC/Connection.h
++++ b/Source/WebKit/Platform/IPC/Connection.h
+@@ -76,7 +76,7 @@
+ #include <wtf/android/RefPtrAndroid.h>
+ #endif
+ 
+-#if OS(DARWIN)
++#if OS(DARWIN) && !USE(UNIX_DOMAIN_SOCKETS)
+ #include <mach/mach_port.h>
+ #include <wtf/darwin/DispatchOSObject.h>
+ #include <wtf/darwin/XPCObjectPtr.h>
+@@ -84,7 +84,7 @@
+ #if HAVE(XPC_API)
+ #include <xpc/xpc.h>
+ #endif
+-#endif // OS(DARWIN)
++#endif // OS(DARWIN) && !USE(UNIX_DOMAIN_SOCKETS)
+ 
+ #if USE(GLIB)
+ #include <wtf/glib/GSocketMonitor.h>
+@@ -343,7 +343,7 @@ public:
+ #endif
+     };
+ 
+-#if OS(DARWIN)
++#if OS(DARWIN) && !USE(UNIX_DOMAIN_SOCKETS)
+     xpc_connection_t xpcConnection() const { return m_xpcConnection.get(); }
+     std::optional<audit_token_t> getAuditToken();
+     pid_t remoteProcessID() const;
+diff --git a/Source/WebKit/Platform/IPC/ConnectionHandle.serialization.in b/Source/WebKit/Platform/IPC/ConnectionHandle.serialization.in
+index a04e9a287..b785fc00b 100644
+--- a/Source/WebKit/Platform/IPC/ConnectionHandle.serialization.in
++++ b/Source/WebKit/Platform/IPC/ConnectionHandle.serialization.in
+@@ -28,7 +28,7 @@ webkit_platform_header: "ConnectionHandle.h"
+ #if OS(WINDOWS)
+     Win32Handle m_handle;
+ #endif
+-#if OS(DARWIN)
++#if OS(DARWIN) && !USE(UNIX_DOMAIN_SOCKETS)
+     MachSendRight m_handle;
+ #endif
+ }
+diff --git a/Source/WebKit/Shared/WebCoreArgumentCoders.serialization.in b/Source/WebKit/Shared/WebCoreArgumentCoders.serialization.in
+index 53e089add..19eaf20d1 100644
+--- a/Source/WebKit/Shared/WebCoreArgumentCoders.serialization.in
++++ b/Source/WebKit/Shared/WebCoreArgumentCoders.serialization.in
+@@ -1661,7 +1661,7 @@ header: <wtf/MachSendRight.h>
+ #if USE(UNIX_DOMAIN_SOCKETS)
+     [Validator='!!m_handle && *m_handle'] UnixFileDescriptor m_handle;
+ #endif
+-#if OS(DARWIN)
++#if OS(DARWIN) && !USE(UNIX_DOMAIN_SOCKETS)
+     [Validator='!!m_handle && *m_handle'] MachSendRight m_handle;
+ #endif
+ #if OS(WINDOWS)

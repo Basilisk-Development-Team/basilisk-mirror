@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/WebKit/WebKit.git",
+  "tag": "wpewebkit-2.54.0",
+  "revision": "73f39d84ea9d4071994214373efbde3665402b05",
+  "purpose": "Full source baseline for the WPE Darwin port; Linux archive pin is unchanged"
+}

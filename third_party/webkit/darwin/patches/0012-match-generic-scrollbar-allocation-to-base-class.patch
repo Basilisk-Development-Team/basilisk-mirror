@@ -1,0 +1,40 @@
+diff --git a/Source/WebCore/platform/generic/ScrollbarsControllerGeneric.cpp b/Source/WebCore/platform/generic/ScrollbarsControllerGeneric.cpp
+index e676526cd..c2848c65b 100644
+--- a/Source/WebCore/platform/generic/ScrollbarsControllerGeneric.cpp
++++ b/Source/WebCore/platform/generic/ScrollbarsControllerGeneric.cpp
+@@ -36,9 +36,12 @@
+ #include "ScrollableArea.h"
+ #include "ScrollbarTheme.h"
+ #include "ScrollbarsControllerInlines.h"
++#include <wtf/TZoneMallocInlines.h>
+ 
+ namespace WebCore {
+ 
++WTF_MAKE_TZONE_ALLOCATED_IMPL(ScrollbarsControllerGeneric);
++
+ static const Seconds overflowScrollbarsAnimationDuration { 1_s };
+ static const Seconds overflowScrollbarsAnimationHideDelay { 2_s };
+ 
+@@ -259,4 +262,3 @@ void ScrollbarsControllerGeneric::lockOverlayScrollbarStateToHidden(bool shouldL
+ }
+ 
+ } // namespace WebCore
+-
+diff --git a/Source/WebCore/platform/generic/ScrollbarsControllerGeneric.h b/Source/WebCore/platform/generic/ScrollbarsControllerGeneric.h
+index 2a004041f..8c0c12992 100644
+--- a/Source/WebCore/platform/generic/ScrollbarsControllerGeneric.h
++++ b/Source/WebCore/platform/generic/ScrollbarsControllerGeneric.h
+@@ -33,11 +33,12 @@
+ #include "ScrollbarsController.h"
+ #include "Timer.h"
+ #include <wtf/CheckedPtr.h>
++#include <wtf/TZoneMalloc.h>
+ 
+ namespace WebCore {
+ 
+ class ScrollbarsControllerGeneric : public ScrollbarsController, public CanMakeCheckedPtr<ScrollbarsControllerGeneric> {
+-    WTF_DEPRECATED_MAKE_FAST_ALLOCATED(ScrollbarsControllerGeneric);
++    WTF_MAKE_TZONE_ALLOCATED(ScrollbarsControllerGeneric);
+     WTF_OVERRIDE_DELETE_FOR_CHECKED_PTR(ScrollbarsControllerGeneric);
+ public:
+     explicit ScrollbarsControllerGeneric(ScrollableArea&);

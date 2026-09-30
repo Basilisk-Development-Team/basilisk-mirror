@@ -1,0 +1,20 @@
+diff --git a/Source/WebKit/UIProcess/wpe/AcceleratedBackingStore.cpp b/Source/WebKit/UIProcess/wpe/AcceleratedBackingStore.cpp
+index 22c44ab7d..27052fa2d 100644
+--- a/Source/WebKit/UIProcess/wpe/AcceleratedBackingStore.cpp
++++ b/Source/WebKit/UIProcess/wpe/AcceleratedBackingStore.cpp
+@@ -214,6 +214,7 @@ static Expected<SkImageInfo, String> getImageInfoFromBuffer(const  GRefPtr<WPEBu
+     auto width = wpe_buffer_get_width(buffer.get());
+     auto height = wpe_buffer_get_height(buffer.get());
+ 
++#if USE(LIBDRM) || OS(ANDROID)
+     if (WPE_IS_BUFFER_DMA_BUF(buffer.get())) {
+         auto* dmaBuffer = WPE_BUFFER_DMA_BUF(buffer.get());
+         SkAlphaType alphaType = kPremul_SkAlphaType;
+@@ -221,6 +222,7 @@ static Expected<SkImageInfo, String> getImageInfoFromBuffer(const  GRefPtr<WPEBu
+             alphaType = kOpaque_SkAlphaType;
+         return SkImageInfo::Make(width, height, kBGRA_8888_SkColorType, alphaType, SkColorSpace::MakeSRGB());
+     }
++#endif
+ 
+     if (WPE_IS_BUFFER_SHM(buffer.get())) {
+         SkAlphaType alphaType = kPremul_SkAlphaType;

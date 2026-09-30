@@ -1,0 +1,69 @@
+diff --git a/Source/WebCore/platform/graphics/angle/PlatformDisplayANGLE.cpp b/Source/WebCore/platform/graphics/angle/PlatformDisplayANGLE.cpp
+index 8f0072815..a1ac37b79 100644
+--- a/Source/WebCore/platform/graphics/angle/PlatformDisplayANGLE.cpp
++++ b/Source/WebCore/platform/graphics/angle/PlatformDisplayANGLE.cpp
+@@ -29,7 +29,7 @@ namespace WebCore {
+ 
+ EGLDisplay PlatformDisplay::angleEGLDisplay() const
+ {
+-#if PLATFORM(WIN)
++#if PLATFORM(WIN) || (PLATFORM(WPE) && OS(DARWIN))
+     return eglDisplay();
+ #else
+     if (m_angleEGLDisplay != EGL_NO_DISPLAY)
+@@ -69,7 +69,7 @@ EGLDisplay PlatformDisplay::angleEGLDisplay() const
+ 
+ EGLContext PlatformDisplay::angleSharingGLContext()
+ {
+-#if PLATFORM(WIN)
++#if PLATFORM(WIN) || (PLATFORM(WPE) && OS(DARWIN))
+     return sharingGLContext()->platformContext();
+ #else
+     ASSERT(m_angleEGLDisplay != EGL_NO_DISPLAY);
+diff --git a/Source/WebCore/platform/graphics/egl/PlatformDisplaySurfaceless.cpp b/Source/WebCore/platform/graphics/egl/PlatformDisplaySurfaceless.cpp
+index b9f2b2f25..f5daf18a6 100644
+--- a/Source/WebCore/platform/graphics/egl/PlatformDisplaySurfaceless.cpp
++++ b/Source/WebCore/platform/graphics/egl/PlatformDisplaySurfaceless.cpp
+@@ -28,12 +28,25 @@
+ 
+ #include "GLContext.h"
+ #include <epoxy/egl.h>
++#if PLATFORM(WPE) && OS(DARWIN)
++#include <EGL/eglext_angle.h>
++#endif
+ 
+ namespace WebCore {
+ 
+ std::unique_ptr<PlatformDisplaySurfaceless> PlatformDisplaySurfaceless::create()
+ {
+     const char* extensions = eglQueryString(nullptr, EGL_EXTENSIONS);
++#if PLATFORM(WPE) && OS(DARWIN)
++    if (!GLContext::isExtensionSupported(extensions, "EGL_EXT_platform_base")
++        || !GLContext::isExtensionSupported(extensions, "EGL_ANGLE_platform_angle_metal"))
++        return nullptr;
++    const EGLint attributes[] = {
++        EGL_PLATFORM_ANGLE_TYPE_ANGLE, EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE,
++        EGL_NONE
++    };
++    RefPtr<GLDisplay> glDisplay = GLDisplay::create(eglGetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE, nullptr, attributes));
++#else
+     if (!GLContext::isExtensionSupported(extensions, "EGL_MESA_platform_surfaceless"))
+         return nullptr;
+ 
+@@ -42,6 +55,7 @@ std::unique_ptr<PlatformDisplaySurfaceless> PlatformDisplaySurfaceless::create()
+         glDisplay = GLDisplay::create(eglGetPlatformDisplayEXT(EGL_PLATFORM_SURFACELESS_MESA, nullptr, nullptr));
+     else if (GLContext::isExtensionSupported(extensions, "EGL_KHR_platform_base"))
+         glDisplay = GLDisplay::create(eglGetPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA, nullptr, nullptr));
++#endif
+ 
+     if (!glDisplay) {
+         WTFLogAlways("Could not create surfaceless EGL display: %s. Aborting...", GLContext::lastErrorString());
+@@ -54,7 +68,7 @@ std::unique_ptr<PlatformDisplaySurfaceless> PlatformDisplaySurfaceless::create()
+ PlatformDisplaySurfaceless::PlatformDisplaySurfaceless(Ref<GLDisplay>&& glDisplay)
+     : PlatformDisplay(WTF::move(glDisplay))
+ {
+-#if ENABLE(WEBGL)
++#if ENABLE(WEBGL) && !(PLATFORM(WPE) && OS(DARWIN))
+     m_anglePlatform = EGL_PLATFORM_SURFACELESS_MESA;
+     m_angleNativeDisplay = nullptr;
+ #endif

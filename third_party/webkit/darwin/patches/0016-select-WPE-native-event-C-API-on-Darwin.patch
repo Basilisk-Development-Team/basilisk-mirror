@@ -1,0 +1,26 @@
+diff --git a/Source/WebKit/UIProcess/API/C/WKNativeEvent.h b/Source/WebKit/UIProcess/API/C/WKNativeEvent.h
+index 71146aa2b..25f7deaad 100644
+--- a/Source/WebKit/UIProcess/API/C/WKNativeEvent.h
++++ b/Source/WebKit/UIProcess/API/C/WKNativeEvent.h
+@@ -34,7 +34,7 @@
+ extern "C" {
+ #endif
+ 
+-#if defined(__APPLE__) && !TARGET_OS_IPHONE && !defined(BUILDING_GTK__)
++#if defined(__APPLE__) && !TARGET_OS_IPHONE && !defined(BUILDING_GTK__) && !defined(BUILDING_WPE__)
+ #ifdef __OBJC__
+ @class NSEvent;
+ #elif __cplusplus
+diff --git a/Source/WebKit/UIProcess/API/C/WKPagePrivate.h b/Source/WebKit/UIProcess/API/C/WKPagePrivate.h
+index f1153a906..e92f470b6 100644
+--- a/Source/WebKit/UIProcess/API/C/WKPagePrivate.h
++++ b/Source/WebKit/UIProcess/API/C/WKPagePrivate.h
+@@ -244,7 +244,7 @@ WK_EXPORT void WKPageFindStringForTesting(WKPageRef page, void* context, WKStrin
+ typedef void (*WKPageDoAfterProcessingAllPendingMouseEventsFunction)(void* functionContext);
+ WK_EXPORT void WKPageDoAfterProcessingAllPendingMouseEvents(WKPageRef page, void* context, WKPageDoAfterProcessingAllPendingMouseEventsFunction function);
+ 
+-#if !defined(__APPLE__)
++#if !defined(__APPLE__) || defined(BUILDING_GTK__) || defined(BUILDING_WPE__)
+ typedef void (*WKPageDoAfterProcessingAllPendingKeyEventsFunction)(void* functionContext);
+ WK_EXPORT void WKPageDoAfterProcessingAllPendingKeyEvents(WKPageRef page, void* context, WKPageDoAfterProcessingAllPendingKeyEventsFunction function);
+ 

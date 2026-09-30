@@ -1,0 +1,21 @@
+diff --git a/Source/WebDriver/WebDriverService.cpp b/Source/WebDriver/WebDriverService.cpp
+index b361c1ca0..a782ee87c 100644
+--- a/Source/WebDriver/WebDriverService.cpp
++++ b/Source/WebDriver/WebDriverService.cpp
+@@ -380,6 +380,7 @@ bool WebDriverService::findCommand(HTTPMethod method, const String& path, Comman
+ void WebDriverService::handleRequest(HTTPRequestHandler::Request&& request, Function<void (HTTPRequestHandler::Response&&)>&& replyHandler)
+ {
+     Function<void (HTTPRequestHandler::Response&&)> actualReplyHandler = WTF::move(replyHandler);
++#if !LOG_DISABLED || !RELEASE_LOG_DISABLED
+     if (LOG_CHANNEL(WebDriverClassic).state != WTFLogChannelState::Off) {
+         RELEASE_LOG_INFO(WebDriverClassic, "HTTP request %s %s (body=%zu bytes)", request.method.utf8().data(), request.path.utf8().data(), request.dataLength);
+         actualReplyHandler = [startTime = MonotonicTime::now(), replyHandler = WTF::move(actualReplyHandler)](HTTPRequestHandler::Response&& response) mutable {
+@@ -388,6 +389,8 @@ void WebDriverService::handleRequest(HTTPRequestHandler::Request&& request, Func
+         };
+     }
+ 
++#endif
++
+     auto method = toCommandHTTPMethod(request.method);
+     if (!method) {
+         sendResponse(WTF::move(actualReplyHandler), CommandResult::fail(CommandResult::ErrorCode::UnknownCommand, makeString("Unknown method: "_s, request.method)));

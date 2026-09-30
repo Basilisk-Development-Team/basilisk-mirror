@@ -1,0 +1,19 @@
+diff --git a/Source/cmake/GStreamerChecks.cmake b/Source/cmake/GStreamerChecks.cmake
+index d36e7190e..dffaa548c 100644
+--- a/Source/cmake/GStreamerChecks.cmake
++++ b/Source/cmake/GStreamerChecks.cmake
+@@ -9,7 +9,13 @@ if (USE_GSTREAMER)
+       else ()
+           set(GSTREAMER_COMPONENTS app pbutils)
+           if (ENABLE_VIDEO)
+-              list(APPEND GSTREAMER_COMPONENTS video mpegts tag gl)
++              list(APPEND GSTREAMER_COMPONENTS video tag)
++              if (USE_GSTREAMER_MPEGTS)
++                  list(APPEND GSTREAMER_COMPONENTS mpegts)
++              endif ()
++              if (USE_GSTREAMER_GL)
++                  list(APPEND GSTREAMER_COMPONENTS gl)
++              endif ()
+           endif ()
+ 
+           if (ENABLE_WEB_AUDIO)

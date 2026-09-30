@@ -1,0 +1,33 @@
+diff --git a/src/dispatch_common.c b/src/dispatch_common.c
+index 153eb7c..3022453 100644
+--- a/src/dispatch_common.c
++++ b/src/dispatch_common.c
+@@ -174,10 +174,15 @@
+ #include "dispatch_common.h"
+ 
+ #if defined(__APPLE__)
++#define EGL_LIB "libEGL.dylib"
+ #define GLX_LIB "/opt/X11/lib/libGL.1.dylib"
+ #define OPENGL_LIB "/System/Library/Frameworks/OpenGL.framework/Versions/Current/OpenGL"
+ #define GLES1_LIB "libGLESv1_CM.so"
++#if ENABLE_EGL
++#define GLES2_LIB "libGLESv2.dylib"
++#else
+ #define GLES2_LIB "libGLESv2.so"
++#endif
+ #elif defined(__ANDROID__)
+ #define GLX_LIB "libGLESv2.so"
+ #define EGL_LIB "libEGL.so"
+diff --git a/src/dispatch_common.h b/src/dispatch_common.h
+index a136943..55388a8 100644
+--- a/src/dispatch_common.h
++++ b/src/dispatch_common.h
+@@ -28,7 +28,7 @@
+ #define PLATFORM_HAS_GLX ENABLE_GLX
+ #define PLATFORM_HAS_WGL 1
+ #elif defined(__APPLE__)
+-#define PLATFORM_HAS_EGL 0 
++#define PLATFORM_HAS_EGL ENABLE_EGL
+ #define PLATFORM_HAS_GLX ENABLE_GLX
+ #define PLATFORM_HAS_WGL 0
+ #elif defined(ANDROID)

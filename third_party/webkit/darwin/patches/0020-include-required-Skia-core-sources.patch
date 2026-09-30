@@ -1,0 +1,20 @@
+diff --git a/Source/ThirdParty/skia/CMakeLists.txt b/Source/ThirdParty/skia/CMakeLists.txt
+index 49b926228..b3e21265b 100644
+--- a/Source/ThirdParty/skia/CMakeLists.txt
++++ b/Source/ThirdParty/skia/CMakeLists.txt
+@@ -177,6 +177,7 @@ add_library(Skia STATIC
+     src/core/SkPath.cpp
+     src/core/SkPathBuilder.cpp
+     src/core/SkPathData.cpp
++    src/core/SkPathDump.cpp
+     src/core/SkPathEffect.cpp
+     src/core/SkPathIter.cpp
+     src/core/SkPathMeasure.cpp
+@@ -238,6 +239,7 @@ add_library(Skia STATIC
+     src/core/SkStream.cpp
+     src/core/SkStrike.cpp
+     src/core/SkStrikeCache.cpp
++    src/core/SkStrikeRef.cpp
+     src/core/SkStrikeSpec.cpp
+     src/core/SkString.cpp
+     src/core/SkStringUtils.cpp

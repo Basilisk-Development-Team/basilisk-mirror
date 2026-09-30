@@ -1,0 +1,18 @@
+diff --git a/Source/ThirdParty/ANGLE/CMakeLists.txt b/Source/ThirdParty/ANGLE/CMakeLists.txt
+index 07dad3797..505f4fdeb 100644
+--- a/Source/ThirdParty/ANGLE/CMakeLists.txt
++++ b/Source/ThirdParty/ANGLE/CMakeLists.txt
+@@ -264,3 +264,13 @@ target_link_libraries(ANGLEFramework INTERFACE ANGLE)
+ target_include_directories(ANGLEFramework INTERFACE ${ANGLE_FRAMEWORK_HEADERS_DIR} ${ANGLE_HEADERS_DIR})
+ 
+ add_library(ANGLE::ANGLE ALIAS ANGLEFramework)
++
++# WPE's Darwin dispatcher loads these as shared libraries, unlike the Cocoa
++# port's static linkage. They are part of the installed engine runtime.
++if (PORT STREQUAL "WPE" AND APPLE)
++    foreach (_runtimeTarget EGL GLESv2)
++        if (TARGET ${_runtimeTarget})
++            install(TARGETS ${_runtimeTarget} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
++        endif ()
++    endforeach ()
++endif ()

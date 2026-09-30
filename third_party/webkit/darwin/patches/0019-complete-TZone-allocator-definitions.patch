@@ -1,0 +1,46 @@
+diff --git a/Source/WTF/wtf/glib/RunLoopGLib.cpp b/Source/WTF/wtf/glib/RunLoopGLib.cpp
+index c7f4555a9..f2c7fc615 100644
+--- a/Source/WTF/wtf/glib/RunLoopGLib.cpp
++++ b/Source/WTF/wtf/glib/RunLoopGLib.cpp
+@@ -33,6 +33,7 @@
+ #include <wtf/BubbleSort.h>
+ #include <wtf/MainThread.h>
+ #include <wtf/SafeStrerror.h>
++#include <wtf/TZoneMallocInlines.h>
+ #include <wtf/glib/ActivityObserver.h>
+ #include <wtf/glib/RunLoopSourcePriority.h>
+ 
+@@ -45,6 +46,8 @@
+ 
+ namespace WTF {
+ 
++WTF_MAKE_TZONE_ALLOCATED_IMPL(ActivityObserver);
++
+ typedef struct {
+     GSource source;
+     RunLoop* runLoop;
+diff --git a/Source/WebCore/page/scrolling/coordinated/ScrollerCoordinated.cpp b/Source/WebCore/page/scrolling/coordinated/ScrollerCoordinated.cpp
+index ee2687ab9..5225e1d51 100644
+--- a/Source/WebCore/page/scrolling/coordinated/ScrollerCoordinated.cpp
++++ b/Source/WebCore/page/scrolling/coordinated/ScrollerCoordinated.cpp
+@@ -44,7 +44,7 @@ WTF_IGNORE_WARNINGS_IN_THIRD_PARTY_CODE_END
+ 
+ namespace WebCore {
+ 
+-WTF_MAKE_TZONE_ALLOCATED_IMPL(ScrollerPairCoordinated);
++WTF_MAKE_TZONE_ALLOCATED_IMPL(ScrollerCoordinated);
+ 
+ ScrollerCoordinated::ScrollerCoordinated(ScrollerPairCoordinated& pair, ScrollbarOrientation orientation)
+     : m_pair(pair)
+diff --git a/Source/WebCore/platform/graphics/skia/ImageBufferSkiaAcceleratedBackend.cpp b/Source/WebCore/platform/graphics/skia/ImageBufferSkiaAcceleratedBackend.cpp
+index 212c981a6..a87576fc1 100644
+--- a/Source/WebCore/platform/graphics/skia/ImageBufferSkiaAcceleratedBackend.cpp
++++ b/Source/WebCore/platform/graphics/skia/ImageBufferSkiaAcceleratedBackend.cpp
+@@ -78,6 +78,7 @@ public:
+ };
+ 
+ WTF_MAKE_TZONE_ALLOCATED_IMPL(ImageBufferSkiaAcceleratedBackend);
++WTF_MAKE_TZONE_ALLOCATED_IMPL(SkiaSwitchableCanvas);
+ 
+ static inline bool shouldEnableDynamicMSAA()
+ {

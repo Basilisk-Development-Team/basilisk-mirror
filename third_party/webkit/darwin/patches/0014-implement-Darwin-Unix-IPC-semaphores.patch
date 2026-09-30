@@ -1,0 +1,230 @@
+diff --git a/Source/WebKit/Platform/IPC/IPCSemaphore.h b/Source/WebKit/Platform/IPC/IPCSemaphore.h
+index 6d19a3373..1e6b2fc3f 100644
+--- a/Source/WebKit/Platform/IPC/IPCSemaphore.h
++++ b/Source/WebKit/Platform/IPC/IPCSemaphore.h
+@@ -28,6 +28,7 @@
+ #include "Timeout.h"
+ #include <wtf/Lock.h>
+ #include <wtf/Noncopyable.h>
++#include <wtf/RefPtr.h>
+ #include <wtf/Seconds.h>
+ #include <wtf/TZoneMallocInlines.h>
+ 
+@@ -40,6 +41,10 @@
+ #include <wtf/unix/UnixFileDescriptor.h>
+ #endif
+ 
++#if OS(DARWIN) && USE(UNIX_DOMAIN_SOCKETS)
++namespace WebCore { class SharedMemory; }
++#endif
++
+ namespace IPC {
+ 
+ class Decoder;
+@@ -94,6 +99,9 @@ private:
+     Win32Handle m_semaphoreHandle;
+ #elif USE(UNIX_DOMAIN_SOCKETS)
+     UnixFileDescriptor m_fd;
++#if OS(DARWIN)
++    RefPtr<WebCore::SharedMemory> m_sharedState;
++#endif
+ #endif
+ };
+ 
+diff --git a/Source/WebKit/Platform/IPC/unix/IPCSemaphoreUnix.cpp b/Source/WebKit/Platform/IPC/unix/IPCSemaphoreUnix.cpp
+index 8ebf6a632..b1de0fa99 100644
+--- a/Source/WebKit/Platform/IPC/unix/IPCSemaphoreUnix.cpp
++++ b/Source/WebKit/Platform/IPC/unix/IPCSemaphoreUnix.cpp
+@@ -26,27 +26,70 @@
+ #include "config.h"
+ #include "IPCSemaphore.h"
+ 
+-#include "Decoder.h"
+-#include "Encoder.h"
+ #include <wtf/UniStdExtras.h>
+ 
+ #if OS(LINUX)
+ #include <poll.h>
+ #include <sys/eventfd.h>
++#elif OS(DARWIN)
++#include <WebCore/SharedMemory.h>
++#include <atomic>
++#include <limits>
++#include <new>
++#include <os/os_sync_wait_on_address.h>
++#include <sys/stat.h>
++#if __MAC_OS_X_VERSION_MIN_REQUIRED < 140400
++#error "Unix-domain IPC semaphores on Darwin require macOS 14.4 or newer"
++#endif
+ #endif
+ 
+ namespace IPC {
+ 
++#if OS(DARWIN)
++using SharedCounter = std::atomic<uint64_t>;
++static_assert(SharedCounter::is_always_lock_free);
++static_assert(sizeof(SharedCounter) == sizeof(uint64_t));
++
++static SharedCounter& counter(WebCore::SharedMemory& memory)
++{
++    return *reinterpret_cast<SharedCounter*>(memory.mutableSpan().data());
++}
++#endif
++
+ Semaphore::Semaphore()
+ {
+ #if OS(LINUX)
+     m_fd = { eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK | EFD_SEMAPHORE), UnixFileDescriptor::Adopt };
++#elif OS(DARWIN)
++    m_sharedState = WebCore::SharedMemory::allocate(sizeof(SharedCounter));
++    if (!m_sharedState)
++        return;
++    new (m_sharedState->mutableSpan().data()) SharedCounter { 0 };
++    auto handle = m_sharedState->createHandle(WebCore::SharedMemory::Protection::ReadWrite);
++    if (!handle) {
++        m_sharedState = nullptr;
++        return;
++    }
++    m_fd = handle->releaseHandle();
+ #endif
+ }
+ 
+ Semaphore::Semaphore(UnixFileDescriptor&& fd)
+     : m_fd(WTF::move(fd))
+-{ }
++{
++#if OS(DARWIN)
++    struct stat info;
++    if (!m_fd || fstat(m_fd.value(), &info) || info.st_size < static_cast<off_t>(sizeof(SharedCounter))) {
++        m_fd = { };
++        return;
++    }
++    m_sharedState = WebCore::SharedMemory::map(
++        WebCore::SharedMemory::Handle(m_fd.duplicate(), sizeof(SharedCounter)),
++        WebCore::SharedMemory::Protection::ReadWrite);
++    if (!m_sharedState)
++        m_fd = { };
++#endif
++}
+ 
+ Semaphore::Semaphore(Semaphore&&) = default;
+ Semaphore& Semaphore::operator=(Semaphore&&) = default;
+@@ -68,6 +111,13 @@ void Semaphore::signal()
+         if (ret != -1 || errno != EINTR) [[likely]]
+             break;
+     }
++#elif OS(DARWIN)
++    RELEASE_ASSERT(m_sharedState);
++    auto& value = counter(*m_sharedState);
++    auto previous = value.fetch_add(1, std::memory_order_release);
++    RELEASE_ASSERT(previous != std::numeric_limits<uint64_t>::max());
++    int result = os_sync_wake_by_address_any(&value, sizeof(uint64_t), OS_SYNC_WAKE_BY_ADDRESS_SHARED);
++    RELEASE_ASSERT(result >= 0 || errno == ENOENT); // No currently blocked waiter is normal.
+ #endif
+ }
+ 
+@@ -98,12 +148,45 @@ static bool waitImpl(int fd, int timeout)
+ }
+ #endif
+ 
++#if OS(DARWIN)
++static bool waitImpl(WebCore::SharedMemory& memory, Timeout timeout)
++{
++    auto& value = counter(memory);
++    for (;;) {
++        auto current = value.load(std::memory_order_relaxed);
++        while (current) {
++            if (value.compare_exchange_weak(current, current - 1, std::memory_order_acquire, std::memory_order_relaxed))
++                return true;
++        }
++        // The kernel atomically compares and waits. A signal between our load
++        // and this call cannot be lost. Shared mode keys the wait to the memory
++        // object, not the virtual address used by an individual process.
++        int result;
++        if (timeout.isInfinity())
++            result = os_sync_wait_on_address(&value, 0, sizeof(uint64_t), OS_SYNC_WAIT_ON_ADDRESS_SHARED);
++        else {
++            auto remaining = timeout.secondsUntilDeadline();
++            if (remaining <= 0_s)
++                return false;
++            result = os_sync_wait_on_address_with_timeout(&value, 0, sizeof(uint64_t),
++                OS_SYNC_WAIT_ON_ADDRESS_SHARED, OS_CLOCK_MACH_ABSOLUTE_TIME,
++                std::max<uint64_t>(1, remaining.nanosecondsAs<uint64_t>()));
++        }
++        if (result < 0 && errno != EINTR)
++            return false;
++    }
++}
++#endif
++
+ bool Semaphore::wait()
+ {
+ #if OS(LINUX)
+     ASSERT_WITH_MESSAGE(m_fd.value() >= 0, "Waiting on an invalid semaphore object");
+ 
+     return waitImpl(m_fd.value(), -1);
++#elif OS(DARWIN)
++    RELEASE_ASSERT(m_sharedState);
++    return waitImpl(*m_sharedState, Timeout::infinity());
+ #else
+     return false;
+ #endif
+@@ -118,6 +201,9 @@ bool Semaphore::waitFor(Timeout timeout)
+     if (!timeout.isInfinity())
+         timeoutValue = int(timeout.secondsUntilDeadline().milliseconds());
+     return waitImpl(m_fd.value(), timeoutValue);
++#elif OS(DARWIN)
++    RELEASE_ASSERT(m_sharedState);
++    return waitImpl(*m_sharedState, timeout);
+ #else
+     return false;
+ #endif
+@@ -131,6 +217,9 @@ UnixFileDescriptor Semaphore::duplicateDescriptor() const
+ void Semaphore::destroy()
+ {
+     m_fd = { };
++#if OS(DARWIN)
++    m_sharedState = nullptr;
++#endif
+ }
+ 
+ } // namespace IPC
+diff --git a/Tools/TestWebKitAPI/Tests/IPC/EventTests.cpp b/Tools/TestWebKitAPI/Tests/IPC/EventTests.cpp
+index 87d9164dd..b8e813c36 100644
+--- a/Tools/TestWebKitAPI/Tests/IPC/EventTests.cpp
++++ b/Tools/TestWebKitAPI/Tests/IPC/EventTests.cpp
+@@ -31,6 +31,34 @@
+ 
+ namespace TestWebKitAPI {
+ 
++#if OS(DARWIN) && USE(UNIX_DOMAIN_SOCKETS)
++TEST(IPCSemaphoreDarwin, CountedSignalsAndTimeout)
++{
++    IPC::Semaphore semaphore;
++    ASSERT_TRUE(semaphore);
++    EXPECT_FALSE(semaphore.waitFor(IPC::Timeout::now()));
++    for (unsigned i = 0; i < 100000; ++i)
++        semaphore.signal();
++    for (unsigned i = 0; i < 100000; ++i)
++        ASSERT_TRUE(semaphore.waitFor(IPC::Timeout::now()));
++    EXPECT_FALSE(semaphore.waitFor(IPC::Timeout(1_ms)));
++}
++
++TEST(IPCSemaphoreDarwin, DuplicateOutlivesOriginal)
++{
++    auto duplicate = [] {
++        IPC::Semaphore original;
++        original.signal();
++        return IPC::Semaphore(original.duplicateDescriptor());
++    }();
++    auto moved = WTF::move(duplicate);
++    EXPECT_FALSE(duplicate);
++    ASSERT_TRUE(moved);
++    EXPECT_TRUE(moved.waitFor(IPC::Timeout::now()));
++    EXPECT_FALSE(moved.waitFor(IPC::Timeout::now()));
++}
++#endif
++
+ struct MockTestMessageWithSignal {
+     static constexpr bool isSync = false;
+     static constexpr bool canDispatchOutOfOrder = false;

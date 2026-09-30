@@ -1,0 +1,23 @@
+diff --git a/Source/WTF/CMakeLists.txt b/Source/WTF/CMakeLists.txt
+index bd1a345ef..35ca22aa2 100644
+--- a/Source/WTF/CMakeLists.txt
++++ b/Source/WTF/CMakeLists.txt
+@@ -2,6 +2,6 @@ set_property(DIRECTORY . PROPERTY FOLDER "WTF")
+ 
+ add_subdirectory(wtf)
+ 
+-if (APPLE AND NOT USE_APPLE_INTERNAL_SDK)
++if (APPLE AND NOT PORT STREQUAL "WPE" AND NOT USE_APPLE_INTERNAL_SDK)
+     file(COPY ${WTF_DIR}/icu/unicode DESTINATION ${ICU_INCLUDE_DIRS})
+ endif ()
+diff --git a/Source/cmake/FindICU.cmake b/Source/cmake/FindICU.cmake
+index 98b671b4b..3e9461040 100644
+--- a/Source/cmake/FindICU.cmake
++++ b/Source/cmake/FindICU.cmake
+@@ -1,5 +1,5 @@
+ 
+-if (APPLE)
++if (APPLE AND NOT PORT STREQUAL "WPE")
+     if (USE_APPLE_INTERNAL_SDK)
+         set(ICU_INCLUDE_DIRS ${CMAKE_OSX_SYSROOT}/usr/local/include)
+     else ()

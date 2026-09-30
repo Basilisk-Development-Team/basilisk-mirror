@@ -1,0 +1,14 @@
+diff --git a/Source/WebCore/PAL/pal/PlatformWPE.cmake b/Source/WebCore/PAL/pal/PlatformWPE.cmake
+index 3d2bf0ab1..047aa4e6c 100644
+--- a/Source/WebCore/PAL/pal/PlatformWPE.cmake
++++ b/Source/WebCore/PAL/pal/PlatformWPE.cmake
+@@ -21,4 +21,8 @@ list(APPEND PAL_SOURCES
+     text/KillRing.cpp
+ )
+ 
+-list(APPEND PAL_LIBRARIES GLib::GLib)
++list(APPEND PAL_LIBRARIES
++    GLib::GLib
++    LibGcrypt::LibGcrypt
++    Tasn1::Tasn1
++)

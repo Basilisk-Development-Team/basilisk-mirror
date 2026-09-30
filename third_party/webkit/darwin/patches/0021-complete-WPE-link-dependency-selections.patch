@@ -1,0 +1,43 @@
+diff --git a/Source/WebCore/PlatformWPE.cmake b/Source/WebCore/PlatformWPE.cmake
+index e464275ff..2adf6a2d7 100644
+--- a/Source/WebCore/PlatformWPE.cmake
++++ b/Source/WebCore/PlatformWPE.cmake
+@@ -6,6 +6,11 @@ include(platform/Skia.cmake)
+ include(platform/Soup.cmake)
+ include(platform/TextureMapper.cmake)
+ 
++if (APPLE)
++    find_library(ACCELERATE_LIBRARY Accelerate REQUIRED)
++    list(APPEND WebCore_LIBRARIES ${ACCELERATE_LIBRARY})
++endif ()
++
+ if (USE_EXTERNAL_HOLEPUNCH)
+     include(platform/HolePunch.cmake)
+ endif ()
+diff --git a/Source/WebKit/PlatformWPE.cmake b/Source/WebKit/PlatformWPE.cmake
+index ab16147a6..61c7ff299 100644
+--- a/Source/WebKit/PlatformWPE.cmake
++++ b/Source/WebKit/PlatformWPE.cmake
+@@ -8,6 +8,11 @@ include(InspectorGResources.cmake)
+ include(ModernMediaControlsGResources.cmake)
+ include(Platform/Skia.cmake)
+ 
++if (APPLE)
++    find_package(Intl REQUIRED)
++    list(APPEND WebKit_LIBRARIES Intl::Intl)
++endif ()
++
+ if (ENABLE_PDFJS)
+     include(PdfJSGResources.cmake)
+ endif ()
+@@ -512,10 +517,6 @@ else ()
+ endif ()
+ 
+ list(APPEND WebKit_MESSAGES_IN_FILES
+-    UIProcess/ViewGestureController
+-
+-    WebProcess/WebPage/ViewGestureGeometryCollector
+-
+     WebProcess/glib/SystemSettingsManager
+ )
+ 

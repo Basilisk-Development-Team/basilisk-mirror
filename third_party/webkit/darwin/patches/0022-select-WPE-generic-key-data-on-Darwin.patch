@@ -1,0 +1,13 @@
+diff --git a/Source/WebCore/crypto/CryptoKey.cpp b/Source/WebCore/crypto/CryptoKey.cpp
+index 927efc02a..0227ec5d2 100644
+--- a/Source/WebCore/crypto/CryptoKey.cpp
++++ b/Source/WebCore/crypto/CryptoKey.cpp
+@@ -76,7 +76,7 @@ WebCoreOpaqueRoot root(CryptoKey* key)
+     return WebCoreOpaqueRoot { key };
+ }
+ 
+-#if !OS(DARWIN) || PLATFORM(GTK)
++#if !OS(DARWIN) || PLATFORM(GTK) || PLATFORM(WPE)
+ Vector<uint8_t> CryptoKey::randomData(size_t size)
+ {
+     Vector<uint8_t> result(size);

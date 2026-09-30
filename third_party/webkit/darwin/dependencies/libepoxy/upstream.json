@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/anholt/libepoxy.git",
+  "tag": "1.5.10",
+  "revision": "c84bc9459357a40e46e2fec0408d04fbdde2c973",
+  "patches": ["0001-opt-in-EGL-on-Darwin.patch"]
+}

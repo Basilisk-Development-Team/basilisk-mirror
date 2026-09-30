@@ -1,0 +1,26 @@
+diff --git a/Source/cmake/WebKitFS.cmake b/Source/cmake/WebKitFS.cmake
+index 9c0465867..c18f2ded4 100644
+--- a/Source/cmake/WebKitFS.cmake
++++ b/Source/cmake/WebKitFS.cmake
+@@ -84,7 +84,7 @@ set(JavaScriptCore_SCRIPTS_DIR "${CMAKE_BINARY_DIR}/JavaScriptCore/Scripts")
+ # On Apple platforms, some targets build as framework bundles. Point their
+ # HEADERS variables to the inside of the framework bundle.
+ set(USE_FRAMEWORK_BUNDLES OFF)
+-if (APPLE)
++if (APPLE AND NOT PORT STREQUAL "WPE")
+     set(USE_FRAMEWORK_BUNDLES ON)
+     if (PORT STREQUAL Mac)
+         set(_version "Versions/A/")
+diff --git a/Source/cmake/WebKitMacros.cmake b/Source/cmake/WebKitMacros.cmake
+index 51074f8ad..f30d09bd3 100644
+--- a/Source/cmake/WebKitMacros.cmake
++++ b/Source/cmake/WebKitMacros.cmake
+@@ -672,7 +672,7 @@ macro(WEBKIT_FRAMEWORK _target)
+         add_custom_command(TARGET ${_target} POST_BUILD COMMAND ${${_target}_POST_BUILD_COMMAND} VERBATIM)
+     endif ()
+ 
+-    if (APPLE AND NOT PORT STREQUAL "GTK" AND ${${_target}_LIBRARY_TYPE} MATCHES SHARED)
++    if (APPLE AND NOT PORT STREQUAL "GTK" AND NOT PORT STREQUAL "WPE" AND ${${_target}_LIBRARY_TYPE} MATCHES SHARED)
+         set_target_properties(${_target} PROPERTIES FRAMEWORK TRUE)
+         target_compile_options(${_target} BEFORE PUBLIC -F${CMAKE_BINARY_DIR})
+         install(TARGETS ${_target} FRAMEWORK DESTINATION ${LIB_INSTALL_DIR})

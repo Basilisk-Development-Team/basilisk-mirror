@@ -1,0 +1,39 @@
+diff --git a/Source/WebCore/crypto/keys/CryptoKeyEC.cpp b/Source/WebCore/crypto/keys/CryptoKeyEC.cpp
+index a062e96fb..7e433419a 100644
+--- a/Source/WebCore/crypto/keys/CryptoKeyEC.cpp
++++ b/Source/WebCore/crypto/keys/CryptoKeyEC.cpp
+@@ -31,7 +31,7 @@
+ #include "JsonWebKey.h"
+ #include <wtf/text/Base64.h>
+ 
+-#if OS(DARWIN) && !PLATFORM(GTK)
++#if OS(DARWIN) && !PLATFORM(GTK) && !PLATFORM(WPE)
+ #include <pal/crypto/CryptoTypes.h>
+ #include <pal/crypto/PlatformECKey.h>
+ #endif
+diff --git a/Source/WebCore/crypto/keys/CryptoKeyEC.h b/Source/WebCore/crypto/keys/CryptoKeyEC.h
+index 5c7e5dfdb..41fa6f334 100644
+--- a/Source/WebCore/crypto/keys/CryptoKeyEC.h
++++ b/Source/WebCore/crypto/keys/CryptoKeyEC.h
+@@ -29,7 +29,7 @@
+ #include <WebCore/CryptoKeyPair.h>
+ 
+ #include <wtf/Platform.h>
+-#if OS(DARWIN) && !PLATFORM(GTK)
++#if OS(DARWIN) && !PLATFORM(GTK) && !PLATFORM(WPE)
+ #include <WebCore/CommonCryptoUtilities.h>
+ 
+ #include <pal/crypto/CryptoTypes.h>
+diff --git a/Source/WebCore/crypto/keys/CryptoKeyRSA.h b/Source/WebCore/crypto/keys/CryptoKeyRSA.h
+index e219a0ef8..11d3f5958 100644
+--- a/Source/WebCore/crypto/keys/CryptoKeyRSA.h
++++ b/Source/WebCore/crypto/keys/CryptoKeyRSA.h
+@@ -28,7 +28,7 @@
+ #include "CryptoKey.h"
+ #include <wtf/Function.h>
+ 
+-#if OS(DARWIN) && !PLATFORM(GTK)
++#if OS(DARWIN) && !PLATFORM(GTK) && !PLATFORM(WPE)
+ #include "CommonCryptoUtilities.h"
+ 
+ typedef CCRSACryptorRef PlatformRSAKey;

@@ -1,0 +1,16 @@
+diff --git a/Source/WebKit/WPEPlatform/wpe/headless/WPEDisplayHeadless.cpp b/Source/WebKit/WPEPlatform/wpe/headless/WPEDisplayHeadless.cpp
+index aefc200ef..86ceb67e6 100644
+--- a/Source/WebKit/WPEPlatform/wpe/headless/WPEDisplayHeadless.cpp
++++ b/Source/WebKit/WPEPlatform/wpe/headless/WPEDisplayHeadless.cpp
+@@ -150,9 +150,9 @@ static gpointer wpeDisplayHeadlessGetEGLDisplay(WPEDisplay* display, GError** er
+ 
+     EGLDisplay eglDisplay = EGL_NO_DISPLAY;
+     if (epoxy_has_egl_extension(nullptr, "EGL_EXT_platform_base"))
+-        eglDisplay = eglGetPlatformDisplayEXT(EGL_PLATFORM_SURFACELESS_MESA, EGL_DEFAULT_DISPLAY, nullptr);
++        eglDisplay = eglGetPlatformDisplayEXT(EGL_PLATFORM_SURFACELESS_MESA, nullptr, nullptr);
+     else if (epoxy_has_egl_extension(nullptr, "EGL_KHR_platform_base"))
+-        eglDisplay = eglGetPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA, EGL_DEFAULT_DISPLAY, nullptr);
++        eglDisplay = eglGetPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA, nullptr, nullptr);
+     if (eglDisplay != EGL_NO_DISPLAY)
+         return eglDisplay;
+ 

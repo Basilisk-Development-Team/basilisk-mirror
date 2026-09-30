@@ -1,0 +1,13 @@
+diff --git a/Source/bmalloc/PlatformWPE.cmake b/Source/bmalloc/PlatformWPE.cmake
+new file mode 100644
+index 000000000..5063c852d
+--- /dev/null
++++ b/Source/bmalloc/PlatformWPE.cmake
+@@ -0,0 +1,7 @@
++if (APPLE)
++    list(APPEND bmalloc_SOURCES
++        bmalloc/ProcessCheck.mm
++    )
++    find_library(FOUNDATION_LIBRARY Foundation)
++    list(APPEND bmalloc_LIBRARIES ${FOUNDATION_LIBRARY})
++endif ()
