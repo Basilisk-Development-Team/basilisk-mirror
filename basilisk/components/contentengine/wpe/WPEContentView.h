@@ -13,6 +13,8 @@
 
 struct WPEHost;
 struct WPEPolicyCompilation;
+struct WPEPolicyPart;
+struct _WebKitUserContentFilter;
 struct _MozContainer;
 struct _WebKitDownload;
 struct _WPEView;
@@ -40,6 +42,9 @@ private:
   nsresult EnsureFilterStore();
   void ClearRequestRules();
   void CompileNextPolicy(WPEPolicyCompilation* compilation);
+  void SavePolicyPart(WPEPolicyPart* part);
+  void CompletePolicyPart(WPEPolicyPart* part, _WebKitUserContentFilter* filter,
+                          const char* error, bool compiled);
   void FinishPolicyCompilation(WPEPolicyCompilation* compilation, const char* error);
   void CancelNavigationPreparations();
   _GHashTable* mNavigationPreparations = nullptr;
