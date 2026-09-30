@@ -15,11 +15,10 @@ struct WPEHost;
 struct WPEPolicyCompilation;
 struct WPEPolicyPart;
 struct _WebKitUserContentFilter;
-struct _MozContainer;
+struct WPEHostWindow;
 struct _WebKitDownload;
 struct _WPEView;
 struct _GAction;
-struct _GdkWindow;
 struct _GCancellable;
 struct _GHashTable;
 struct _WebKitUserContentFilterStore;
@@ -35,7 +34,7 @@ public:
   void TrackDownload(_WebKitDownload* download);
 private:
   ~WPEContentView();
-  nsresult Mount(_GdkWindow* native);
+  nsresult Mount();
   void CancelScripts();
   void EnsureMessaging();
   nsresult SendFrameOperation(uint32_t id, const char* name, _GVariant* parameters);
@@ -52,7 +51,7 @@ private:
   _GHashTable* mResourcePolicies = nullptr;
   uint32_t mResourcePolicyId = 0;
   WPEHost* mHost = nullptr;
-  _MozContainer* mContainer = nullptr;
+  WPEHostWindow* mWindow = nullptr;
   nsCOMPtr<nsIContentViewObserver> mListener;
   int32_t mBounds[4] = {0, 0, 1, 1};
   nsCString mLastError;

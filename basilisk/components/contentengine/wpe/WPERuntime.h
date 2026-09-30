@@ -5,6 +5,7 @@
 #define WPERuntime_h
 #include "nsError.h"
 nsresult WPEInitializeRuntime();
+bool WPEMediaAvailable();
 bool WPEWebRTCPluginsAvailable();
 void WPERetainExecutionWorld(const char* key);
 void WPEReleaseExecutionWorld(const char* key);

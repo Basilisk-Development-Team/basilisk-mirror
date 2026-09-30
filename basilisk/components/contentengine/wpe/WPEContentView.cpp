@@ -10,12 +10,14 @@
 #include "nsNetUtil.h"
 #include "nsIURI.h"
 #include "nsHashPropertyBag.h"
-#include "mozcontainer.h"
+#include "WPEHostPlatform.h"
 #include "WPEHost.h"
 #include "WPEStorage.h"
 #include "WPERuntime.h"
 #include "ContentViewConfiguration.h"
-#include "WPEGtk.h"
+#ifdef XP_MACOSX
+#include "darwin/WPECocoaFileChooser.h"
+#endif
 
 NS_IMPL_ISUPPORTS(WPEContentView, nsIWebContentView)
 namespace {
@@ -101,21 +103,13 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
   NS_ENSURE_TRUE(NS_IsMainThread(), NS_ERROR_NOT_SAME_THREAD);
   NS_ENSURE_ARG_POINTER(window);
   NS_ENSURE_ARG_POINTER(listener);
-  NS_ENSURE_TRUE(!mHost && !mDestroyed, NS_ERROR_ALREADY_INITIALIZED);
+  NS_ENSURE_TRUE(!mHost && !mWindow && !mDestroyed, NS_ERROR_ALREADY_INITIALIZED);
   auto* chrome = nsGlobalWindow::Cast(window);
   NS_ENSURE_TRUE(chrome->IsChromeWindow(), NS_ERROR_DOM_SECURITY_ERR);
   nsCOMPtr<nsIWidget> widget = chrome->GetMainWidget();
   NS_ENSURE_TRUE(widget, NS_ERROR_NOT_AVAILABLE);
-  auto* native = static_cast<GdkWindow*>(widget->GetNativeData(NS_NATIVE_WIDGET));
-  NS_ENSURE_TRUE(native, NS_ERROR_NOT_AVAILABLE);
-  gpointer container = nullptr;
-  gdk_window_get_user_data(native, &container);
-  // Without client-side decorations nsWindow draws on its GtkWindow and the
-  // MozContainer is its windowless child. With CSD it owns the GdkWindow itself.
-  if (container && GTK_IS_WINDOW(container))
-    container = gtk_bin_get_child(GTK_BIN(container));
-  NS_ENSURE_TRUE(container && IS_MOZ_CONTAINER(container), NS_ERROR_NOT_AVAILABLE);
-  mContainer = MOZ_CONTAINER(container);
+  mWindow = wpe_host_window_new(widget->GetNativeData(NS_NATIVE_WIDGET));
+  NS_ENSURE_TRUE(mWindow, NS_ERROR_NOT_AVAILABLE);
   mListener = listener;
   ContentViewConfiguration config;
   nsresult rv = GetContentViewConfiguration(window, config);
@@ -128,22 +122,21 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
   if (mInspectorView) {
     mHost = wpe_host_for_view(mInspectorView);
     NS_ENSURE_TRUE(mHost, NS_ERROR_FAILURE);
-    return Mount(native);
+    return Mount();
   }
   // A chrome window retains its session even when its last WPE tab closes.
   // Normal windows share profile storage; private windows never open it.
   nsAutoCString sessionKey("basilisk-wpe-session-");
   sessionKey.AppendInt(userContextId);
-  auto* session = static_cast<WebKitNetworkSession*>(
-    g_object_get_data(G_OBJECT(container), sessionKey.get()));
+  auto* session = wpe_host_window_session(mWindow, sessionKey.get());
   if (!session) {
     nsresult rv = WPEGetProfileSession(config, &session);
     NS_ENSURE_SUCCESS(rv, rv);
-    g_object_set_data_full(G_OBJECT(container), sessionKey.get(), session, g_object_unref);
+    wpe_host_window_set_session(mWindow, sessionKey.get(), session);
+    g_object_unref(session); // Native window owns its reference.
   }
   mHost = wpe_host_new(session);
   NS_ENSURE_TRUE(mHost, NS_ERROR_FAILURE);
-  mContainer = MOZ_CONTAINER(container);
   mListener = listener;
   g_signal_connect(session, "download-started", G_CALLBACK(+[](WebKitNetworkSession*,
     WebKitDownload* download, gpointer data) {
@@ -219,6 +212,9 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
       RequestNewTab(static_cast<WPEContentView*>(data), action);
       return nullptr; // Only XUL may create tabs/windows; no unmanaged WPE views.
     }), this);
+#ifdef XP_MACOSX
+  WPECocoaFileChooserInstall(mHost->webView);
+#endif
   mFrames = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, nullptr);
   g_signal_connect(mHost->webView, "user-message-received", G_CALLBACK(+[](WebKitWebView*, WebKitUserMessage* message, gpointer data) -> gboolean {
     auto* self = static_cast<WPEContentView*>(data);
@@ -419,30 +415,23 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
       int y = 0;
       webkit_context_menu_get_position(menu, &x, &y);
       auto* self = static_cast<WPEContentView*>(data);
-      int scale = self->mHost ? WPEGtk::Get().scaleFactor(self->mHost->area) : 1;
+      int scale = self->mHost ? wpe_host_scale(self->mHost) : 1;
       info->SetPropertyAsInt32(NS_LITERAL_STRING("x"), x * scale);
       info->SetPropertyAsInt32(NS_LITERAL_STRING("y"), y * scale);
       static_cast<WPEContentView*>(data)->Notify("content-view-context-menu",
         static_cast<nsIWritablePropertyBag2*>(info));
       return TRUE; // XUL owns the menu; suppress backend UI.
     }), this);
-  return Mount(native);
+  return Mount();
 }
-nsresult WPEContentView::Mount(GdkWindow* native)
+nsresult WPEContentView::Mount()
 {
-  gtk_widget_set_parent_window(mHost->area, native);
-  moz_container_put(mContainer, mHost->area, 0, 0);
-  // Give the foreign surface its own native child window. A client-side GDK
-  // window alone is not a clipping boundary for Gecko's compositor output.
-  gtk_widget_realize(mHost->area);
-  if (!WPEGtk::Get().ensureNative(gtk_widget_get_window(mHost->area))) {
+  if (!wpe_host_mount(mHost, mWindow, [](void* data) {
+    static_cast<WPEContentView*>(data)->Destroy();
+  }, this)) {
     Destroy();
     return NS_ERROR_NOT_AVAILABLE;
   }
-  // Native parent destruction can precede the XUL unload handler.
-  g_signal_connect(mHost->area, "destroy", G_CALLBACK(+[](GtkWidget*, gpointer data) {
-    static_cast<WPEContentView*>(data)->Destroy();
-  }), this);
   return NS_OK;
 }
 NS_IMETHODIMP WPEContentView::SetBounds(int32_t x, int32_t y, int32_t width, int32_t height)
@@ -454,36 +443,37 @@ NS_IMETHODIMP WPEContentView::SetBounds(int32_t x, int32_t y, int32_t width, int
   mBounds[1] = y;
   mBounds[2] = width;
   mBounds[3] = height;
-  int scale = WPEGtk::Get().scaleFactor(mHost->area);
-  int nativeWidth = (width + scale - 1) / scale;
-  int nativeHeight = (height + scale - 1) / scale;
-  moz_container_move(mContainer, mHost->area, x / scale, y / scale, nativeWidth, nativeHeight);
-  wpe_toplevel_scale_changed(mHost->toplevel, scale);
-  wpe_host_resize(mHost, nativeWidth, nativeHeight);
+  wpe_host_set_bounds(mHost, mWindow, x, y, width, height);
   return NS_OK;
 }
 NS_IMETHODIMP WPEContentView::SetVisible(bool visible)
 {
+#ifdef XP_MACOSX
+  if (mHost && !visible) WPECocoaFileChooserCancel(mHost->webView);
+#endif
   NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
   if (visible) {
-    gtk_widget_show(mHost->area);
+    wpe_host_set_visible(mHost, true);
     // GTK ignores size allocation for hidden widgets. Reapply the owner's
     // requested rectangle after mapping instead of leaving a 1x1 child.
     return SetBounds(mBounds[0], mBounds[1], mBounds[2], mBounds[3]);
   }
-  gtk_widget_hide(mHost->area);
+  wpe_host_set_visible(mHost, false);
   return NS_OK;
 }
 NS_IMETHODIMP WPEContentView::Focus()
 {
   NS_ENSURE_TRUE(mHost, NS_ERROR_NOT_INITIALIZED);
-  gtk_widget_grab_focus(mHost->area);
+  wpe_host_focus(mHost);
   return NS_OK;
 }
 NS_IMETHODIMP WPEContentView::Destroy()
 {
   if (mDestroyed) return NS_OK;
   mDestroyed = true;
+#ifdef XP_MACOSX
+  if (mHost) WPECocoaFileChooserCancel(mHost->webView);
+#endif
   CancelScripts();
   CancelNavigationPreparations();
   if (mResourcePolicies) {auto* pending=mResourcePolicies;mResourcePolicies=nullptr;g_hash_table_unref(pending);}
@@ -511,8 +501,7 @@ NS_IMETHODIMP WPEContentView::Destroy()
   if (mHost) {
     WPEHost* host = mHost;
     mHost = nullptr;
-    mContainer = nullptr;
-    g_signal_handlers_disconnect_by_data(host->area, this);
+    wpe_host_disconnect(host, this);
     if (host->webView) {
       g_signal_handlers_disconnect_by_data(host->webView, this);
       g_signal_handlers_disconnect_by_data(webkit_web_view_get_user_content_manager(host->webView), this);
@@ -523,6 +512,8 @@ NS_IMETHODIMP WPEContentView::Destroy()
     wpe_host_free(host);
   }
   g_clear_object(&mInspectorView);
+  wpe_host_window_free(mWindow);
+  mWindow = nullptr;
   return NS_OK;
 }
 void WPEContentView::TrackDownload(WebKitDownload* download)
@@ -568,8 +559,8 @@ void WPEContentView::TrackDownload(WebKitDownload* download)
 }
 NS_IMETHODIMP WPEContentView::Blur()
 {
-  NS_ENSURE_TRUE(mHost && mContainer, NS_ERROR_NOT_INITIALIZED);
-  gtk_widget_grab_focus(GTK_WIDGET(mContainer));
+  NS_ENSURE_TRUE(mHost && mWindow, NS_ERROR_NOT_INITIALIZED);
+  wpe_host_focus_chrome(mWindow);
   return NS_OK;
 }
 void WPEContentView::Notify(const char* topic, nsISupports* subject)
@@ -652,7 +643,7 @@ NS_IMETHODIMP WPEContentView::GetEngineId(nsACString& value)
 NS_IMETHODIMP WPEContentView::GetLoading(bool* value)
 { *value = mHost && webkit_web_view_is_loading(mHost->webView); return NS_OK; }
 NS_IMETHODIMP WPEContentView::GetFocused(bool* value)
-{ *value = mHost && gtk_widget_has_focus(mHost->area); return NS_OK; }
+{ *value = mHost && wpe_host_has_focus(mHost); return NS_OK; }
 NS_IMETHODIMP WPEContentView::GetLastError(nsACString& value)
 { value = mLastError; return NS_OK; }
 NS_IMETHODIMP WPEContentView::GetZoom(double* value)
@@ -681,7 +672,7 @@ NS_IMETHODIMP WPEContentView::Edit(const nsACString& command)
     command.EqualsLiteral("cut") ? "Cut" : command.EqualsLiteral("paste") ? "Paste" :
     command.EqualsLiteral("selectAll") ? "SelectAll" : nullptr;
   NS_ENSURE_TRUE(native, NS_ERROR_INVALID_ARG);
-  webkit_web_view_execute_editing_command(mHost->webView, native);
+  wpe_host_execute_editing_command(mHost, native);
   return NS_OK;
 }
 NS_IMETHODIMP WPEContentView::Find(const nsACString& text, bool backwards, bool caseSensitive)
@@ -737,7 +728,7 @@ NS_IMETHODIMP WPEContentView::OpenDeveloperTools()
       return NS_OK;
     }
   }
-  webkit_web_view_toggle_inspector(mHost->webView);
+  wpe_host_inspector_action(mHost);
   return NS_OK;
 }
 NS_IMETHODIMP WPEContentView::InspectElement()
@@ -745,7 +736,7 @@ NS_IMETHODIMP WPEContentView::InspectElement()
   NS_ENSURE_TRUE(mHost && mInspectAction && !mPrivate, NS_ERROR_NOT_AVAILABLE);
   // Retain WebKit's action and actual context target, never re-hit-test in XUL.
   GAction* action = G_ACTION(g_object_ref(mInspectAction));
-  g_action_activate(action, nullptr);
+  wpe_host_inspector_action(mHost, action);
   g_object_unref(action);
   return NS_OK;
 }
@@ -763,8 +754,9 @@ NS_IMETHODIMP WPEContentView::GetCapabilities(uint32_t* result)
   NS_ENSURE_ARG_POINTER(result);
   if (mInspectorView || mDestroyed) { *result = 0; return NS_OK; }
   *result = CAP_FULLSCREEN | CAP_DOWNLOADS | CAP_CONTENT_SCRIPTS |
-    CAP_ISOLATED_CONTENT_WORLD | CAP_PRIVATE_STORAGE | CAP_AUDIO_CONTROL |
+    CAP_ISOLATED_CONTENT_WORLD | CAP_PRIVATE_STORAGE |
     CAP_CSS | CAP_SCRIPT_REGISTRATION | CAP_MESSAGING | CAP_FIND | CAP_SCRIPT_TIMING | CAP_FRAMES | CAP_EXECUTION_WORLDS;
+  if (WPEMediaAvailable()) *result |= CAP_AUDIO_CONTROL;
   if (!mPrivate) *result |= CAP_PERSISTENT_STORAGE | CAP_DEVTOOLS | CAP_INSPECT_ELEMENT | CAP_REQUEST_FILTERING;
   if (mHost && webkit_settings_get_enable_webrtc(webkit_web_view_get_settings(mHost->webView)) &&
       WPEWebRTCPluginsAvailable()) *result |= CAP_WEBRTC;

@@ -2,14 +2,29 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-SOURCES += ['WPEContentScripts.cpp', 'WPEContentView.cpp', 'WPEHost.cpp', 'WPERequestFilters.cpp', 'WPERuntime.cpp', 'WPEStorage.cpp']
+SOURCES += ['WPEContentScripts.cpp', 'WPEContentView.cpp', 'WPERequestFilters.cpp', 'WPERuntime.cpp', 'WPEStorage.cpp']
 DIRS += ['extension']
 FINAL_LIBRARY = 'xul'
-LOCAL_INCLUDES += ['..', '/platform/dom/base', '/platform/widget/gtk']
+LOCAL_INCLUDES += ['..', '/platform/dom/base']
+if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'cocoa':
+    LOCAL_INCLUDES += ['/platform/widget/cocoa']
+    SOURCES += ['darwin/WPECocoaClipboard.mm', 'darwin/WPECocoaFileChooser.mm',
+                'darwin/WPECocoaSurface.mm', 'darwin/WPEGLibRunLoop.mm',
+                'darwin/WPEHostCocoa.mm']
+    CXXFLAGS += CONFIG['WPE_XKBCOMMON_CFLAGS']
+    OS_LIBS += CONFIG['WPE_XKBCOMMON_LIBS']
+    OS_LIBS += ['-framework AppKit', '-framework CoreFoundation',
+                '-Wl,-rpath,@loader_path/webkit/lib',
+                '-Wl,-rpath,@loader_path/../Resources/webkit/lib']
+else:
+    SOURCES += ['WPEHost.cpp', 'WPEHostGtk.cpp']
+    LOCAL_INCLUDES += ['/platform/widget/gtk']
+    CXXFLAGS += CONFIG['TK_CFLAGS']
+if CONFIG['WPE_GSTREAMER_LIBS']:
+    DEFINES['WPE_HAS_GSTREAMER'] = True
+    CXXFLAGS += CONFIG['WPE_GSTREAMER_CFLAGS']
+    OS_LIBS += CONFIG['WPE_GSTREAMER_LIBS']
 CXXFLAGS += CONFIG['WPE_WEBKIT_CFLAGS']
 CXXFLAGS += CONFIG['WPE_PLATFORM_CFLAGS']
-CXXFLAGS += CONFIG['WPE_GSTREAMER_CFLAGS']
-CXXFLAGS += CONFIG['TK_CFLAGS']
 OS_LIBS += CONFIG['WPE_WEBKIT_LIBS']
 OS_LIBS += CONFIG['WPE_PLATFORM_LIBS']
-OS_LIBS += CONFIG['WPE_GSTREAMER_LIBS']

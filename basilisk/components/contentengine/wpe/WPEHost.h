@@ -3,13 +3,20 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #ifndef WPEHost_h
 #define WPEHost_h
+#ifndef __APPLE__
 #include <gtk/gtk.h>
+#endif
+struct WPECocoaHostState;
 #include <wpe/webkit.h>
 #include <wpe/wpe-platform.h>
 
 // No UXP types or Gecko content objects cross the rendering boundary.
 struct WPEHost {
+#ifdef __APPLE__
+  WPECocoaHostState* native;
+#else
   GtkWidget* area;
+#endif
   WPEDisplay* display;
   WPEToplevel* toplevel;
   WebKitWebView* webView;
@@ -21,6 +28,7 @@ struct WPEHost {
 };
 WPEHost* wpe_host_new(WebKitNetworkSession* session = nullptr);
 WPEHost* wpe_host_for_view(WPEView* view);
+void wpe_host_inspector_action(WPEHost*, GAction* = nullptr);
 void wpe_host_free(WPEHost* host);
 void wpe_host_resize(WPEHost* host, int width, int height);
 #endif

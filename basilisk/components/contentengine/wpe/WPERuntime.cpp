@@ -8,10 +8,19 @@
 #include "nsString.h"
 #include "nsThreadUtils.h"
 #include <glib.h>
+#ifdef WPE_HAS_GSTREAMER
 #include <gst/gst.h>
+#endif
 #include <wpe/webkit.h>
 
-namespace { bool sSandboxedWebRTCTransport = false; }
+namespace {
+bool sSandboxedWebRTCTransport = false;
+#ifdef WPE_HAS_GSTREAMER
+bool sMediaAvailable = true;
+#else
+bool sMediaAvailable = false;
+#endif
+}
 
 nsresult WPEInitializeRuntime()
 {
@@ -50,16 +59,43 @@ nsresult WPEInitializeRuntime()
   g_setenv("WEBKIT_INJECTED_BUNDLE_PATH", bundle.get(), TRUE);
   g_setenv("WEBKIT_INSPECTOR_RESOURCES_PATH", resources.get(), TRUE);
   g_setenv("WPE_PLATFORMS_PATH", modules.get(), TRUE);
+  // Darwin bundles GIO's backend/data with the engine. Linux distributions
+  // can continue using their normal system modules when these paths are absent.
+  nsAutoCString gioModules(root), fontConfig(root), caFile(root);
+  gioModules.AppendLiteral("/lib/gio/modules");
+  fontConfig.AppendLiteral("/share/fontconfig/fonts.conf");
+  caFile.AppendLiteral("/share/ca-bundle.pem");
+  if (g_file_test(gioModules.get(), G_FILE_TEST_IS_DIR))
+    g_setenv("GIO_MODULE_DIR", gioModules.get(), TRUE);
+  if (g_file_test(fontConfig.get(), G_FILE_TEST_IS_REGULAR))
+    g_setenv("FONTCONFIG_FILE", fontConfig.get(), TRUE);
+  if (g_file_test(caFile.get(), G_FILE_TEST_IS_REGULAR))
+    g_setenv("WEBKIT_TLS_CAFILE_PEM", caFile.get(), TRUE);
   nsAutoCString plugins(root);
   plugins.AppendLiteral("/lib/gstreamer-1.0");
   if (g_file_test(plugins.get(), G_FILE_TEST_IS_DIR)) {
-    const char* existing = g_getenv("GST_PLUGIN_PATH_1_0");
-    if (existing && *existing) { plugins.Append(':'); plugins.Append(existing); }
+    nsAutoCString scanner(root);
+    scanner.AppendLiteral("/libexec/gst-plugin-scanner");
+    if (g_file_test(scanner.get(), G_FILE_TEST_IS_REGULAR)) {
+      // A self-contained runtime owns both its plugin set and the matching
+      // scanner. Do not consult a developer installation's compiled-in paths.
+      g_setenv("GST_PLUGIN_SCANNER_1_0", scanner.get(), TRUE);
+      g_setenv("GST_PLUGIN_SYSTEM_PATH_1_0", "", TRUE);
+    } else {
+      // Linux distributions may deliberately supply system media plugins.
+      const char* existing = g_getenv("GST_PLUGIN_PATH_1_0");
+      if (existing && *existing) { plugins.Append(':'); plugins.Append(existing); }
+    }
     g_setenv("GST_PLUGIN_PATH_1_0", plugins.get(), TRUE);
   }
   nsAutoCString metadata(root); metadata.AppendLiteral("/share/basilisk-build.ini");
   auto* features = g_key_file_new();
   if (g_key_file_load_from_file(features, metadata.get(), G_KEY_FILE_NONE, nullptr)) {
+    // Darwin's embedder need not link GStreamer itself: media runs inside the
+    // bundled WebProcess. Use its packaged build metadata, not UI linkage, to
+    // advertise the existing public WebKit mute operation.
+    if (g_key_file_has_key(features, "Build", "USE_GSTREAMER", nullptr))
+      sMediaAvailable = g_key_file_get_boolean(features, "Build", "USE_GSTREAMER", nullptr);
     // The libnice fallback runs ICE in the network-isolated WebProcess. Only
     // upstream's network-process broker can safely provide this capability.
     sSandboxedWebRTCTransport = g_key_file_get_boolean(features, "Build", "ENABLE_WEB_RTC", nullptr) &&
@@ -74,8 +110,16 @@ nsresult WPEInitializeRuntime()
   return NS_OK;
 }
 
+bool WPEMediaAvailable()
+{
+  return sMediaAvailable;
+}
+
 bool WPEWebRTCPluginsAvailable()
 {
+#ifndef WPE_HAS_GSTREAMER
+  return false; // The initial Darwin engine is built without media support.
+#else
   if (!sSandboxedWebRTCTransport) return false;
   // Cache runtime discovery, never rescan plugins for every state notification.
   static const bool available = []() {
@@ -89,6 +133,7 @@ bool WPEWebRTCPluginsAvailable()
     return true;
   }();
   return available;
+#endif
 }
 
 // Names only, never extension configuration or browsing data. A restarted
