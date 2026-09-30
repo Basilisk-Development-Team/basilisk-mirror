@@ -132,7 +132,7 @@ int main(int argc, char** argv)
         wpe_view_closed(inspector.view);
         g_object_unref(inspector.view);
         owner.host->chromeData = nullptr; owner.host->inspectorCreated = nullptr;
-        fprintf(stderr, "PASS related view excluded from Inspector callback; synchronous Inspector owner and close\n");
+        fprintf(stderr, "PASS native Inspector creation ownership and close\n");
       }
       wpe_host_set_visible(owner.host, false);
       if (wpe_host_has_focus(owner.host) || ![native isHidden]) return 7;

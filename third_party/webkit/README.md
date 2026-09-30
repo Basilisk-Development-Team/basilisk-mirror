@@ -11,6 +11,15 @@ UXP is never part of this series. Record each patch's purpose, upstream base,
 changed files, added API, default/unopted behavior, tests and upstreamability in
 this directory. No manual unlisted edits to the extracted WebKit source are allowed.
 
+## Darwin port
+
+macOS uses the full Git revision pinned in [darwin/upstream.json](darwin/upstream.json)
+because the release archive omits Darwin source files. It applies this directory's
+shared patch series followed by [the Darwin port series](darwin/README.md).
+Use `tools/wpe/verify-darwin-source.py` for that checkout. The Linux source and
+automatic build workflow below are unchanged; macOS currently selects its separately
+installed SDK with `--with-wpe-runtime`. See [the port instructions](../../docs/macos-content/wpe-port.md).
+
 ## Verify
 
 ```sh

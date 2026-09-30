@@ -67,4 +67,41 @@ Current checks:
 - Native Cocoa host smoke passes three create/load/input/close cycles, including
   independent keyed window sessions, composition and clipboard. This initial
   smoke used the existing runtime while the combined SDK rebuild was running.
-- Combined SDK rebuild and enabled/disabled application validation are pending.
+- Combined SDK build/install passes. Native host/Inspector and content-bridge
+  checks pass with the rebuilt library. The standalone content-bridge fixture
+  does not provide the full privileged legacy host and logs that missing reply;
+  it is not an addon compatibility acceptance test.
+- Relocated WPE loads HTTPS with the checkout and dependency prefix unavailable.
+- Enabled and disabled Basilisk builds pass. Packaging passes; all 127 packaged
+  Mach-O images pass the dependency/signature audit. Discarded local adapters
+  and module resources are absent from the package's optimized archives.
+- Disabled upstream UI/engine smoke passes, including a true WebKit preference
+  with no compiled backend. The disabled dependency audit passes 35 images.
+- Packaged enabled upstream smoke passes startup toggling, UI, routing, restore,
+  native guard and existing-tab lifetime. Container tests pass both engine
+  directions, same-container sharing, inter-container separation and restart.
+- The unchanged upstream frame fixture fails at `frames/test.js:44` with
+  `dynamic is undefined`: it waits for four frames, then immediately assumes the
+  fourth frame has its destination URI. The earlier session's document-phase
+  fixture change was deliberately not restored. This is not a frame-suite pass.
+- Enabled fixtures log `engine-session.js:10: gBrowser is null` while also
+  reporting their successful assertions. That shared upstream file remains
+  unchanged; the previous session's related fix was not carried forward.
+
+The reused object directory initially retained five dangling chrome/module links
+into discarded source files. Those generated links were removed; no source file
+was restored. The packaged application was tested independently. A generated
+`.purgecaches`/staging deletion race also required preserving the leftover
+cache-only staging directory before restarting the build; UXP was not changed.
+
+Validation logs are `/tmp/wpe-upstream-refresh-build-resume.log`,
+`/tmp/wpe-upstream-refresh-final-source.log`,
+`/tmp/wpe-upstream-new-sdk-host.log`, `/tmp/wpe-upstream-content-bridge.log`,
+`/tmp/wpe-upstream-relocated-https.log`,
+`/tmp/basilisk-upstream-port-build-final.log`,
+`/tmp/basilisk-upstream-disabled-build.log`,
+`/tmp/basilisk-upstream-port-package-audit.log`,
+`/tmp/basilisk-upstream-enabled-packaged-smoke.log`,
+`/tmp/basilisk-upstream-disabled-smoke.log`,
+`/tmp/basilisk-upstream-containers.log`, and `/tmp/basilisk-upstream-frames.log`.
+These checks do not claim a complete upstream addon or lifecycle regression run.

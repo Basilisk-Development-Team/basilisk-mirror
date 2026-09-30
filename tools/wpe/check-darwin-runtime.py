@@ -6,6 +6,7 @@ The final runs deny reads from the checkout and MacPorts to detect runtime
 fallbacks. Logs distinguish the ordinary and hidden-tree runs.
 """
 import argparse
+import runpy
 import importlib.util
 import os
 from pathlib import Path
@@ -34,8 +35,12 @@ with tempfile.TemporaryDirectory(prefix='wpe-darwin-relocated-') as directory:
     dist.mkdir()
     bridge = directory / 'bridge.so'
     host = root / 'basilisk/components/contentengine/wpe/darwin'
-    subprocess.run(['clang++', '-std=c++17', '-dynamiclib',
-        str(root / 'basilisk/components/contentengine/wpe/extension/ContentExtension.cpp'),
+    bridge_source = root / 'basilisk/components/contentengine/wpe/extension'
+    generator = runpy.run_path(str(bridge_source / 'generate-runtime.py'))
+    with (directory / 'LegacyContent.inc').open('w') as output:
+        generator['main'](output, str(bridge_source / 'LegacyContent.js'))
+    subprocess.run(['clang++', '-std=c++17', '-dynamiclib', '-I' + str(directory),
+        str(bridge_source / 'ContentExtension.cpp'), str(bridge_source / 'LegacyContent.cpp'),
         *flags, '-o', str(bridge)], check=True)
     # Use the frontend's filename to exercise relocation of a distribution
     # symlink without altering its source build product. This remains a fixture.

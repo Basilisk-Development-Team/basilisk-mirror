@@ -115,14 +115,15 @@ def kill_webprocesses(parent):
    try:os.kill(pid,signal.SIGKILL)
    except ProcessLookupError:pass
 
-p=argparse.ArgumentParser(description=__doc__);p.add_argument('objdir',type=Path);p.add_argument('suite',choices=['webrtc','frames','network','legacy','xul-extensions','greasemonkey','navigation-policy','input','containers','about','cookies','enabled']);p.add_argument('--cycles',type=int,default=3);p.add_argument('--gst-debug');p.add_argument('--external',action='store_true');p.add_argument('--xpi',type=Path);a=p.parse_args()
+p=argparse.ArgumentParser(description=__doc__);p.add_argument('objdir',type=Path);p.add_argument('suite',choices=['webrtc','frames','network','legacy','xul-extensions','greasemonkey','navigation-policy','input','containers','about','cookies','enabled']);p.add_argument('--cycles',type=int,default=3);p.add_argument('--gst-debug');p.add_argument('--external',action='store_true');p.add_argument('--xpi',type=Path);p.add_argument('--packaged',action='store_true',help='Use the staged macOS application bundle');a=p.parse_args()
+if a.packaged and sys.platform!='darwin':p.error('--packaged currently requires macOS')
 if a.suite=='greasemonkey' and not a.xpi:p.error('greasemonkey requires --xpi pointing to an unchanged legacy extension')
 server=ThreadingHTTPServer(('127.0.0.1',0),Handler);threading.Thread(target=server.serve_forever,daemon=True).start()
 try:
  with tempfile.TemporaryDirectory(prefix='basilisk-content-test-') as temporary:
   root=Path(temporary)
   if sys.platform=='darwin':
-   bundle=root/'Basilisk.app';shutil.copytree(a.objdir.resolve()/'dist/Basilisk.app',bundle,symlinks=False)
+   bundle=root/'Basilisk.app';source=a.objdir.resolve()/('dist/basilisk/Basilisk.app' if a.packaged else 'dist/Basilisk.app');shutil.copytree(source,bundle,symlinks=False)
    app=bundle/'Contents/Resources';binary=bundle/'Contents/MacOS/basilisk'
   else:
    app=root/'distribution/application';shutil.copytree(a.objdir.resolve()/'dist/bin',app,symlinks=False);binary=app/'basilisk'
