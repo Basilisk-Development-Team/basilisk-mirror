@@ -46,7 +46,7 @@ var ContentEngineContext = {
       reload() { view.browser.reload(); },
       inspectNode() { view.native.inspectElement(); },
       openLinkInCurrent() { view.loadURI(link); },
-      openLinkInTab() { ContentEngines.open(link); },
+      openLinkInTab() { ContentEngines.open(link, true, true, view.engineId, view.userContextId); },
       openLink() {
         // Use Basilisk's window creation, then its content adapter after startup.
         let win = OpenBrowserWindow();
@@ -54,7 +54,7 @@ var ContentEngineContext = {
           if (subject != win) return;
           Services.obs.removeObserver(observer, topic);
           let initial = win.gBrowser.selectedTab;
-          win.ContentEngines.open(link);
+          win.ContentEngines.open(link, true, true, view.engineId, view.userContextId);
           win.gBrowser.removeTab(initial, {animate: false});
         };
         Services.obs.addObserver(observer, "browser-delayed-startup-finished", false);

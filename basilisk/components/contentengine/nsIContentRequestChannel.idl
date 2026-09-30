@@ -1,0 +1,19 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+#include "nsISupports.idl"
+interface nsIChannel;
+interface nsIHttpChannel;
+interface nsIURI;
+/** Policy channel for a suspended foreign-engine load; never opens a second transport. */
+[scriptable, uuid(f647e468-dff5-4c7c-8778-c8dfad071897)]
+interface nsIContentRequestChannel : nsISupports
+{
+  void initialize(in nsIChannel backing, in unsigned long long frame,
+                  in unsigned long long parent);
+  readonly attribute nsIHttpChannel channel;
+  readonly attribute nsIURI redirectURI;
+  readonly attribute unsigned long suspendCount;
+  void beginResponse(in unsigned long status);
+  void finish();
+};

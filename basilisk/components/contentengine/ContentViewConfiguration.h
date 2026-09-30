@@ -12,6 +12,7 @@ class mozIDOMWindowProxy;
 struct ContentViewConfiguration {
   nsCOMPtr<nsIFile> profileDirectory;
   bool privateBrowsing = false;
+  uint32_t userContextId = 0;
   nsCString userAgent; // Empty means the backend's default.
 };
 nsresult GetContentViewConfiguration(mozIDOMWindowProxy*, ContentViewConfiguration&);

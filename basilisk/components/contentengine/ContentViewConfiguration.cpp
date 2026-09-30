@@ -9,6 +9,7 @@
 nsresult GetContentViewConfiguration(mozIDOMWindowProxy* window, ContentViewConfiguration& config)
 {
   NS_ENSURE_ARG_POINTER(window);
+  NS_ENSURE_TRUE(mozilla::Preferences::GetBool("webkit.enabled", true), NS_ERROR_NOT_AVAILABLE);
   auto* chrome = nsGlobalWindow::Cast(window);
   NS_ENSURE_TRUE(chrome->IsChromeWindow(), NS_ERROR_DOM_SECURITY_ERR);
   config.privateBrowsing = chrome->IsPrivateBrowsing();

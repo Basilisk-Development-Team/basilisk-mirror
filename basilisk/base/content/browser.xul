@@ -88,12 +88,12 @@
       <menuitem id="context_reloadTab" label="&reloadTab.label;" accesskey="&reloadTab.accesskey;"
                 oncommand="gBrowser.reloadTab(TabContextMenu.contextTab);"/>
 #ifdef MOZ_WEBKIT
-      <menuitem id="context_reloadGecko" label="Reload with Gecko"
+      <menuitem id="context_reloadGecko" webkit-feature="true" hidden="true" label="Reload with Gecko"
                 oncommand="ContentEngines.switchEngine(TabContextMenu.contextTab, 'gecko');"/>
-      <menuitem id="context_reloadWebKit" label="Reload with WebKit"
+      <menuitem id="context_reloadWebKit" webkit-feature="true" hidden="true" label="Reload with WebKit"
                 oncommand="ContentEngines.switchEngine(TabContextMenu.contextTab, 'webkit');"/>
-      <menuitem id="context_newWebKit" label="New WebKit Tab"
-                oncommand="ContentEngines.open(); ContentEngines.get().native.blur(); focusAndSelectUrlBar();"/>
+      <menuitem id="context_newWebKit" webkit-feature="true" hidden="true" label="New WebKit Tab"
+                oncommand="ContentEngines.open(); focusAndSelectUrlBar();"/>
 #endif
       <menuitem id="context_toggleMuteTab" oncommand="TabContextMenu.contextTab.toggleMuteAudio();"/>
       <menuseparator/>
@@ -138,6 +138,11 @@
                 label="&tabCmd.label;"
                 accesskey="&tabCmd.accesskey;"
                 command="cmd_newNavigatorTab"/>
+#ifdef MOZ_WEBKIT
+      <menuitem id="new-tab-button-newwebkit" webkit-feature="true" hidden="true"
+                label="New WebKit Tab"
+                oncommand="ContentEngines.open(); focusAndSelectUrlBar();"/>
+#endif
       <menu id="new-tab-button-newcontainer"
             label="&newUserContext.label;"
             accesskey="&newUserContext.accesskey;"

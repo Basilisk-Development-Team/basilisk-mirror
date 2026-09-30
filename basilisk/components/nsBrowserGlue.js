@@ -187,6 +187,10 @@ BrowserGlue.prototype = {
         this._onAppDefaults();
         break;
       case "final-ui-startup":
+#ifdef MOZ_WEBKIT
+        Cu.import("resource:///modules/ContentStorage.jsm");
+        ContentStorage.init();
+#endif
         this._finalUIStartup();
         this._syncInternalUserScripts();
         break;

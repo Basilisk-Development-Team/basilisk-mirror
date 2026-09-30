@@ -18,10 +18,17 @@ var ContentEngineRouting = {
     try { return Services.prefs.getCharPref("browser.contentEngine." + name); }
     catch (error) { return fallback; }
   },
+  requiresGecko(spec) {
+    try { return Services.io.newURI(spec, null, null).schemeIs("about"); }
+    catch (error) { return false; }
+  },
   target(tab, spec) {
+    if (!ContentEngines.enabled) return "gecko";
     let uri;
     try { uri = Services.io.newURI(spec, null, null); }
     catch (error) { return null; }
+    // Browser-owned pages take precedence over manual and automatic routing.
+    if (uri.schemeIs("about")) return "gecko";
     if (!uri.schemeIs("http") && !uri.schemeIs("https")) return null;
     let override = SessionStore.getTabValue(tab, "basilisk.engineOverride");
     if (override == "gecko" || (override &&
@@ -52,14 +59,25 @@ var ContentEngineRouting = {
     return engine == "webkit" ? "webkit" : "gecko";
   },
   route(tab, uri) {
-    if (!tab || tab.closing || tab._contentRestoring || tab._contentRoutePending) return false;
+    if (!tab || tab.closing) return false;
+    const required = this.requiresGecko(uri);
+    // Existing views remain usable; disabled routing never starts a new one.
+    if (!ContentEngines.enabled && !required) return false;
+    if (tab._contentRoutePending) {
+      if (!required) return false;
+      delete tab._contentRoutePending;
+    }
+    if (tab._contentRestoring && !required) return false;
     // Restoration uses the explicitly saved engine, even after rules change.
-    if (tab._contentRestoreURI == uri) { delete tab._contentRestoreURI; return false; }
+    if (tab._contentRestoreURI == uri) {
+      delete tab._contentRestoreURI;
+      if (!required) return false;
+    }
     let engine = this.target(tab, uri);
     if (!engine || engine == ContentEngines.engineFor(tab.linkedBrowser)) return false;
     let now = Date.now();
     let chain = (tab._contentRouteChain || []).filter(entry => now - entry.time < 10000);
-    if (chain.length >= 6 || chain.some(entry => entry.uri == uri && entry.engine == engine)) {
+    if (!required && (chain.length >= 6 || chain.some(entry => entry.uri == uri && entry.engine == engine))) {
       tab.setAttribute("contentroutingblocked", "true");
       return false; // Stop cross-engine redirects without issuing another load.
     }

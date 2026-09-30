@@ -24,6 +24,9 @@
             title="&sanitizePrefs2.title;"
             onload="gSanitizeDialog.init();">
 
+#ifdef MOZ_WEBKIT
+  <script type="application/javascript" src="chrome://browser/content/contentengine/webkit-ui.js"/>
+#endif
   <script type="application/javascript" src="chrome://browser/content/utilityOverlay.js"/>
   <script type="application/javascript" src="chrome://browser/content/preferences/sanitize.js"/>
 
@@ -42,6 +45,9 @@
       <preference id="privacy.clearOnShutdown.siteSettings"          name="privacy.clearOnShutdown.siteSettings"          type="bool"/>
     </preferences>
 
+#ifdef MOZ_WEBKIT
+    <description id="webkitCookieNote" webkit-feature="true" webkit-cookie-note="clear" hidden="true"/>
+#endif
     <description>&clearDataSettings2.label;</description>
 
     <groupbox orient="horizontal">

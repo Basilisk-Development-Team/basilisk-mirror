@@ -63,6 +63,9 @@
   <html:link rel="shortcut icon"
               href="chrome://browser/skin/preferences/in-content/favicon.ico"/>
 
+#ifdef MOZ_WEBKIT
+  <script type="application/javascript" src="chrome://browser/content/contentengine/webkit-ui.js"/>
+#endif
   <script type="application/javascript"
           src="chrome://browser/content/utilityOverlay.js"/>
   <script type="application/javascript"

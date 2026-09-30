@@ -55,6 +55,11 @@ var ContentEngineSession = {
       return;
     }
     let uri = SessionStore.getTabValue(tab, "basilisk.contentURI") || "about:blank";
+    if (!ContentEngines.enabled || ContentEngineRouting.requiresGecko(uri)) {
+      delete tab._contentRestoreURI;
+      ContentEngines.switchEngine(tab, "gecko", {manual: false, uri});
+      return;
+    }
     let zoom = Number(SessionStore.getTabValue(tab, "basilisk.contentZoom")) || 1;
     let muted = SessionStore.getTabValue(tab, "basilisk.contentMuted") == "true";
     try {

@@ -265,6 +265,17 @@ Sanitizer.prototype = {
           seenException = ex;
         }
 
+        // The alternate engine has its own cookie store, including containers
+        // that have no open tabs. Its public API cannot filter by creation time.
+        if ("@basilisk-browser.org/content-storage;1?engine=webkit" in Cc) {
+          try {
+            let { ContentStorage } = Cu.import("resource:///modules/ContentStorage.jsm", {});
+            yield ContentStorage.clearCookies();
+          } catch (ex) {
+            seenException = ex;
+          }
+        }
+
         // Clear deviceIds. Done asynchronously (returns before complete).
         try {
           let mediaMgr = Components.classes["@mozilla.org/mediaManagerService;1"]

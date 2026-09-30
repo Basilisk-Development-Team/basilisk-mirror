@@ -752,6 +752,11 @@ var SessionStoreInternal = {
         let frameLoader = browser.frameLoader ||
                           this._lastKnownFrameLoader.get(browser.permanentKey);
 
+        // Content engines may expose a JS facade for extension messaging.
+        // Compare the backing native loader with the native message target.
+        if (frameLoader) {
+          frameLoader = frameLoader.QueryInterface(Ci.nsIFrameLoader);
+        }
         // If the message isn't targeting the latest frameLoader discard it.
         if (frameLoader != aMessage.targetFrameLoader) {
           return;

@@ -1,0 +1,24 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+#include "nsISupports.idl"
+interface nsIMessageBroadcaster;
+interface nsIMessageSender;
+interface nsIArray;
+[scriptable, uuid(eaeb6447-551f-46f8-943d-8f0d5649ac35)]
+interface nsIContentMessageListener : nsISupports
+{
+  void loadScript(in AString uri, in boolean globalScope);
+  void sendMessage(in AString name, in jsval data);
+};
+/** A real native message manager attached to the existing browser hierarchy. */
+[scriptable, uuid(f842ec78-87a1-4daf-b907-fcddc53d41ab)]
+interface nsIContentMessageBridge : nsISupports
+{
+  void initialize(in nsIMessageBroadcaster parent, in nsISupports target,
+                  in nsIContentMessageListener listener, in boolean process);
+  readonly attribute nsIMessageSender manager;
+  readonly attribute nsIArray userStyleSheets;
+  [implicit_jscontext] jsval receiveMessage(in AString name, in jsval data, in boolean sync);
+  void close();
+};

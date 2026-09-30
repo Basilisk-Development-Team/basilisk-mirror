@@ -57,6 +57,17 @@ void WPEContentView::CancelScripts()
   }
 }
 
+NS_IMETHODIMP WPEContentView::SendLegacyMessage(const nsACString& json)
+{
+  NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(json.Length() <= 4 * 1024 * 1024, NS_ERROR_INVALID_ARG);
+  nsAutoCString source(json);
+  webkit_web_view_send_message_to_page(mHost->webView,
+    webkit_user_message_new("basilisk:legacy-message",g_variant_new("(s)",source.get())),
+    nullptr,nullptr,nullptr);
+  return NS_OK;
+}
+
 NS_IMETHODIMP WPEContentView::ExecuteScript(uint32_t id, const nsACString& source)
 {
   NS_ENSURE_TRUE(mHost && mHost->webView && !mDestroyed, NS_ERROR_NOT_AVAILABLE);

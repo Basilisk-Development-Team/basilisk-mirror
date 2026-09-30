@@ -32,6 +32,9 @@ var gCookiesWindow = {
     let removeSelectedCookies = document.getElementById("removeSelectedCookies");
     removeSelectedCookies.setAttribute("accesskey", this._bundle.getString("removeSelectedCookies.accesskey"));
 
+#ifdef MOZ_WEBKIT
+    window.addEventListener("WebKitEnabledChanged", () => this._updateRemoveAllButton());
+#endif
     this._populateList(true);
 
     document.getElementById("filter").focus();
@@ -875,7 +878,14 @@ var gCookiesWindow = {
 
   _updateRemoveAllButton: function() {
     let removeAllCookies = document.getElementById("removeAllCookies");
-    removeAllCookies.disabled = this._view._rowCount == 0;
+    // Alternate-engine cookies are not enumerated in this tree, but Remove All
+    // clears them too. Keep it usable when only those cookies remain.
+    let hasContentStorage = false;
+#ifdef MOZ_WEBKIT
+    hasContentStorage = WebKitConfig.enabled;
+#endif
+    removeAllCookies.disabled = this._view._rowCount == 0 &&
+                                (this._view._filtered || !hasContentStorage);
 
     let labelStringID = "removeAllCookies.label";
     let accessKeyStringID = "removeAllCookies.accesskey";

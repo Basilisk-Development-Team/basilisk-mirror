@@ -1,9 +1,10 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-// Normal upstream WebProcess-extension API. No UXP/XPCOM, policy evaluator,
-// synchronous IPC or page-world native bindings live in this module.
+// Content operations use isolated script worlds. Legacy services are confined
+// to their dedicated privileged world; no native bindings enter the page world.
 #include <wpe/webkit-web-process-extension.h>
+#include "LegacyContent.h"
 #include <jsc/jsc.h>
 #include <cstring>
 
@@ -110,6 +111,15 @@ void Bridge(const char* kind, const char* json, const char* error, guint id, gpo
     g_clear_object(&page); g_clear_object(&native); return;
   }
   if (!frame->valid || !json || strlen(json) > 1024 * 1024) return;
+  if (!strcmp(kind, "find")) {
+    auto* page = WEBKIT_WEB_PAGE(g_weak_ref_get(&frame->page));
+    if (page) {
+      webkit_web_page_send_message_to_view(page, webkit_user_message_new("basilisk:find",
+        g_variant_new("(s)", frame->token)), nullptr, nullptr, nullptr);
+      g_object_unref(page);
+    }
+    return;
+  }
   if (!strcmp(kind, "reply")) {
     auto* pending = static_cast<Pending*>(g_hash_table_lookup(frame->pending, GUINT_TO_POINTER(id)));
     if (pending && (!pending->world || pending->world == world)) { Reply(pending->message, json, error ? error : ""); g_hash_table_remove(frame->pending, GUINT_TO_POINTER(id)); }
@@ -153,7 +163,20 @@ void WindowCleared(WebKitScriptWorld*, WebKitWebPage* page, WebKitFrame* native,
   const char* bootstrap = R"JS((function(bridge) {
     delete globalThis.__basiliskFrameBridge;
     const listeners = new Set();
-    addEventListener('pagehide', event => {if (event.isTrusted) bridge('closed', '', '', 0);});
+    let epoch = 0;
+    addEventListener('pagehide', event => {if (event.isTrusted) {++epoch; bridge('closed', '', '', 0);}});
+    // Canvas editors implement their own find UI. Observe the real key event
+    // without cancelling it, then use the browser fallback only after all page
+    // listeners have had a chance to prevent its default action. This closure
+    // and native binding are inaccessible to the page's JavaScript world.
+    addEventListener('keydown', event => {
+      if (!event.isTrusted || !event.ctrlKey || event.altKey || event.metaKey ||
+          event.isComposing || event.repeat || event.key.toLowerCase() !== 'f') return;
+      const current = epoch;
+      setTimeout(() => {
+        if (epoch === current && !event.defaultPrevented) bridge('find', '', '', 0);
+      }, 0);
+    }, true);
     addEventListener('pageshow', event => {if (event.isTrusted) bridge('resume', '', '', 0);});
     Object.defineProperty(globalThis, 'browserContent', {value: Object.freeze({
       sendMessage(value) {
@@ -352,6 +375,7 @@ void webkit_web_process_extension_initialize_with_user_data(WebKitWebProcessExte
   world = webkit_script_world_new_with_name("basilisk-content");
   g_signal_connect(world, "window-object-cleared", G_CALLBACK(WindowCleared), nullptr);
   g_signal_connect(extension, "page-created", G_CALLBACK(+[](WebKitWebProcessExtension*, WebKitWebPage* page, gpointer) {
+    InitializeLegacyContent(page);
     g_signal_connect(page, "user-message-received", G_CALLBACK(Message), nullptr);
   }), nullptr);
 }

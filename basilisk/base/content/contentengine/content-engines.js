@@ -8,6 +8,7 @@
 // chrome-facing navigation/state properties; Gecko instances are untouched.
 var ContentEngines = {
   views: new Map(),
+  get enabled() { return WebKitConfig.enabled; },
   engineFor(browser) { return this.views.has(browser) ? this.views.get(browser).engineId : browser.contentEngine || "gecko"; },
   get(browser = gBrowser.selectedBrowser) { return this.views.get(browser); },
   // Chrome supplies user input and nsIWebNavigation fixup flags, whereas the
@@ -60,13 +61,13 @@ var ContentEngines = {
   },
   supports(browser, capability) { return !!(this.capabilitiesFor(browser) & capability); },
   createView(engine) {
+    if (!this.enabled) throw Components.Exception("Content engine disabled", Cr.NS_ERROR_NOT_AVAILABLE);
     return Cc["@basilisk-browser.org/content-view;1?engine=" + engine].createInstance(Ci.nsIWebContentView);
   },
   init() {
     ContentEngineSession.init();
     ContentEngineEvents.init();
     ContentEngineRouting.init();
-    ContentEngineBlocking.init();
     window.controllers.insertControllerAt(0, ContentEngineEditController);
     gBrowser.tabContainer.addEventListener("TabSelect", this);
     gBrowser.tabContainer.addEventListener("TabClose", this);
@@ -94,10 +95,16 @@ var ContentEngines = {
       if (event.type == "TabSelect") this.refresh();
     }
   },
-  open(uri = "about:blank", selected = true, manual = true, engine = "webkit") {
-    let tab = gBrowser.addTab("about:blank", {skipAnimation: true});
+  open(uri = "about:blank", selected = true, manual = true, engine = "webkit", userContextId = 0) {
+    if (!this.enabled) engine = "gecko";
+    let tab = gBrowser.addTab("about:blank", {skipAnimation: true, userContextId});
     try {
       if (manual) SessionStore.setTabValue(tab, "basilisk.engineOverride", engine);
+      if (engine == "gecko" || ContentEngineRouting.requiresGecko(uri)) {
+        if (selected) gBrowser.selectedTab = tab;
+        tab.linkedBrowser.loadURI(uri);
+        return tab;
+      }
       let view = this.attach(tab, engine);
       if (selected) gBrowser.selectedTab = tab;
       this.loadWhenReady(view, uri);
@@ -136,6 +143,8 @@ var ContentEngines = {
     });
   },
   switchEngine(tab, engine, options = {}) {
+    let uri = options.uri || tab.linkedBrowser.currentURI.spec;
+    if (!this.enabled || ContentEngineRouting.requiresGecko(uri)) engine = "gecko";
     if (engine != "gecko" && !("@basilisk-browser.org/content-view;1?engine=" + engine in Cc)) throw new Error("Unknown content engine");
     let manual = options.manual !== false;
     if (this.engineFor(tab.linkedBrowser) == engine) {
@@ -144,10 +153,10 @@ var ContentEngines = {
         delete tab._contentRouteChain;
         tab.removeAttribute("contentroutingblocked");
       }
-      tab.linkedBrowser.reload();
+      if (options.uri) tab.linkedBrowser.loadURI(uri);
+      else tab.linkedBrowser.reload();
       return tab;
     }
-    let uri = options.uri || tab.linkedBrowser.currentURI.spec;
     if (tab.closing || tab._pendingPermitUnload) return tab;
     if (this.engineFor(tab.linkedBrowser) == "gecko") {
       tab._pendingPermitUnload = true;
@@ -159,8 +168,11 @@ var ContentEngines = {
     // Replace the old content/frame-loader lifetime as a unit. Preserve tab
     // position, selection and pinning, but never transfer live page state.
     let selected = tab == gBrowser.selectedTab;
-    let replacement = engine != "gecko" ? this.open("about:blank", false, false, engine) :
-      gBrowser.addTab("about:blank", {skipAnimation: true});
+    const userContextId = Number(tab.getAttribute("usercontextid")) || 0;
+    // The blank Gecko tab is only a staging host. Attach the destination
+    // engine without asking it to navigate to a browser-owned about: page.
+    let replacement = gBrowser.addTab("about:blank", {skipAnimation: true, userContextId});
+    if (engine != "gecko") this.attach(replacement, engine);
     let override = manual ? engine : SessionStore.getTabValue(tab, "basilisk.engineOverride");
     if (override) SessionStore.setTabValue(replacement, "basilisk.engineOverride", override);
     gBrowser.moveTabTo(replacement, tab._tPos);
@@ -241,7 +253,8 @@ class ExternalContentBrowser {
     this.visible = false;
     this.bounds = "";
     this.native = ContentEngines.createView(engine);
-    this.principal = Services.scriptSecurityManager.createNullPrincipal({});
+    this.userContextId = Number(tab.getAttribute("usercontextid")) || 0;
+    this.principal = Services.scriptSecurityManager.createNullPrincipal({userContextId:this.userContextId});
     this.finder = new ContentEngineFinder(this);
   }
   define(name, descriptor) {
@@ -308,7 +321,8 @@ class ExternalContentBrowser {
     });
     this.define("webNavigation",{get:()=>navigation});
     this.define("fullZoom", {get: () => this.native.zoom, set: value => { this.native.zoom = value; }});
-    this.native.attach(window, this);
+    this.native.attach(window, this, this.userContextId);
+    ContentLegacy.init(this);
     this.tab.setAttribute("contentengine", this.engineId);
   }
   QueryInterface(iid) {
@@ -317,6 +331,20 @@ class ExternalContentBrowser {
   }
   onContentEvent(sender, topic, subject) {
     if (this.destroyed) return;
+    if (topic == "content-view-resource-policy") {
+      try { ContentEngineRequests.handle(this, subject.QueryInterface(Ci.nsIWritablePropertyBag2)); }
+      catch (error) { Cu.reportError(error); }
+      return;
+    }
+    if (topic == "content-view-legacy-call") {
+      const info=subject.QueryInterface(Ci.nsIWritablePropertyBag2);
+      try {ContentLegacy.handle(this,info);}
+      catch(error) {
+        info.setPropertyAsAUTF8String("reply",JSON.stringify({error:String(error)}));
+        Cu.reportError(error);
+      }
+      return;
+    }
     if (topic == "content-view-permission-denied") {
       let info = subject.QueryInterface(Ci.nsIPropertyBag2);
       this.browser.dispatchEvent(new CustomEvent("ContentPermissionDenied", {bubbles: true,
@@ -325,6 +353,7 @@ class ExternalContentBrowser {
       return;
     }
     if (topic == "content-view-process-terminated") {
+      ContentEngineRequests.clear(this);
       this.browser.dispatchEvent(new CustomEvent("ContentEngineProcessTerminated", {bubbles:true}));
       if (ContentEngineFullscreen.view == this) ContentEngineFullscreen.exit();
       let client = ContentEngineScripts.clients.get(this.browser);
@@ -335,7 +364,7 @@ class ExternalContentBrowser {
       const info=subject.QueryInterface(Ci.nsIWritablePropertyBag2);
       const id=info.getPropertyAsUint32("id");
       info.setPropertyAsBool("deferred",true);
-      ContentEngineBlocking.prepare(this,info.getPropertyAsAUTF8String("uri")).then(() => {
+      Promise.resolve().then(() => {
         if (!this.destroyed) this.native.completeNavigationPreparation(id,true);
       }, error => {
         Cu.reportError(error);
@@ -379,6 +408,7 @@ class ExternalContentBrowser {
     }
     if (topic == "content-view-command") {
       let command = subject.QueryInterface(Ci.nsIPropertyBag2).getPropertyAsAUTF8String("command");
+      if (command == "find" && this.browser != gBrowser.selectedBrowser) return;
       this.native.blur();
       switch (command) {
         case "location": gURLBar.focus(); focusAndSelectUrlBar(); break;
@@ -407,10 +437,15 @@ class ExternalContentBrowser {
     }
     if (topic == "content-view-new-window") {
       let info = subject.QueryInterface(Ci.nsIPropertyBag2);
-      if (info.getPropertyAsBool("userGesture")) ContentEngines.open(info.getPropertyAsAUTF8String("uri"));
+      if (info.getPropertyAsBool("userGesture")) {
+        const background = info.hasKey("background") && info.getPropertyAsBool("background");
+        ContentEngines.open(info.getPropertyAsAUTF8String("uri"), !background, true, this.engineId, this.userContextId);
+      }
       return;
     }
     if (this.lastURI != this.native.currentURI) {
+      if (ContentEngineRouting.requiresGecko(this.native.currentURI) &&
+          ContentEngineRouting.route(this.tab, this.native.currentURI)) return;
       this.lastURI = this.native.currentURI;
       this.browser.userTypedValue = null;
     }
@@ -422,10 +457,11 @@ class ExternalContentBrowser {
     }
     gBrowser._tabAttrModified(this.tab, ["label", "busy", "soundplaying", "muted"]);
     ContentEngineSession.save(this);
-    ContentEngineBlocking.updatePage(this.browser);
     if (this.browser == gBrowser.selectedBrowser) ContentEngines.refresh();
   }
   loadURI(uri) {
+    if (ContentEngineRouting.requiresGecko(uri || "about:blank") &&
+        ContentEngineRouting.route(this.tab, uri || "about:blank")) return;
     if (this.ready) { ContentEngines.loadWhenReady(this, uri); return; }
     this.browser.userTypedValue = null;
     this.requestedURI = uri || "about:blank";
@@ -437,10 +473,10 @@ class ExternalContentBrowser {
     const ticket={};
     this.preparingNavigation=ticket;
     this.tab.setAttribute("busy","true");
-    this.tab.label="Preparing content filters...";
+    this.tab.label=this.browser.contentTitle;
     gBrowser._tabAttrModified(this.tab,["label","busy"]);
     if (this.browser===gBrowser.selectedBrowser) ContentEngines.refresh();
-    return ContentEngineBlocking.prepare(this,uri).then(() => {
+    return Promise.resolve().then(() => {
       if (!this.destroyed && this.preparingNavigation===ticket) {
         navigate();
         this.preparingNavigation=null;
@@ -466,7 +502,9 @@ class ExternalContentBrowser {
     if (this.destroyed) return;
     if (ContentEngineFullscreen.view == this) ContentEngineFullscreen.exit();
     this.destroyed = true;
+    ContentEngineRequests.clear(this);
     this.finder.destroy();
+    ContentLegacy.close(this);
     this.native.destroy();
     ContentEngines.views.delete(this.browser);
     for (let [name, descriptor] of this.saved) {

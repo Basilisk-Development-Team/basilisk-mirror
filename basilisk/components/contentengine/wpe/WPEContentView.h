@@ -49,6 +49,8 @@ private:
   void CancelNavigationPreparations();
   _GHashTable* mNavigationPreparations = nullptr;
   uint32_t mNavigationPreparationId = 0;
+  _GHashTable* mResourcePolicies = nullptr;
+  uint32_t mResourcePolicyId = 0;
   WPEHost* mHost = nullptr;
   _MozContainer* mContainer = nullptr;
   nsCOMPtr<nsIContentViewObserver> mListener;

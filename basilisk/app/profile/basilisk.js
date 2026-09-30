@@ -504,6 +504,11 @@ pref("privacy.popups.showBrowserMessage",   true);
 
 pref("privacy.item.cookies",                false);
 
+#ifdef MOZ_WEBKIT
+// Disable alternate-engine entry points without interrupting existing tabs.
+pref("webkit.enabled", true);
+#endif
+
 pref("privacy.clearOnShutdown.history",     true);
 pref("privacy.clearOnShutdown.formdata",    true);
 pref("privacy.clearOnShutdown.downloads",   true);

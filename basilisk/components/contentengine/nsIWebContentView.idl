@@ -12,7 +12,7 @@ interface nsIContentRequestRule;
  * the chrome window's client area. The chrome owner manages tab visibility
  * and must keep the native host inside its content rectangle.
  */
-[scriptable, uuid(63a3a18d-62d8-4616-89b9-418370880e25)]
+[scriptable, uuid(3bf51e5b-727a-469a-a30d-9f6b1debd3a2)]
 interface nsIWebContentView : nsISupports
 {
   const unsigned long CAP_DEVTOOLS = 0x0001;
@@ -48,7 +48,9 @@ interface nsIWebContentView : nsISupports
    * isEditable/hasSelection; and int32 x/y in host device pixels.
    * Selected text is not available in the prototype.
    */
-  void attach(in mozIDOMWindowProxy window, in nsIContentViewObserver listener);
+  /** userContextId selects an isolated container storage partition. */
+  void attach(in mozIDOMWindowProxy window, in nsIContentViewObserver listener,
+              [optional] in unsigned long userContextId);
   void setBounds(in long x, in long y, in long width, in long height);
   void setVisible(in boolean visible);
   void focus();
@@ -111,6 +113,10 @@ interface nsIWebContentView : nsISupports
   void registerScriptWithOptions(in AUTF8String identifier, in AUTF8String source,
                                  in unsigned long runAt, in boolean allFrames);
   void unregisterScript(in AUTF8String identifier);
+  /** Browser-owned legacy frame-script and message-manager transport. */
+  void sendLegacyMessage(in AUTF8String json);
+  /** Resolve a held resource decision. Late or duplicate replies fail. */
+  void completeResourcePolicy(in unsigned long identifier, in AUTF8String json);
   /** Async atomic replacement. Completion is content-view-policy-result.
    * Caller must await completion before starting a navigation to be filtered.
    * Tokens are local to this view. Unknown/unsupported rules must fail.

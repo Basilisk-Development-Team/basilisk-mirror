@@ -49,4 +49,4 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'windows':
     ]
 
 if CONFIG['MOZ_WEBKIT']:
-    EXTRA_JS_MODULES += ['LegacyBlockingExtensions.jsm']
+    EXTRA_JS_MODULES += ['ContentStorage.jsm', 'WebKitConfig.jsm']

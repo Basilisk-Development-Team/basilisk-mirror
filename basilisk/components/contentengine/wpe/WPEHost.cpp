@@ -209,7 +209,8 @@ static gboolean Input(GtkWidget* area, GdkEvent* event, gpointer data)
           case GDK_KEY_t: case GDK_KEY_T: command = "new-tab"; break;
           case GDK_KEY_w: case GDK_KEY_W: command = "close-tab"; break;
           case GDK_KEY_q: case GDK_KEY_Q: command = "quit"; break;
-          case GDK_KEY_f: case GDK_KEY_F: command = "find"; break;
+          // Find is offered to the focused document first. The isolated
+          // WebProcess bridge requests browser find only if it is unhandled.
           case GDK_KEY_r: case GDK_KEY_R: command = "reload"; break;
           case GDK_KEY_Tab: command = "next-tab"; break;
           case GDK_KEY_ISO_Left_Tab: command = "previous-tab"; break;

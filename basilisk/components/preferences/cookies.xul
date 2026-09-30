@@ -19,6 +19,9 @@
         persist="screenX screenY width height"
         onkeypress="gCookiesWindow.onWindowKeyPress(event);">
 
+#ifdef MOZ_WEBKIT
+  <script type="application/javascript" src="chrome://browser/content/contentengine/webkit-ui.js"/>
+#endif
   <script src="chrome://browser/content/preferences/cookies.js"/>
 
   <stringbundle id="bundlePreferences"
@@ -89,6 +92,9 @@
       </grid>
     </hbox>
   </vbox>
+#ifdef MOZ_WEBKIT
+    <description id="webkitCookieNote" webkit-feature="true" webkit-cookie-note="manager" hidden="true"/>
+#endif
   <hbox align="end">
     <hbox class="actionButtons" flex="1">
       <button id="removeSelectedCookies" disabled="true" icon="clear"

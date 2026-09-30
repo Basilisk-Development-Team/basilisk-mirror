@@ -19,6 +19,20 @@
 
 NS_IMPL_ISUPPORTS(WPEContentView, nsIWebContentView)
 namespace {
+void RequestNewTab(WPEContentView* owner, WebKitNavigationAction* action, WebKitPolicyDecision* decision = nullptr)
+{
+  RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
+  const char* uri = webkit_uri_request_get_uri(webkit_navigation_action_get_request(action));
+  unsigned button = webkit_navigation_action_get_mouse_button(action);
+  unsigned modifiers = webkit_navigation_action_get_modifiers(action);
+  bool background = (button == 2 || (modifiers & WPE_MODIFIER_KEYBOARD_CONTROL)) &&
+                    !(modifiers & WPE_MODIFIER_KEYBOARD_SHIFT);
+  info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("uri"), nsDependentCString(uri ? uri : ""));
+  info->SetPropertyAsBool(NS_LITERAL_STRING("userGesture"), webkit_navigation_action_is_user_gesture(action));
+  info->SetPropertyAsBool(NS_LITERAL_STRING("background"), background);
+  if (decision) webkit_policy_decision_ignore(decision);
+  owner->Notify("content-view-new-window", static_cast<nsIWritablePropertyBag2*>(info));
+}
 struct NavigationPreparation {
   WebKitPolicyDecision* decision;
   WPEContentView* owner;
@@ -31,6 +45,33 @@ struct NavigationPreparation {
     g_object_unref(decision);
   }
 };
+struct ResourcePolicyDecision {
+  WebKitUserMessage* message;
+  WPEContentView* owner;
+  uint32_t id;
+  guint timeout=0;
+  bool replied=false;
+  ~ResourcePolicyDecision() {
+    if (timeout) g_source_remove(timeout);
+    if (!replied) webkit_user_message_send_reply(message,
+      webkit_user_message_new("WebKitResourcePolicy",g_variant_new("(s)","{\"allow\":false}")));
+    g_object_unref(message);
+  }
+};
+}
+NS_IMETHODIMP WPEContentView::CompleteResourcePolicy(uint32_t id,const nsACString& json)
+{
+  auto* decision=mResourcePolicies ? static_cast<ResourcePolicyDecision*>(
+    g_hash_table_lookup(mResourcePolicies,GUINT_TO_POINTER(id))) : nullptr;
+  NS_ENSURE_TRUE(decision && !mDestroyed,NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(json.Length()<=1024*1024,NS_ERROR_INVALID_ARG);
+  RefPtr<WPEContentView> owner=this;
+  g_hash_table_steal(mResourcePolicies,GUINT_TO_POINTER(id));
+  decision->replied=true;
+  nsAutoCString reply(json);
+  webkit_user_message_send_reply(decision->message,
+    webkit_user_message_new("WebKitResourcePolicy",g_variant_new("(s)",reply.get())));
+  delete decision;return NS_OK;
 }
 void WPEContentView::CancelNavigationPreparations()
 {
@@ -55,7 +96,7 @@ NS_IMETHODIMP WPEContentView::CompleteNavigationPreparation(uint32_t id, bool al
 }
 
 WPEContentView::~WPEContentView() { Destroy(); }
-NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewObserver* listener)
+NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewObserver* listener, uint32_t userContextId)
 {
   NS_ENSURE_TRUE(NS_IsMainThread(), NS_ERROR_NOT_SAME_THREAD);
   NS_ENSURE_ARG_POINTER(window);
@@ -81,6 +122,7 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
   NS_ENSURE_SUCCESS(rv, rv);
   rv = WPEInitializeRuntime();
   NS_ENSURE_SUCCESS(rv, rv);
+  config.userContextId = userContextId;
   mPrivate = config.privateBrowsing;
   mProfileDirectory = config.profileDirectory;
   if (mInspectorView) {
@@ -90,12 +132,14 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
   }
   // A chrome window retains its session even when its last WPE tab closes.
   // Normal windows share profile storage; private windows never open it.
+  nsAutoCString sessionKey("basilisk-wpe-session-");
+  sessionKey.AppendInt(userContextId);
   auto* session = static_cast<WebKitNetworkSession*>(
-    g_object_get_data(G_OBJECT(container), "basilisk-wpe-session"));
+    g_object_get_data(G_OBJECT(container), sessionKey.get()));
   if (!session) {
     nsresult rv = WPEGetProfileSession(config, &session);
     NS_ENSURE_SUCCESS(rv, rv);
-    g_object_set_data_full(G_OBJECT(container), "basilisk-wpe-session", session, g_object_unref);
+    g_object_set_data_full(G_OBJECT(container), sessionKey.get(), session, g_object_unref);
   }
   mHost = wpe_host_new(session);
   NS_ENSURE_TRUE(mHost, NS_ERROR_FAILURE);
@@ -139,6 +183,9 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
       static_cast<nsIWritablePropertyBag2*>(info));
   };
   mLastError.Truncate();
+  if (!mInspectorView) {
+    webkit_web_view_set_resource_policy_enabled(mHost->webView, TRUE);
+  }
   g_signal_connect(mHost->webView, "leave-fullscreen", G_CALLBACK(+[](WebKitWebView*, gpointer data) -> gboolean {
     auto* self = static_cast<WPEContentView*>(data);
     if (self->mHost && self->mHost->chromeCommand)
@@ -169,12 +216,7 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
     }), this);
   g_signal_connect(mHost->webView, "create",
     G_CALLBACK(+[](WebKitWebView*, WebKitNavigationAction* action, gpointer data) -> WebKitWebView* {
-      RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
-      const char* uri = webkit_uri_request_get_uri(webkit_navigation_action_get_request(action));
-      info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("uri"), nsDependentCString(uri ? uri : ""));
-      info->SetPropertyAsBool(NS_LITERAL_STRING("userGesture"), webkit_navigation_action_is_user_gesture(action));
-      static_cast<WPEContentView*>(data)->Notify("content-view-new-window",
-        static_cast<nsIWritablePropertyBag2*>(info));
+      RequestNewTab(static_cast<WPEContentView*>(data), action);
       return nullptr; // Only XUL may create tabs/windows; no unmanaged WPE views.
     }), this);
   mFrames = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, nullptr);
@@ -182,10 +224,56 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
     auto* self = static_cast<WPEContentView*>(data);
     const char* name = webkit_user_message_get_name(message);
     auto* parameters = webkit_user_message_get_parameters(message);
+    if (!strcmp(name, "WebKitResourcePolicy") || !strcmp(name, "basilisk:legacy-call")) {
+      bool legacy=!strcmp(name,"basilisk:legacy-call");
+      const char* json = nullptr;
+      if (parameters && g_variant_is_of_type(parameters, G_VARIANT_TYPE("(s)")))
+        g_variant_get(parameters, "(&s)", &json);
+      nsAutoCString reply("{\"allow\":false}");
+      uint32_t id=0;
+      bool deferred=false;
+      RefPtr<WPEContentView> owner=self;
+      if (!legacy) {
+        if (!self->mResourcePolicies) self->mResourcePolicies=g_hash_table_new_full(g_direct_hash,g_direct_equal,
+          nullptr,+[](gpointer data) {delete static_cast<ResourcePolicyDecision*>(data);});
+        do {id=++self->mResourcePolicyId;} while (!id || g_hash_table_contains(self->mResourcePolicies,GUINT_TO_POINTER(id)));
+        auto* decision=(new ResourcePolicyDecision{WEBKIT_USER_MESSAGE(g_object_ref(message)),self,id});
+        g_hash_table_insert(self->mResourcePolicies,GUINT_TO_POINTER(id),decision);
+        decision->timeout=g_timeout_add_seconds(30,+[](gpointer data)->gboolean {
+          auto* decision=static_cast<ResourcePolicyDecision*>(data);decision->timeout=0;
+          decision->owner->CompleteResourcePolicy(decision->id,NS_LITERAL_CSTRING("{\"allow\":false}"));
+          return G_SOURCE_REMOVE;
+        },decision);
+      }
+      if (json && strlen(json) <= 1024 * 1024) {
+        RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
+        info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("json"), nsDependentCString(json));
+        info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("reply"), reply);
+        info->SetPropertyAsUint32(NS_LITERAL_STRING("id"),id);
+        info->SetPropertyAsBool(NS_LITERAL_STRING("deferred"),false);
+        self->Notify(legacy ? "content-view-legacy-call" : "content-view-resource-policy", static_cast<nsIWritablePropertyBag2*>(info));
+        info->GetPropertyAsAUTF8String(NS_LITERAL_STRING("reply"), reply);
+        info->GetPropertyAsBool(NS_LITERAL_STRING("deferred"),&deferred);
+      }
+      if (legacy) webkit_user_message_send_reply(message, webkit_user_message_new(name,g_variant_new("(s)",reply.get())));
+      else if (!deferred) self->CompleteResourcePolicy(id,reply);
+      return TRUE;
+    }
     if (!strcmp(name, "basilisk:frame-destroyed")) {
       if (parameters && g_variant_is_of_type(parameters, G_VARIANT_TYPE("(s)"))) {
         const char* token; g_variant_get(parameters, "(&s)", &token);
         g_hash_table_remove(self->mFrames, token);
+      }
+      return TRUE;
+    }
+    if (!strcmp(name, "basilisk:find")) {
+      if (parameters && g_variant_is_of_type(parameters, G_VARIANT_TYPE("(s)"))) {
+        const char* token; g_variant_get(parameters, "(&s)", &token);
+        if (g_hash_table_contains(self->mFrames, token)) {
+          RefPtr<nsHashPropertyBag> info = new nsHashPropertyBag();
+          info->SetPropertyAsAUTF8String(NS_LITERAL_STRING("command"), NS_LITERAL_CSTRING("find"));
+          self->Notify("content-view-command", static_cast<nsIWritablePropertyBag2*>(info));
+        }
       }
       return TRUE;
     }
@@ -218,6 +306,11 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
     if (event == WEBKIT_LOAD_STARTED) {
       self->CancelNavigationPreparations();
       self->CancelScripts();
+      if (self->mResourcePolicies) {
+        auto* pending=self->mResourcePolicies;
+        self->mResourcePolicies=nullptr;
+        g_hash_table_unref(pending);
+      }
       g_hash_table_remove_all(self->mFrames);
     }
     self->Notify("content-view-state");
@@ -228,6 +321,22 @@ NS_IMETHODIMP WPEContentView::Attach(mozIDOMWindowProxy* window, nsIContentViewO
     }), this);
   g_signal_connect(mHost->webView, "decide-policy",
     G_CALLBACK(+[](WebKitWebView*, WebKitPolicyDecision* decision, WebKitPolicyDecisionType type, gpointer data) -> gboolean {
+      if (type == WEBKIT_POLICY_DECISION_TYPE_NAVIGATION_ACTION ||
+          type == WEBKIT_POLICY_DECISION_TYPE_NEW_WINDOW_ACTION) {
+        auto* action = webkit_navigation_policy_decision_get_navigation_action(WEBKIT_NAVIGATION_POLICY_DECISION(decision));
+        unsigned button = webkit_navigation_action_get_mouse_button(action);
+        unsigned modifiers = webkit_navigation_action_get_modifiers(action);
+        if (webkit_navigation_action_get_navigation_type(action) == WEBKIT_NAVIGATION_TYPE_LINK_CLICKED &&
+            webkit_navigation_action_is_user_gesture(action) &&
+            (button == 2 || (button == 1 && (modifiers & WPE_MODIFIER_KEYBOARD_CONTROL)))) {
+          // WPE does not provide browser tab policy. Intercept modified link
+          // navigation before it can replace the current page or reach create.
+          RefPtr<WPEContentView> owner = static_cast<WPEContentView*>(data);
+          RequestNewTab(owner, action, decision);
+          return TRUE;
+        }
+        return FALSE;
+      }
       if (type != WEBKIT_POLICY_DECISION_TYPE_RESPONSE) return FALSE;
       auto* response = WEBKIT_RESPONSE_POLICY_DECISION(decision);
       if (!webkit_response_policy_decision_is_main_frame_main_resource(response) ||
@@ -377,6 +486,7 @@ NS_IMETHODIMP WPEContentView::Destroy()
   mDestroyed = true;
   CancelScripts();
   CancelNavigationPreparations();
+  if (mResourcePolicies) {auto* pending=mResourcePolicies;mResourcePolicies=nullptr;g_hash_table_unref(pending);}
   ClearRequestRules();
   if (mFrames) { g_hash_table_unref(mFrames); mFrames = nullptr; }
   if (mStyleSheets) { g_hash_table_unref(mStyleSheets); mStyleSheets = nullptr; }

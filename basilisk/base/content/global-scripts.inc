@@ -8,6 +8,7 @@
 <script type="application/javascript" src="chrome://browser/content/places/browserPlacesViews.js"/>
 <script type="application/javascript" src="chrome://browser/content/browser.js"/>
 #ifdef MOZ_WEBKIT
+<script type="application/javascript" src="chrome://browser/content/contentengine/webkit-ui.js"/>
 <script type="application/javascript" src="chrome://browser/content/contentengine/content-engines.js"/>
 <script type="application/javascript" src="chrome://browser/content/contentengine/engine-session.js"/>
 <script type="application/javascript" src="chrome://browser/content/contentengine/engine-events.js"/>
@@ -16,7 +17,9 @@
 <script type="application/javascript" src="chrome://browser/content/contentengine/engine-fullscreen.js"/>
 <script type="application/javascript" src="chrome://browser/content/contentengine/engine-scripts.js"/>
 <script type="application/javascript" src="chrome://browser/content/contentengine/legacy-runtime.js"/>
-<script type="application/javascript" src="chrome://browser/content/contentengine/engine-blocking.js"/>
+<script type="application/javascript" src="chrome://browser/content/contentengine/engine-requests.js"/>
+<script type="application/javascript" src="chrome://browser/content/contentengine/engine-objects.js"/>
+<script type="application/javascript" src="chrome://browser/content/contentengine/engine-legacy.js"/>
 <script type="application/javascript" src="chrome://browser/content/contentengine/engine-context.js"/>
 <script type="application/javascript" src="chrome://browser/content/contentengine/engine-finder.js"/>
 <script type="application/javascript" src="chrome://browser/content/contentengine/engine-downloads.js"/>

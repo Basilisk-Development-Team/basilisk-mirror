@@ -1,10 +1,13 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-XPIDL_SOURCES += ['nsIContentRequestRule.idl', 'nsIContentViewObserver.idl', 'nsIWebContentView.idl']
+XPIDL_SOURCES += ['nsIContentMessageBridge.idl', 'nsIContentRequestChannel.idl', 'nsIContentRequestRule.idl', 'nsIContentStorage.idl', 'nsIContentViewObserver.idl', 'nsIWebContentView.idl']
 XPIDL_MODULE = 'webcontentview'
-SOURCES += ['ContentViewConfiguration.cpp']
-LOCAL_INCLUDES += ['/platform/dom/base']
+SOURCES += ['ContentMessageBridge.cpp', 'ContentRequestChannel.cpp', 'ContentViewConfiguration.cpp']
+LOCAL_INCLUDES += ['/platform/dom/base', '/platform/layout/base']
+LOCAL_INCLUDES += ['!/ipc/ipdl/_ipdlheaders', '/platform/ipc/chromium/src', '/platform/ipc/glue']
+DEFINES['OS_POSIX'] = 1
+DEFINES['OS_LINUX'] = 1
 FINAL_LIBRARY = 'xul'
 # Platform selection belongs here, never in shared browser chrome.
 if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gtk3':

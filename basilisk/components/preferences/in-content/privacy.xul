@@ -209,6 +209,9 @@
                     label="&showCookies.label;" accesskey="&showCookies.accesskey;"
                     preference="pref.privacy.disable_button.view_cookies"/>
           </hbox>
+#ifdef MOZ_WEBKIT
+          <description id="webkitCookieNote" webkit-feature="true" webkit-cookie-note="clear" hidden="true"/>
+#endif
           <hbox id="clearDataBox"
                 align="center">
             <checkbox id="alwaysClear"

@@ -28,6 +28,9 @@
   locale/browser/pageInfo.properties                            (%chrome/browser/pageInfo.properties)
   locale/browser/quitDialog.properties                          (%chrome/browser/quitDialog.properties)
   locale/browser/safeMode.dtd                                   (%chrome/browser/safeMode.dtd)
+#ifdef MOZ_WEBKIT
+  locale/browser/webkit.properties                              (%chrome/browser/webkit.properties)
+#endif
   locale/browser/sanitize.dtd                                   (%chrome/browser/sanitize.dtd)
   locale/browser/search.properties                              (%chrome/browser/search.properties)
   locale/browser/searchbar.dtd                                  (%chrome/browser/searchbar.dtd)

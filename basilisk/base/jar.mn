@@ -148,6 +148,7 @@ browser.jar:
 % override chrome://global/content/netError.xhtml chrome://browser/content/aboutNetError.xhtml
 
 #ifdef MOZ_WEBKIT
+        content/browser/contentengine/webkit-ui.js            (content/contentengine/webkit-ui.js)
         content/browser/contentengine/content-engines.js     (content/contentengine/content-engines.js)
         content/browser/contentengine/engine-session.js      (content/contentengine/engine-session.js)
         content/browser/contentengine/engine-events.js       (content/contentengine/engine-events.js)
@@ -157,8 +158,9 @@ browser.jar:
         content/browser/contentengine/legacy-runtime.js      (content/contentengine/legacy-runtime.js)
         content/browser/contentengine/policy-patterns.js     (content/contentengine/policy-patterns.js)
         content/browser/contentengine/policy-domains.js      (content/contentengine/policy-domains.js)
-        content/browser/contentengine/engine-blocking.js     (content/contentengine/engine-blocking.js)
-        content/browser/contentengine/adapters/ublock-state.js (content/contentengine/adapters/ublock-state.js)
+        content/browser/contentengine/engine-requests.js     (content/contentengine/engine-requests.js)
+        content/browser/contentengine/engine-legacy.js       (content/contentengine/engine-legacy.js)
+        content/browser/contentengine/engine-objects.js      (content/contentengine/engine-objects.js)
         content/browser/contentengine/engine-scripts.js      (content/contentengine/engine-scripts.js)
         content/browser/contentengine/gecko-content.js       (content/contentengine/gecko-content.js)
         content/browser/contentengine/inspector.xul          (content/contentengine/inspector.xul)
