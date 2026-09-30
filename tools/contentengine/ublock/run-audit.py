@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Audit an unmodified user-supplied legacy uBlock XPI in a disposable profile."""
 import argparse
+from contextlib import nullcontext
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import hashlib
 import json
@@ -78,17 +79,17 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('objdir',type=Path);parser.add_argument('xpi',type=Path)
     parser.add_argument('--require-webkit', action='store_true', help='Require WebKit network, cosmetic, page-state, reload, picker and logger acceptance probes')
-    parser.add_argument('--compiled-policy-probe', action='store_true', help='Test-only live-state translation with user filters; not automatic adapter acceptance')
-    parser.add_argument('--automatic', action='store_true', help='Use user-filter test configuration with normal adapter lifecycle; never install policies from the harness')
     parser.add_argument('--site', default='', help='Also navigate each engine to this diagnostic site without changing its filters')
     parser.add_argument('--switches',type=int,default=0,help='Additional Gecko/WebKit/Gecko cycles with server-counter checks')
+    parser.add_argument('--restarts',type=int,default=0,help='Repeat the audit with the same disposable profile to measure persistent filter reuse')
+    parser.add_argument('--keep-profile',action='store_true',help='Keep the disposable profile for diagnosing a failed restart')
+    parser.add_argument('--debugger',action='store_true',help='Run under gdb and capture a crash backtrace')
     args=parser.parse_args()
+    if not 0<=args.restarts<=5:parser.error('--restarts must be between 0 and 5')
     if not 0<=args.switches<=1000:parser.error('--switches must be between 0 and 1000')
     obj=args.objdir.resolve();chrome=obj/'dist/bin/browser/chrome/browser/content/browser/contentengine'
     original_hash=hashlib.sha256(args.xpi.read_bytes()).hexdigest()
     print('XPI SHA256 '+original_hash,flush=True)
-    if args.compiled_policy_probe and original_hash != '9ef1fd80f9a2350da9e182d991e6ff2b81a5dc11b36d7d26659b3560c367f8cf':
-        raise SystemExit('Compiled probe requires the pinned unmodified XPI')
     import zipfile, xml.etree.ElementTree as ET
     with zipfile.ZipFile(args.xpi) as archive:
         manifest=ET.fromstring(archive.read('install.rdf'))
@@ -97,23 +98,32 @@ def main():
     try:
         for suffix in ('js','xul'):
             target=chrome/('content-ublock-audit.'+suffix);target.symlink_to(Path(__file__).resolve().parent/('audit.'+suffix));staged.append(target)
-        if args.compiled_policy_probe:
-            target=chrome/'ublock-state-probe.js'
-            target.symlink_to(Path('basilisk/base/content/contentengine/adapters/ublock-state.js').resolve());staged.append(target)
-        with tempfile.TemporaryDirectory(prefix='basilisk-ublock-audit-') as profile:
+        profile_context=nullcontext(tempfile.mkdtemp(prefix='basilisk-ublock-audit-')) if args.keep_profile else tempfile.TemporaryDirectory(prefix='basilisk-ublock-audit-')
+        with profile_context as profile:
+            if args.keep_profile:print('UBLOCK-AUDIT PROFILE '+profile,flush=True)
             extensions=Path(profile,'extensions');extensions.mkdir();shutil.copy2(args.xpi,extensions/'uBlock0@raymondhill.net.xpi')
-            prefs={'extensions.autoDisableScopes':0,'extensions.enabledScopes':15,'browser.dom.window.dump.enabled':True,'browser.shell.checkDefaultBrowser':False,'content.audit.port':server.server_port,'content.audit.requireWebKit':args.require_webkit,'content.audit.compiledProbe':args.compiled_policy_probe,'content.audit.automatic':args.automatic,'content.audit.site':args.site,'content.audit.switches':args.switches}
-            Path(profile,'user.js').write_text('\n'.join('user_pref(%s,%s);'%(json.dumps(k),json.dumps(v)) for k,v in prefs.items()))
-            result=subprocess.Popen([str(obj/'dist/bin/basilisk'),'-no-remote','-profile',profile,'-chrome','chrome://browser/content/contentengine/content-ublock-audit.xul'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-            watchdog=threading.Timer(180+10*args.switches,result.kill);watchdog.start();output=[]
-            try:
-                for line in result.stdout:
-                    output.append(line);print(line,end='',flush=True)
-                result.wait()
-            finally: watchdog.cancel()
-            assert hashlib.sha256(args.xpi.read_bytes()).hexdigest() == original_hash, 'source XPI changed'
-            assert hashlib.sha256((extensions/'uBlock0@raymondhill.net.xpi').read_bytes()).hexdigest() == original_hash, 'installed XPI changed'
-            return 0 if result.returncode==0 and any('UBLOCK-AUDIT COMPLETE' in line for line in output) else 1
+            prefs={'extensions.autoDisableScopes':0,'extensions.enabledScopes':15,'browser.dom.window.dump.enabled':True,'browser.shell.checkDefaultBrowser':False,'content.audit.port':server.server_port,'content.audit.requireWebKit':args.require_webkit,'content.audit.site':args.site,'content.audit.switches':args.switches}
+            for run in range(args.restarts+1):
+                print('UBLOCK-AUDIT RUN '+str(run),flush=True)
+                prefs['content.audit.restarted']=run>0
+                if hasattr(server,'counts'):server.counts.clear()
+                Path(profile,'user.js').write_text('\n'.join('user_pref(%s,%s);'%(json.dumps(k),json.dumps(v)) for k,v in prefs.items()))
+                command=[str(obj/'dist/bin/basilisk'),'-no-remote','-profile',profile,'-chrome','chrome://browser/content/contentengine/content-ublock-audit.xul']
+                if args.debugger:
+                    command=['gdb','--batch','-ex','set pagination off','-ex','handle SIGPIPE nostop noprint pass','-ex','run','-ex','bt 40','--args']+command
+                result=subprocess.Popen(command,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+                watchdog=threading.Timer(180+10*args.switches,result.kill);watchdog.start();output=[]
+                try:
+                    for line in result.stdout:
+                        output.append(line);print(line,end='',flush=True)
+                    result.wait()
+                finally: watchdog.cancel()
+                assert hashlib.sha256(args.xpi.read_bytes()).hexdigest() == original_hash, 'source XPI changed'
+                assert hashlib.sha256((extensions/'uBlock0@raymondhill.net.xpi').read_bytes()).hexdigest() == original_hash, 'installed XPI changed'
+                if (result.returncode or not any('UBLOCK-AUDIT COMPLETE' in line for line in output)
+                    or any('Barrier: quit-application-granted' in line or 'GLib-CRITICAL' in line for line in output)):return 1
+            return 0
+
     finally:
         for path in staged:path.unlink()
         server.shutdown();server.server_close()

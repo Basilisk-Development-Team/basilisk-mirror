@@ -2,15 +2,13 @@
  * Uses the extension's existing settings APIs; does not change its source. */
 Components.utils.import("resource://gre/modules/Services.jsm");
 const Ci = Components.interfaces;
-function waitFor(test, label) {
-  return new Promise((resolve, reject) => {
-    let start = Date.now(), timer = setInterval(() => {
-      try {
-        if (test()) { clearInterval(timer); resolve(); }
-        else if (Date.now()-start > 60000) throw new Error("Timeout: " + label);
-      } catch (error) { clearInterval(timer); reject(error); }
-    }, 100);
-  });
+async function waitFor(test, label) {
+  const start=Date.now();
+  while(Date.now()-start<=60000) {
+    if(await test())return;
+    await new Promise(resolve=>setTimeout(resolve,100));
+  }
+  throw new Error('Timeout: '+label);
 }
 function finish(error) {
   dump("UBLOCK-AUDIT " + (error ? "FAIL " + error + "\n" + error.stack : "COMPLETE") + "\n");
@@ -22,8 +20,8 @@ async function run() {
   dump('UBLOCK-AUDIT platform '+Services.appinfo.platformVersion+'\n');
   Services.console.registerListener({observe(message) {
     if (message instanceof Ci.nsIScriptError && /ublock/i.test(message.sourceName)) errors.push(message.message);
-    if (message instanceof Ci.nsIScriptError && /contentengine|LegacyBlockingExtensions/.test(message.sourceName))
-      dump('UBLOCK-AUDIT ADAPTER ERROR '+message.message+'\n');
+    if (message instanceof Ci.nsIScriptError && /contentengine|Content extension/.test(message.sourceName))
+      dump('UBLOCK-AUDIT BRIDGE ERROR '+message.message+'\n');
   }});
   const base = "http://127.0.0.1:" + Services.prefs.getIntPref("content.audit.port");
   const provider = Components.utils.import("resource://gre/modules/addons/XPIProvider.jsm", {}).XPIProvider;
@@ -35,56 +33,33 @@ async function run() {
     if (bg) bg = bg.wrappedJSObject;
     return bg && bg.µBlock && bg.µBlock.availableFilterLists && bg.µBlock.availableFilterLists['user-filters'];
   }, "uBlock startup");
-  const compiledProbe = Services.prefs.getBoolPref("content.audit.compiledProbe");
-  const automatic=Services.prefs.getBoolPref("content.audit.automatic");
-  let adapter;
-  if (compiledProbe || automatic) {
-    await waitFor(() => !bg.µBlock.loadingFilterLists, "initial list load");
-    bg.µBlock.saveSelectedFilterLists(['user-filters']);
-    await new Promise(resolve => bg.µBlock.loadFilterLists(resolve));
-    if (compiledProbe) {
-    adapter = {};
-    for (const name of ["policy-domains", "policy-patterns"])
-      Services.scriptloader.loadSubScript("chrome://browser/content/contentengine/" + name + ".js", adapter, "UTF-8");
-    Services.scriptloader.loadSubScript("chrome://browser/content/contentengine/ublock-state-probe.js", adapter, "UTF-8");
-    }
+  await waitFor(() => !bg.µBlock.loadingFilterLists, "initial list load");
+  bg.µBlock.saveSelectedFilterLists(['user-filters']);
+  await new Promise(resolve => bg.µBlock.loadFilterLists(resolve));
+  if (!Services.prefs.getBoolPref('content.audit.restarted',false)) {
+    let count = bg.µBlock.staticNetFilteringEngine.acceptedCount;
+    bg.µBlock.appendUserFilters("*/audit-blocked*\n127.0.0.1##.audit-ad\n##.basilisk-audit-generic\n##.basilisk-audit-exception\n127.0.0.1#@#.basilisk-audit-exception\n");
+    await waitFor(() => bg.µBlock.staticNetFilteringEngine.acceptedCount > count, "user filter compilation");
+    dump("UBLOCK-AUDIT filters configured through extension API\n");
+  } else {
+    await waitFor(()=>!bg.µBlock.loadingFilterLists && bg.µBlock.staticNetFilteringEngine.acceptedCount>0,'persisted list load');
+    dump('UBLOCK-AUDIT reusing saved extension settings and lists after restart\n');
   }
-  let count = bg.µBlock.staticNetFilteringEngine.acceptedCount;
-  bg.µBlock.appendUserFilters("*/audit-blocked*\n127.0.0.1##.audit-ad\n##.basilisk-audit-generic\n##.basilisk-audit-exception\n127.0.0.1#@#.basilisk-audit-exception\n");
-  await waitFor(() => bg.µBlock.staticNetFilteringEngine.acceptedCount > count, "user filter compilation");
-  dump("UBLOCK-AUDIT filters configured through extension API\n");
   let win = window.openDialog("chrome://browser/content/browser.xul", "_blank", "chrome,all,dialog=no", "about:blank");
   await waitFor(() => win.gBrowser && win.gBrowserInit.delayedStartupFinished, "browser startup");
   let g = win.gBrowser;
-  let reportedGeneration=-1;
-  setInterval(()=>{
-    const service=Components.utils.import("resource:///modules/LegacyBlockingExtensions.jsm",{}).LegacyBlockingExtensions;
-    const entry=service.entry;
-    if (entry && entry.generation!==reportedGeneration) {
-      reportedGeneration=entry.generation;
-      const unsupported={};
-      for (const item of entry.compiled.unsupported) {
-        const key=JSON.stringify(item);
-        unsupported[key]=(unsupported[key]||0)+1;
-      }
-      const sizes=entry.compiled.rules.map(rule=>({bytes:JSON.stringify(rule).length,documents:(rule.documentURLPatterns||[]).length,
-        action:rule.action,pattern:rule.urlPattern})).sort((a,b)=>b.bytes-a.bytes);
-      dump('UBLOCK-AUDIT POLICY SIZE '+JSON.stringify({bytes:entry.ruleSource.length,largest:sizes.slice(0,8)})+'\n');
-      dump('UBLOCK-AUDIT POLICY '+JSON.stringify({generation:entry.generation,rules:entry.compiled.rules.length,
-        translationMS:entry.translationMS,networkGeneration:entry.networkGeneration,unsupported})+'\n');
-    }
-  },1000);
-  if (automatic) {
-    const service=Components.utils.import("resource:///modules/LegacyBlockingExtensions.jsm",{}).LegacyBlockingExtensions;
-    dump('UBLOCK-AUDIT AUTO service '+JSON.stringify({entry:!!service.entry,generation:service.generation,listeners:service.listeners.size,
-      principal:Services.scriptSecurityManager.isSystemPrincipal(bg.document.nodePrincipal),schema:bg.µBlock.systemSettings,
-      adapterVersion:service.entry && service.entry.version})+'\n');
+  // Place the extension's own widget through the normal customization API.
+  // Its legacy toolbar path appends directly to the DOM on first install,
+  // which does not save a placement in Basilisk's customization state.
+  if (!Services.prefs.getBoolPref('content.audit.restarted',false)) {
+    await waitFor(() => win.document.getElementById(bg.vAPI.toolbarButton.id) ||
+      win.gNavToolbox.palette.querySelector('#'+bg.vAPI.toolbarButton.id), 'toolbar widget');
+    win.CustomizableUI.addWidgetToArea(bg.vAPI.toolbarButton.id,win.CustomizableUI.AREA_NAVBAR);
   }
-
   await waitFor(() => win.document.getElementById(bg.vAPI.toolbarButton.id), "toolbar creation");
   dump("UBLOCK-AUDIT toolbar " + JSON.stringify({present:true, id:bg.vAPI.toolbarButton.id, path:bg.vAPI.toolbarButton.codePath}) + "\n");
-  await new Promise(resolve => bg.vAPI.storage.set({contentShimAudit:'stored'}, resolve));
-  let stored = await new Promise(resolve => bg.vAPI.storage.get('contentShimAudit', resolve));
+  await new Promise(resolve => bg.vAPI.storage.set({contentExtensionAudit:'stored'}, resolve));
+  let stored = await new Promise(resolve => bg.vAPI.storage.get('contentExtensionAudit', resolve));
   dump('UBLOCK-AUDIT storage '+JSON.stringify(stored)+'\n');
   let policy = [], locations = [];
   let mm = Components.classes['@mozilla.org/globalmessagemanager;1'].getService(Ci.nsIMessageListenerManager);
@@ -94,44 +69,7 @@ async function run() {
   let acceptanceFailures = [];
   const probes = ['.js','-third-script','-image','-style','-frame','-fetch','-xhr','-socket','-redirect'];
   for (let engine of ['gecko', 'webkit']) {
-    let tab = engine == 'gecko' ? g.addTab(base+'/page?engine=gecko') : win.ContentEngines.open(compiledProbe ? 'about:blank' : base+'/page?engine=webkit');
-    if (engine==='webkit') {
-      const began=Date.now();
-      tab.linkedBrowser.addEventListener('ContentPolicyProgress',event=>
-        dump('UBLOCK-AUDIT POLICY PROGRESS '+JSON.stringify({ms:Date.now()-began,progress:event.detail.progress})+'\n'));
-      const client=win.ContentEngineScripts.forBrowser(tab.linkedBrowser),original=client.request;
-      client.request=function(operation,args) {
-        const start=Date.now(),result=original.call(this,operation,args);
-        if (operation==='Policy' && !args.remove) {
-          dump('UBLOCK-AUDIT POLICY DISPATCH ms '+(Date.now()-start)+'\n');
-          result.then(()=>dump('UBLOCK-AUDIT POLICY COMPLETE ms '+(Date.now()-start)+'\n'),
-            error=>dump('UBLOCK-AUDIT POLICY FAILED ms '+(Date.now()-start)+' '+error+'\n'));
-        }
-        return result;
-      };
-    }
-    let probeCSS = null;
-    async function installProbeState() {
-      if (!compiledProbe || engine != 'webkit') return;
-      const url = base+'/page?engine=webkit';
-      const page = adapter.UBlockStateAdapter.pageState('1.16.6.1', bg, url);
-      if (probeCSS) { await tab.linkedBrowser.contentAPI.removeCSS(probeCSS); probeCSS = null; }
-      if (!page.enabled) {
-        await tab.linkedBrowser.contentAPI.removeRequestRules('compiled-state-probe');
-        return;
-      }
-      const snapshot = adapter.UBlockStateAdapter.snapshot('1.16.6.1', bg);
-      const compiled = adapter.UBlockStateAdapter.compileStaticNetwork(snapshot);
-      if (compiled.unsupported.length) throw Error('Probe contains unsupported predicates: '+JSON.stringify(compiled.unsupported));
-      if (!compiled.rules.length) throw Error('Probe exported no active rules');
-      await tab.linkedBrowser.contentAPI.setRequestRules('compiled-state-probe', compiled.rules);
-      if (page.css) probeCSS = await tab.linkedBrowser.contentAPI.insertCSS(page.css);
-      dump('UBLOCK-AUDIT COMPILED PROBE installed '+compiled.rules.length+' rules from live extension state\n');
-    }
-    if (compiledProbe && engine == 'webkit') {
-      await installProbeState();
-      tab.linkedBrowser.loadURI(base+'/page?engine=webkit');
-    }
+    let tab = engine == 'gecko' ? g.addTab(base+'/page?engine=gecko') : win.ContentEngines.open(base+'/page?engine=webkit');
     g.selectedTab = tab;
     await waitFor(() => tab.linkedBrowser.contentTitle == 'Audit page' && !tab.hasAttribute('busy'), engine+' load');
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -146,9 +84,20 @@ async function run() {
     let panel = button.querySelector('panel');
     if (panel) {
       win.focus();
+      Services.focus.setFocus(button,Ci.nsIFocusManager.FLAG_RAISE);
+      await new Promise(resolve=>setTimeout(resolve,100));
       panel.openPopup(button, 'after_start', 0, 0, false, false);
       await new Promise(resolve => setTimeout(resolve, 1000));
       let frame = panel.querySelector('iframe');
+      dump('UBLOCK-AUDIT POPUP READY '+JSON.stringify({state:panel.state,
+        uri:frame&&frame.contentDocument.location.href,ready:frame&&frame.contentDocument.readyState,
+        api:!!(frame&&frame.contentWindow.wrappedJSObject.vAPI),
+        pending:frame&&frame.contentWindow.wrappedJSObject.vAPI&&frame.contentWindow.wrappedJSObject.vAPI.messaging&&frame.contentWindow.wrappedJSObject.vAPI.messaging.pending.size})+'\n');
+      if(frame)await waitFor(()=> {
+        const popup=frame.contentWindow.wrappedJSObject;
+        return frame.contentDocument.readyState==='complete'&&popup.vAPI&&
+          popup.vAPI.messaging&&popup.vAPI.messaging.pending.size===0;
+      },engine+' popup responses');
       result.popup = {state:panel.state, source:frame && frame.getAttribute('src'),
         uri:frame && frame.contentDocument.location.href, title:frame && frame.contentDocument.title};
       panel.hidePopup();
@@ -166,10 +115,9 @@ async function run() {
       let requests=result.server['/audit-blocked'+path+'?engine='+engine]||0;
       result.blockedRequests[path] = requests;
       if(engine=='gecko' && requests)throw Error('Gecko network block reached server '+path);
-      if(engine=='webkit' && requests && compiledProbe)throw Error('Compiled uBlock rule reached server '+path);
       if(engine=='webkit' && requests)acceptanceFailures.push('WebKit request reached server: '+path);
     }
-    if(compiledProbe && engine=='webkit')dump('UBLOCK-AUDIT COMPILED PROBE PASS nine blocked resource counters zero\n');
+    dump('UBLOCK-AUDIT PRECHECK '+JSON.stringify(result)+'\n');
     if(result.allowed!='loaded')throw Error(engine+' allowed script missing');
     // EasyList explicitly exempts loopback from generic cosmetics. The
     // controlled user-list run has no such exception and must hide the target.
@@ -180,23 +128,11 @@ async function run() {
       if(!result.server['/audit-allowed'+path+'?engine='+engine])throw Error(engine+' allowed control missing '+path);
     }
     bg.µBlock.toggleNetFilteringSwitch(base+'/page?engine='+engine, 'site', false);
-    await installProbeState();
     tab.linkedBrowser.reload();await new Promise(resolve=>setTimeout(resolve,1500));
     result.disabled = await tab.linkedBrowser.contentAPI.executeScript("return {external:document.body.getAttribute('data-external'),display:getComputedStyle(document.querySelector('.audit-ad')).display};");
     bg.µBlock.toggleNetFilteringSwitch(base+'/page?engine='+engine, 'site', true);
-    await installProbeState();
     tab.linkedBrowser.reload();await new Promise(resolve=>setTimeout(resolve,1500));
     result.reenabled = await tab.linkedBrowser.contentAPI.executeScript("return {external:document.body.getAttribute('data-external'),display:getComputedStyle(document.querySelector('.audit-ad')).display};");
-    if (compiledProbe && engine == 'webkit') {
-      if (result.display != 'none' || result.dynamic != 'none' || result.disabled.external != 'loaded' ||
-          result.disabled.display != 'block' || result.reenabled.external || result.reenabled.display != 'none')
-        throw Error('Compiled probe cosmetic/site-state translation failed');
-      const finalCounts = await new Promise(resolve => {let x=new XMLHttpRequest();x.open('GET',base+'/counts');x.onload=()=>resolve(JSON.parse(x.responseText));x.send();});
-      for (const path of probes)
-        if (finalCounts['/audit-blocked'+path+'?engine=webkit'] !== 1)
-          throw Error('Site toggle server-counter mismatch '+path);
-      dump('UBLOCK-AUDIT COMPILED PROBE PASS declarative/dynamic CSS and site disable/reenable\n');
-    }
     if(engine=='webkit') {
       if(result.display!='none'||result.dynamic!='none')acceptanceFailures.push('WebKit static/dynamic cosmetics absent');
       if(result.pageStoreURI!=result.tabURI)acceptanceFailures.push('WebKit page store missing');
@@ -218,15 +154,12 @@ async function run() {
     }
   }
   const cacheStart=Date.now(),cached=win.ContentEngines.open(base+'/page?engine=webkit-cache');
-  let cacheProgress=0;
-  cached.linkedBrowser.addEventListener('ContentPolicyProgress',()=>++cacheProgress);
-  await waitFor(()=>cached.linkedBrowser.contentTitle==='Audit page'&&!cached.hasAttribute('busy'),'cached WebKit view');
-  if(cacheProgress)throw Error('Unchanged full policy recompiled in new view');
+  await waitFor(()=>cached.linkedBrowser.contentTitle==='Audit page'&&!cached.hasAttribute('busy'),'additional WebKit view');
   const cachedCounts=await new Promise(resolve=>{let x=new XMLHttpRequest();x.open('GET',base+'/counts');x.onload=()=>resolve(JSON.parse(x.responseText));x.send();});
   for(const path of probes)
-    if(cachedCounts['/audit-blocked'+path+'?engine=webkit-cache'])throw Error('Cached policy leaked request '+path);
-  if(!cachedCounts['/audit-allowed.js?engine=webkit-cache'])throw Error('Cached policy blocked allowed script');
-  dump('UBLOCK-AUDIT CACHE '+JSON.stringify({ms:Date.now()-cacheStart,progress:cacheProgress,blockedRequests:0})+'\n');
+    if(cachedCounts['/audit-blocked'+path+'?engine=webkit-cache'])throw Error('Additional view leaked request '+path);
+  if(!cachedCounts['/audit-allowed.js?engine=webkit-cache'])throw Error('Additional view blocked allowed script');
+  dump('UBLOCK-AUDIT ADDITIONAL VIEW '+JSON.stringify({ms:Date.now()-cacheStart,blockedRequests:0})+'\n');
   g.removeTab(cached);
   const cycles=Services.prefs.getIntPref('content.audit.switches');
   if(cycles) {
@@ -254,7 +187,48 @@ async function run() {
   await waitFor(() => dashboard.linkedBrowser.contentDocument.readyState == 'complete' &&
     dashboard.linkedBrowser.currentURI.spec.includes('dashboard.html'), 'dashboard');
   dump('UBLOCK-AUDIT dashboard '+dashboard.linkedBrowser.contentDocument.title+'\n');
+  // Wait for the real settings pane and its asynchronous background replies
+  // before closing it; unloading a pending legacy callback supplies null.
+  await waitFor(()=> {
+    const outer=dashboard.linkedBrowser.contentWindow.wrappedJSObject;
+    const pane=outer.document.getElementById('iframe');
+    const inner=pane&&pane.contentWindow.wrappedJSObject;
+    return inner&&inner.location.href.includes('settings.html')&&
+      inner.document.readyState==='complete'&&
+      [outer,inner].every(scope=>scope.vAPI&&scope.vAPI.messaging&&scope.vAPI.messaging.pending.size===0);
+  },'dashboard settings and background replies');
+  await dashboard.linkedBrowser.contentDocument.fonts.ready;
+  await dashboard.linkedBrowser.contentDocument.getElementById('iframe').contentDocument.fonts.ready;
+  g.removeTab(dashboard);
+  const {AddonManager}=Components.utils.import('resource://gre/modules/AddonManager.jsm',{});
+  const addon=await new Promise(resolve=>AddonManager.getAddonByID('uBlock0@raymondhill.net',resolve));
+  const lifecycle=win.ContentEngines.open(base+'/page?engine=lifecycle-before');
+  g.selectedTab=lifecycle;
+  await waitFor(()=>lifecycle.linkedBrowser.contentTitle==='Audit page'&&!lifecycle.hasAttribute('busy'),'extension lifecycle initial page');
+  addon.userDisabled=true;
+  await waitFor(()=>!addon.isActive,'extension disabled');
+  lifecycle.linkedBrowser.loadURI(base+'/page?engine=lifecycle-disabled');
+  await waitFor(()=>lifecycle.linkedBrowser.contentTitle==='Audit page'&&!lifecycle.hasAttribute('busy')&&
+    lifecycle.linkedBrowser.contentAPI.executeScript("return document.body.dataset.external==='loaded' && getComputedStyle(document.querySelector('.audit-ad')).display!=='none'"),'disabled extension releases filtering');
+  addon.userDisabled=false;
+  await waitFor(()=> {
+    const current=provider.bootstrapScopes['uBlock0@raymondhill.net'];
+    if(!current)return false;
+    let background=Components.utils.evalInSandbox('bgProcess && bgProcess.contentWindow',current);
+    if(background)background=background.wrappedJSObject;
+    return background && background.µBlock && !background.µBlock.loadingFilterLists &&
+      background.µBlock.staticNetFilteringEngine.acceptedCount>0;
+  },'extension re-enabled');
+  lifecycle.linkedBrowser.loadURI(base+'/page?engine=lifecycle-enabled');
+  await waitFor(()=>lifecycle.linkedBrowser.currentURI.spec.includes('lifecycle-enabled')&&
+    lifecycle.linkedBrowser.contentTitle==='Audit page'&&!lifecycle.hasAttribute('busy'),'re-enabled extension page');
+  const lifecycleResult=await lifecycle.linkedBrowser.contentAPI.executeScript("return {allowed:document.body.dataset.allowed,blocked:document.body.dataset.external,display:getComputedStyle(document.querySelector('.audit-ad')).display}");
+  if(lifecycleResult.allowed!=='loaded'||lifecycleResult.blocked||lifecycleResult.display!=='none')
+    throw Error('Extension disable/re-enable regression '+JSON.stringify(lifecycleResult));
+  dump('UBLOCK-AUDIT EXTENSION LIFECYCLE PASS disable/re-enable with an existing WebKit tab\n');
+  g.removeTab(lifecycle);
   dump('UBLOCK-AUDIT extension errors '+JSON.stringify(errors)+'\n');
+  if(errors.length)throw Error('Extension reported script errors: '+errors.join('; '));
   dump('UBLOCK-AUDIT ACCEPTANCE '+(acceptanceFailures.length?'FAIL ':'PASS ')+JSON.stringify(acceptanceFailures)+'\n');
   if(Services.prefs.getBoolPref('content.audit.requireWebKit') && acceptanceFailures.length)throw Error(acceptanceFailures.join('; '));
 }

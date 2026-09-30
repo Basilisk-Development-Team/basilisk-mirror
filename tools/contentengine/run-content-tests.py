@@ -16,6 +16,10 @@ class Handler(BaseHTTPRequestHandler):
   if self.path=='/counts':
    data=json.dumps(self.server.counts).encode();self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data);return
   self.server.counts[self.path]+=1
+  if self.path=='/echo-body':
+   data=self.rfile.read(int(self.headers.get('Content-Length','0')));self.send_response(200);self.send_header('Content-Type','text/plain; charset=utf-8');self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data);return
+  if self.path=='/headers':
+   data=json.dumps(dict(self.headers)).encode();self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data);return
   if self.path.startswith('/matrix'):
    run=parse_qs(urlparse(self.path).query)['run'][0];port=self.server.server_port
    resources=lambda host,prefix: ''.join('<script src="%s/%s/script?run=%s"></script><img src="%s/%s/image?run=%s"><link rel="stylesheet" href="%s/%s/style?run=%s"><iframe src="%s/%s/frame?run=%s"></iframe>'%(host,prefix,run,host,prefix,run,host,prefix,run,host,prefix,run))
@@ -64,9 +68,22 @@ class Handler(BaseHTTPRequestHandler):
    import time
    time.sleep(2)
    self.send_response(200);self.send_header('Content-Type','application/javascript');self.end_headers();return
-  body='<!doctype html><title>Content fixture</title><body><div id="target">Target</div><script src="/page-script"></script>'
+  if self.path.startswith(('/gm-helper.js','/gm-resource.txt')):
+   data=b"globalThis.gmRequired='loaded';" if self.path.startswith('/gm-helper.js') else b'userscript resource'
+   self.send_response(200);self.send_header('Content-Type','application/javascript' if self.path.startswith('/gm-helper.js') else 'text/plain');self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data);return
+  body='<!doctype html><meta charset=utf-8><title>Content fixture</title><body><div id="target">Target</div><script src="/page-script"></script>'
   if self.path.startswith('/legacy-slow'):body+='<script src="/legacy-slow-script"></script>'
-  if self.path.startswith('/page-script'): body="document.body.dataset.pageStart=String(document.documentElement.getAttribute('data-start'));"
+  if self.path == '/empty': body='<!doctype html><title>Empty fixture</title>'
+  elif self.path.startswith('/page-script'): body="window.pageFixtureValue='page-defined';document.body.dataset.gmStartBeforePage=document.documentElement.dataset.gmStart;document.body.dataset.pageStart=String(document.documentElement.getAttribute('data-start'));"
+  elif self.path.startswith('/input'):
+   body="""<!doctype html><meta charset=utf-8><title>Input fixture</title><body>
+    <a id=link href='/input-target' style='display:block;width:200px;height:50px'>New tab</a>
+    <a id=blank href='/input-blank' target=_blank style='display:block;width:200px;height:50px'>Blank tab</a>
+    <input id=password type=password><div id=focus tabindex=0 style='height:50px'>Focus here</div>
+    <script>addEventListener('keydown',e=>{if(e.ctrlKey&&e.key.toLowerCase()==='f'){
+      document.body.dataset.keys=String(Number(document.body.dataset.keys||0)+1);
+      if(document.body.dataset.custom==='yes'){e.preventDefault();document.body.dataset.found='yes';}
+    }});</script></body>"""
   elif self.path.startswith('/frames'):
    body += '<iframe src="/child"></iframe><iframe src="http://localhost:%d/child"></iframe>'%self.server.server_port
   mime='application/javascript' if self.path.startswith('/page-script') else 'text/html'
@@ -93,7 +110,8 @@ def kill_webprocesses(parent):
    try:os.kill(pid,signal.SIGKILL)
    except ProcessLookupError:pass
 
-p=argparse.ArgumentParser(description=__doc__);p.add_argument('objdir',type=Path);p.add_argument('suite',choices=['webrtc','frames','network','legacy','navigation-policy']);p.add_argument('--cycles',type=int,default=3);p.add_argument('--gst-debug');p.add_argument('--external',action='store_true');a=p.parse_args()
+p=argparse.ArgumentParser(description=__doc__);p.add_argument('objdir',type=Path);p.add_argument('suite',choices=['webrtc','frames','network','legacy','xul-extensions','greasemonkey','navigation-policy','input','containers','about','cookies','enabled']);p.add_argument('--cycles',type=int,default=3);p.add_argument('--gst-debug');p.add_argument('--external',action='store_true');p.add_argument('--xpi',type=Path);a=p.parse_args()
+if a.suite=='greasemonkey' and not a.xpi:p.error('greasemonkey requires --xpi pointing to an unchanged legacy extension')
 server=ThreadingHTTPServer(('127.0.0.1',0),Handler);threading.Thread(target=server.serve_forever,daemon=True).start()
 try:
  with tempfile.TemporaryDirectory(prefix='basilisk-content-test-') as temporary:
@@ -101,6 +119,19 @@ try:
   fixture=Path(__file__).resolve().parent/a.suite;shutil.copytree(fixture,app/'content-test')
   with (app/'chrome.manifest').open('a') as f:f.write('\ncontent content-test content-test/\n')
   profile=root/'profile';profile.mkdir()
+  if a.xpi:
+   import zipfile,hashlib,xml.etree.ElementTree as ET
+   xpi_hash=hashlib.sha256(a.xpi.read_bytes()).hexdigest()
+   with zipfile.ZipFile(a.xpi) as archive:
+    manifest=ET.fromstring(archive.read('install.rdf'))
+    addon_id=manifest.find('.//{http://www.mozilla.org/2004/em-rdf#}id').text
+    version=manifest.find('.//{http://www.mozilla.org/2004/em-rdf#}version').text
+   if '/' in addon_id or '\\' in addon_id:raise ValueError('Invalid add-on ID')
+   installed_xpi=profile/'extensions'/(addon_id+'.xpi');installed_xpi.parent.mkdir(exist_ok=True)
+   shutil.copy2(a.xpi,installed_xpi)
+   print('XPI '+addon_id+' '+version+' SHA256 '+xpi_hash,flush=True)
+  if a.suite=='xul-extensions':
+   shutil.copytree(fixture/'extension',profile/'extensions/xul-extension-test@basilisk-browser.org')
   if a.suite=='legacy':
    shutil.copytree(fixture/'extension',profile/'extensions/legacy-runtime-test@basilisk-browser.org')
    second=profile/'extensions/legacy-other-test@basilisk-browser.org'
@@ -109,20 +140,46 @@ try:
     path=second/name
     path.write_text(path.read_text().replace('legacy-runtime-test','legacy-other-test').replace('legacyFixture','legacyOtherFixture'))
   prefs={'browser.tabs.warnOnClose':False,'extensions.autoDisableScopes':0,'extensions.enabledScopes':15,'browser.shell.checkDefaultBrowser':False,'browser.dom.window.dump.enabled':True,'content.test.port':server.server_port,'content.test.cycles':a.cycles,'content.test.external':a.external}
+  if a.suite=='enabled':prefs['webkit.enabled']=False
   (profile/'user.js').write_text('\n'.join('user_pref(%s,%s);'%(json.dumps(k),json.dumps(v)) for k,v in prefs.items()))
   env={k:v for k,v in os.environ.items() if not k.startswith(('LD_','WEBKIT_','WPE_','GST_'))}
   env['GST_REGISTRY_1_0']=str(root/'gst-registry.bin')
   if a.gst_debug:env['GST_DEBUG']=a.gst_debug
-  process=subprocess.Popen([str(app/'basilisk'),'-no-remote','-profile',str(profile),'-chrome','chrome://content-test/content/test.xul'],env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,start_new_session=True)
-  timer=threading.Timer(max(300,a.cycles*10),process.kill);timer.start();output=[]
-  try:
-   for line in process.stdout:
-    print(line,end='',flush=True);output.append(line)
-    if 'CONTENT-TEST KILL WebProcesses' in line:kill_webprocesses(process.pid)
-   process.wait()
-  finally:
-   timer.cancel()
-   try:os.killpg(process.pid,signal.SIGTERM)
-   except ProcessLookupError:pass
-  raise SystemExit(0 if process.returncode==0 and any('CONTENT-TEST PASS all' in line for line in output) else 1)
+  phases=['seed','dormant-clear','manual','lifetime-read','sanitize-read'] if a.suite=='cookies' else ['write','read'] if a.suite=='containers' else ['default']
+  for phase in phases:
+   prefs['content.test.phase']=phase
+   (profile/'user.js').write_text('\n'.join('user_pref(%s,%s);'%(json.dumps(k),json.dumps(v)) for k,v in prefs.items()))
+   process=subprocess.Popen([str(app/'basilisk'),'-no-remote','-profile',str(profile),'-chrome','chrome://content-test/content/test.xul'],env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,start_new_session=True)
+   clipboard=None
+   timer=threading.Timer(max(300,a.cycles*10),process.kill);timer.start();output=[]
+   try:
+    for line in process.stdout:
+     print(line,end='',flush=True);output.append(line)
+     if line.startswith('CONTENT-TEST INPUT '):
+      action=json.loads(line[len('CONTENT-TEST INPUT '):])
+      if action['type']=='clipboard':
+       if clipboard is not None:clipboard.terminate();clipboard.wait()
+       clipboard=subprocess.Popen(['xclip','-selection','clipboard','-quiet'],stdin=subprocess.PIPE,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+       clipboard.stdin.write(action['text'].encode());clipboard.stdin.close()
+      elif action['type']=='key':subprocess.run(['xdotool','key','--clearmodifiers',action['key']],check=True)
+      else:
+       subprocess.run(['xdotool','mousemove','--sync',str(round(action['x'])),str(round(action['y']))],check=True)
+       if action.get('shift'):subprocess.run(['xdotool','keydown','Shift_L'],check=True)
+       try:subprocess.run(['xdotool','click',str(action['button'])],check=True)
+       finally:
+        if action.get('shift'):subprocess.run(['xdotool','keyup','Shift_L'],check=True)
+     if 'CONTENT-TEST KILL WebProcesses' in line:kill_webprocesses(process.pid)
+    process.wait()
+   finally:
+    timer.cancel()
+    if clipboard is not None:clipboard.terminate();clipboard.wait()
+    try:os.killpg(process.pid,signal.SIGTERM)
+    except ProcessLookupError:pass
+   if a.xpi:
+    assert hashlib.sha256(a.xpi.read_bytes()).hexdigest()==xpi_hash,'source extension changed'
+    assert hashlib.sha256(installed_xpi.read_bytes()).hexdigest()==xpi_hash,'installed extension changed'
+   if (process.returncode or not any('CONTENT-TEST PASS all' in line for line in output)
+       or any('Barrier: quit-application-granted' in line or 'GLib-CRITICAL' in line for line in output)):raise SystemExit(1)
+  raise SystemExit(0)
+
 finally:server.shutdown();server.server_close()

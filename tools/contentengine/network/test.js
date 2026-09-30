@@ -11,7 +11,7 @@ async function run(){
  const port=Services.prefs.getIntPref('content.test.port'),base='http://127.0.0.1:'+port;
  let win=window.openDialog('chrome://browser/content/browser.xul','_blank','chrome,all,dialog=no','about:blank');
  await waitFor(()=>win.gBrowserInit&&win.gBrowserInit.delayedStartupFinished,'startup');
- let tab=win.ContentEngines.open('about:blank'),api=tab.linkedBrowser.contentAPI;
+ let tab=win.ContentEngines.open(base+'/empty'),api=tab.linkedBrowser.contentAPI;
  const rules=[
   {urlPrefix:base+'/deny/script',resourceTypes:['script']},
   {urlPrefix:base+'/deny/image',resourceTypes:['image']},
@@ -139,7 +139,7 @@ async function run(){
  // A cached immutable bundle must survive destruction of its original view,
  // and sharing compilation must not combine logical owners in a later view.
  win.gBrowser.removeTab(tab);
- tab=win.ContentEngines.open('about:blank');api=tab.linkedBrowser.contentAPI;
+ tab=win.ContentEngines.open(base+'/empty');api=tab.linkedBrowser.contentAPI;
  let progress=0;
  tab.linkedBrowser.addEventListener('ContentPolicyProgress',()=>++progress);
  await api.setRequestRules('cached-a',partitioned);
@@ -150,6 +150,14 @@ async function run(){
  await partitionCheck('cached-owner');
  await api.removeRequestRules('cached-b');
  await load('cached-removed',false);
+ const concurrent=rules.concat([{urlPrefix:base+'/unused-concurrent-owner'}]);
+ await Promise.all([api.setRequestRules('parallel-a',concurrent),api.setRequestRules('parallel-b',concurrent)]);
+ await load('parallel-owners',true);
+ await api.removeRequestRules('parallel-a');
+ await load('parallel-owner-survives',true);
+ await api.removeRequestRules('parallel-b');
+ await load('parallel-owners-removed',false);
+ dump('NETWORK PASS concurrent identical tokens keep independent physical lists\n');
  dump('NETWORK PASS cached bundle lifetime and same-view owner independence\n');
  dump('NETWORK PASS pre-fetch script/image/stylesheet/subframe/XHR/fetch/WebSocket/redirect blocking; party, unsupported-method rejection, toggle and independent Gecko\n');
 }

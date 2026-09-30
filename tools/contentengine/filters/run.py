@@ -11,7 +11,10 @@ import threading
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args): pass
     def do_GET(self):
-        if self.path.startswith('/page'):
+        if self.path == '/empty':
+            body = '<!doctype html><title>Empty fixture</title>'
+            mime = 'text/html'
+        elif self.path.startswith('/page'):
             body = '''<!doctype html><title>Loading</title><body>
 <script src="/blocked.js"></script><script src="/allowed.js"></script>
 <script>fetch('/blocked-fetch').then(()=>document.body.dataset.fetch='loaded',

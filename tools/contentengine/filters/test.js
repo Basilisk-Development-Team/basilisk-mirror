@@ -32,7 +32,7 @@ function finish(error) {
 async function run() {
   const base = "http://127.0.0.1:" + Services.prefs.getIntPref("content.test.port");
   let win = await openWindow(), other = await openWindow();
-  let tab = win.ContentEngines.open("about:blank"), serial = 0;
+  let tab = win.ContentEngines.open(base+'/empty'), serial = 0;
   const rules = [{urlPrefix:base + "/blocked", resourceTypes:["script", "fetch"]}];
   async function loaded(tab, blocked, fetchBlocked = blocked) {
     await waitFor(() => tab.linkedBrowser.contentTitle == "Ready" && !tab.hasAttribute("busy"), "page load");
@@ -48,7 +48,7 @@ async function run() {
   let api = tab.linkedBrowser.contentAPI;
   let privateWin = win.OpenBrowserWindow({private:true});
   await waitFor(() => privateWin.gBrowserInit && privateWin.gBrowserInit.delayedStartupFinished, "private startup");
-  let privateTab = privateWin.ContentEngines.open("about:blank");
+  let privateTab = privateWin.ContentEngines.open(base+'/empty');
   check(!(privateTab.linkedBrowser.contentAPI.capabilities & Ci.nsIWebContentView.CAP_REQUEST_FILTERING), "private policy store exposed");
   await rejects(privateTab.linkedBrowser.contentAPI.setRequestRules("private", rules), "private policy accepted");
   privateWin.close();
@@ -60,7 +60,7 @@ async function run() {
   await load(tab, false, true);
   await api.setRequestRules("test", [{urlPrefix:base + "/blocked", resourceTypes:["script"]}]);
   await load(tab, true, false);
-  let unfiltered = win.ContentEngines.open("about:blank");
+  let unfiltered = win.ContentEngines.open(base+'/empty');
   await load(unfiltered, false);
   await rejects(api.setRequestRules("bad", [{urlPrefix:base, requestingOrigin:base}]), "origin silently accepted");
   await rejects(api.setRequestRules("bad", [{urlPrefix:base, resourceTypes:["unknown"]}]), "unknown type accepted");
@@ -92,7 +92,7 @@ async function run() {
     check(value.script == "1" && value.color == "rgb(1, 2, 3)", "adoption lost or duplicated registrations");
   }
   dump("CONTENT-FILTER PASS twenty filtered adoptions\n");
-  let closing = win.ContentEngines.open("about:blank");
+  let closing = win.ContentEngines.open(base+'/empty');
   let pending = closing.linkedBrowser.contentAPI.setRequestRules("pending", rules);
   win.gBrowser.removeTab(closing, {animate:false});
   await rejects(pending, "closed policy not rejected");

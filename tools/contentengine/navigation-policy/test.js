@@ -10,7 +10,7 @@ async function run(){
  const base='http://127.0.0.1:'+Services.prefs.getIntPref('content.test.port');
  const win=window.openDialog('chrome://browser/content/browser.xul','_blank','chrome,all,dialog=no','about:blank');
  await waitFor(()=>win.gBrowserInit&&win.gBrowserInit.delayedStartupFinished,'startup');
- const tab=win.ContentEngines.open('about:blank'),view=win.ContentEngines.get(tab.linkedBrowser),native=view.native;
+ const tab=win.ContentEngines.open(base+'/empty'),view=win.ContentEngines.get(tab.linkedBrowser),native=view.native;
  const original=view.onContentEvent,held=[];
  let terminated=false;
  view.onContentEvent=function(sender,topic,subject){
