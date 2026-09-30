@@ -40,8 +40,16 @@ async function run(){
   win.gBrowser.removeTab(other,{animate:false});win.gBrowser.selectedTab=tab;
   await api.executeScript("let f=document.createElement('iframe');f.src='/dynamic';document.body.appendChild(f);");
   await waitFor(async()=> (await api.getFrames()).length==4,'dynamic frame');
-  let dynamic=(await api.getFrames()).find(f=>f.documentURI.includes('/dynamic'));
-  check(await api.executeScript("return document.body.dataset.pageStart",{frameId:dynamic.frameId})=='yes','dynamic document-start');
+  // Frame creation precedes navigation, and the destination URI alone does
+  // not prove its page script ran. Wait for this document's own end phase,
+  // then inspect the value its page script captured at parse time. This still
+  // requires our document-start registration to have preceded that script.
+  let dynamic;
+  await waitFor(async()=>{
+   dynamic=(await api.getFrames()).find(f=>f.documentURI==base+'/dynamic');
+   return dynamic&&messages.some(m=>m.frame.frameId==dynamic.frameId&&m.value.phase=='end');
+  },'dynamic document end '+engine);
+  check(await api.executeScript("return document.body.dataset.pageStart",{frameId:dynamic.frameId})=='yes','dynamic document-start '+engine);
   let pending=api.executeScript('await new Promise(()=>{});',{frameId:dynamic.frameId});
   // Observe rejection immediately; no unhandled-promise bookkeeping artifacts.
   let rejection=rejects(pending,'destroyed frame did not reject');

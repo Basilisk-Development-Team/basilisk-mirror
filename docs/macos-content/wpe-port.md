@@ -80,10 +80,13 @@ Current checks:
 - Packaged enabled upstream smoke passes startup toggling, UI, routing, restore,
   native guard and existing-tab lifetime. Container tests pass both engine
   directions, same-container sharing, inter-container separation and restart.
-- The unchanged upstream frame fixture fails at `frames/test.js:44` with
-  `dynamic is undefined`: it waits for four frames, then immediately assumes the
-  fourth frame has its destination URI. The earlier session's document-phase
-  fixture change was deliberately not restored. This is not a frame-suite pass.
+- The initial unchanged frame fixture failed with `dynamic is undefined`: it
+  counted four frames before the new frame had its destination URI. A separately
+  authorized follow-up fixes the fixture to await the destination document's own
+  end-phase message before reading the value captured by its page script. The
+  document-start assertion remains intact. The complete Gecko and WPE frame
+  suites now pass, including targeted messaging, dynamic-frame destruction,
+  stale IDs, history and teardown (`/tmp/basilisk-frame-phase-fix.log`).
 - Enabled fixtures log `engine-session.js:10: gBrowser is null` while also
   reporting their successful assertions. That shared upstream file remains
   unchanged; the previous session's related fix was not carried forward.
