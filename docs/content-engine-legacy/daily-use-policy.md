@@ -1,3 +1,5 @@
+> Historical investigation: the uBlock-specific adapter described here has been removed. See [replacement status](ublock-adapter.md). These results do not validate the new extension runtime.
+
 # Daily-use policy integration requirements
 
 The approved versioned adapter remains above the generic content engine API.

@@ -1,3 +1,5 @@
+> Historical investigation: the uBlock-specific adapter described here has been removed. See [replacement status](ublock-adapter.md). These results do not validate the new extension runtime.
+
 # Full-list policy setup failure — September 2026
 
 The reported failure was a WebKit tab titled `Content policy setup failed` when
@@ -50,7 +52,10 @@ loopback URLs. Site disable/re-enable allowed and blocked the same resources.
 The final full-list timing sample compiled in about 50.6 seconds and completed
 initial preparation in about 57.8 seconds. A second tab loaded in about 4.5 seconds
 without recompiling; blocked counters remained zero. Cold preparation is still
-expensive and recurs after application restart: this is a process-local cache.
+expensive in that implementation and recurred after application restart.
+The subsequent [persistent-cache change](compiled-policy-bundles.md) retains
+compiled bundles across restarts and shares cold preparation across tabs; the
+figures above describe the earlier process-local implementation.
 The normal audit's 60-second navigation deadline was not relaxed. Separate,
 longer diagnostic runs were used to measure earlier failing implementations.
 

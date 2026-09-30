@@ -127,14 +127,15 @@ basic view checks below do not establish complete browser compatibility.
 
 ## Dependency build and disabled-build audit
 
-`tools/wpe/fetch-source.sh` explicitly downloads and verifies the pinned upstream
-source. Nothing invokes it automatically. See [runtime packaging](wpe-runtime-packaging.md)
-for the current upstream CMake settings and staged dependency build. Enabled
-builds require an installed runtime, including helpers/resources, and bundle it
-in the application. Source-build pkg-config metadata alone is insufficient.
-All dependency products remain in the ignored `build-wpe-deps/` directory.
-Set `PKG_CONFIG_PATH` to the staged WPE pkgconfig directory when configuring
-Basilisk with `--enable-webkit`.
+With `--enable-webkit`, `./mach build` prepares the pinned upstream sources,
+builds WPE with CMake/Ninja, and bundles its helpers/resources/libraries in the
+application. Configure does not require a preinstalled WPE runtime. The source
+cache remains in `build-wpe-deps/`; build outputs and the private installation
+live in `OBJDIR/webkit/`. See [runtime packaging](wpe-runtime-packaging.md) for
+dependencies, build ordering, and incremental-build behavior.
+`--with-wpe-runtime=/installed/prefix` explicitly selects a prebuilt installation
+instead. `tools/wpe/fetch-source.sh` remains an optional manual source-preparation
+command; the normal enabled build prepares missing sources automatically.
 
 Keep your normal compiler/application settings in a separate experimental
 mozconfig, adding:
@@ -144,11 +145,10 @@ mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-webkit-enabled
 ac_add_options --enable-webkit
 ```
 
-Then build using that configuration and the private dependency metadata:
+Then build using that configuration:
 
 ```sh
-PKG_CONFIG_PATH="$PWD/build-wpe-deps/prefix/lib64/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" \
-  MOZCONFIG=/path/to/experimental.mozconfig ./mach build
+MOZCONFIG=/path/to/experimental.mozconfig ./mach build
 ```
 
 For the disabled build, use a separate object directory and

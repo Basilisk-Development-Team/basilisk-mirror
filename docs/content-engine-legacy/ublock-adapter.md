@@ -1,133 +1,120 @@
-# Versioned uBlock state adapter — incremental implementation
+# Legacy extension compatibility
 
-Explicitly authorized by the user after the effective-state investigation.
-This is extension-specific compatibility code **above** the generic engine API.
-It is not presented as an extension-agnostic Gecko service. Target: clean uBlock
-Origin 1.16.6.1, package SHA-256
-`9ef1fd80f9a2350da9e182d991e6ff2b81a5dc11b36d7d26659b3560c367f8cf`.
+The versioned uBlock state reader, filter translator, and automatic policy installer
+have been removed. Basilisk no longer packages `LegacyBlockingExtensions.jsm`,
+`engine-blocking.js`, or `adapters/ublock-state.js`.
 
-## Implemented pieces
+The replacement delivers requests to ordinary HTTP observers,
+loads installed extension frame/process scripts, and routes their message-manager
+calls to the unchanged parent extension. Content scripts execute in isolated
+WebKit worlds. WPE changes are maintained in `third_party/webkit/patches/series`
+and applied by the managed build. No UXP changes are required by these additions.
 
-`basilisk/base/content/contentengine/adapters/ublock-state.js` provides:
-
-* An immutable, owned snapshot from the **live** extension engine, using the
-  extension's own serialization methods. Version/schema/readiness checks reject
-  mismatches. Session rules, permanent rules and whitelist are separate.
-* `compileStaticNetwork`: decodes the pinned effective filter-class layout into
-  generic ordered URL-pattern rules. It handles plain/substr/anchored/hostname,
-  wildcard/separator and regular-expression classes, hostname dictionaries,
-  pairs/buckets, type/party flags, ordinary exceptions and important blocks.
-  The browser does not parse raw EasyList syntax or run a new adblock matcher.
-* `pageState`: asks the extension for site enablement and domain-specific
-  declarative cosmetic selectors. It uses the extension's URI/domain utilities
-  and respects its no-cosmetic-filtering hostname switch. No tab/frame ID is
-  supplied to the extension's native CSS injector; returned CSS is applied by
-  the generic browser CSS API. It returns procedural data separately and does
-  not claim that procedural execution is implemented.
-
-No background object, extension closure, or native DOM object is returned to
-page scripts. These entry points are privileged browser-side helpers. The
-reader itself is not an authorization boundary; the eventual startup binding
-must verify the installed active extension and own its lifetime.
-
-## Initial explicit probe and what it proved
+The unchanged-XPI audit is:
 
 ```
-python3 tools/contentengine/ublock/test-state.py <pinned-clean.xpi>
 DISPLAY=:92 python3 tools/contentengine/ublock/run-audit.py \
-  obj-webkit-enabled <pinned-clean.xpi> --compiled-policy-probe
+  obj-loongarch64-unknown-linux-gnu <clean-ublock.xpi> \
+  --require-webkit --switches 3 --restarts 1
 ```
 
-The standalone test runs the **unmodified extension's own** compiler/engine
-JavaScript, extracted from the hash-verified XPI, against the adapter. It checks
-badfilter removal, selfie restoration, user edits, session/permanent separation,
-whitelist changes, immutable ownership and schema rejection. Translated matching
-is compared to the real extension engine for a small deterministic corpus,
-including host boundaries, URL credentials, exceptions, important rules, type
-and party constraints. This is not a complete EasyList equivalence test.
+There is no translated-policy fallback. Old adapter and policy-cache tests were
+removed with the implementation. Earlier results in adjacent investigation
+notes describe the removed implementation and do not validate this replacement.
 
-The browser probe installs a clean XPI in a disposable profile. Through its
-existing settings API it selects user filters and adds `*/audit-blocked*` plus
-a domain cosmetic rule. It reads the resulting live compiled state, translates
-it, and installs that output before loading the test page. No manually authored
-parallel request-policy rules are used in this probe.
+## Validated coverage
 
-Server counters prove zero blocked script, third-party script, image, stylesheet,
-iframe, XHR, fetch, WebSocket and redirect-target requests. Allowed controls load.
-The probe also checks static and dynamically inserted cosmetic targets, asks
-uBlock to disable/re-enable the site, explicitly refreshes adapter output, and
-checks that previously blocked requests reach the server only while disabled.
-The same runner keeps its native Gecko control tests.
+The managed application build and the strict unchanged-XPI browser audit passed
+with uBlock Origin 1.16.6.1 (SHA-256
+`9ef1fd80f9a2350da9e182d991e6ff2b81a5dc11b36d7d26659b3560c367f8cf`).
+The audit verifies that blocked scripts, third-party scripts, images, stylesheets,
+frames, fetches, XHRs, WebSockets, and redirect targets never reach the fixture
+server. It also checks static, dynamic, and generic cosmetic filters and an
+exception, the extension's page store, popup, logger, picker injection, reload,
+per-site toggles, and three mixed Gecko/WebKit engine switches both before and
+after a browser restart using the same profile. Each launch also disables and
+re-enables the actual add-on with an existing WebKit tab and verifies restored
+filtering. Both runs finish without extension errors. The XPI hash is checked
+before and after each run. Filter setup uses the extension's own settings APIs.
 
-The explicit `--compiled-policy-probe` remains a diagnostic, not evidence of
-automatic lifecycle support. Normal browsing now packages and loads the adapter
-through `LegacyBlockingExtensions.jsm`; the default audit and `--automatic`
-exercise that production path without manually refreshing policies. Page state
-and extension-triggered reload pass. The strict `--require-webkit` acceptance
-still fails logger and picker checks; those failures remain enabled.
-See [daily-use-policy.md](daily-use-policy.md) for lifecycle behavior and
-[policy-setup-failure.md](policy-setup-failure.md) for the full-list results.
+The extension selects its legacy toolbar implementation on UXP 6.9. That code's
+direct DOM insertion does not save a Basilisk customization placement. The audit
+places its original widget using the normal customization API on first launch;
+it does not change extension code or spoof the platform version.
 
-## Remaining rule and integration work
+The `xul-extensions` fixture separately tests ordinary installed-addon frame
+scripts, DOM changes, isolated userscript sandboxes, parent/child messaging,
+registered and document user styles, UXP version comparisons,
+request-header addition/removal, response headers, request
+cancellation, suspension/resumption with the original POST body, live
+non-delayed frame scripts, SessionStore flushes through the backing loader, and
+extension-disable broadcasts/style removal.
+Separate cookie and frame fixtures also pass: cookie clearing/shutdown and the
+new-tab menu, document script timing, CSP isolation, dynamic-frame teardown,
+stale frame IDs, and history restoration. Runtime `webkit.enabled` gating and
+the configure/build gates are covered separately; a complete second binary
+built with `--disable-webkit` has not been built in this validation run.
 
-* Domain-constrained class 13 uses requesting-document URL predicates, including
-  mixed inclusion/exclusion. Inherited/opaque origin and navigation edge cases
-  are not equivalent to complete requesting-origin attribution.
-* Popup/popunder, inline-script/font, generichide, document strict-blocking and
-  other behavioral categories are not ordinary resource blocks. Unsupported
-  category entries are reported. Object/plugin classification is not mapped to
-  an unrelated resource type.
-* Static data-filter/CSP state and redirect-engine state are not translated.
-  Blocking a redirect target works; substituting a redirect resource does not.
-* Backend-supported regex syntax is narrower than JavaScript regex syntax.
-  Unsupported ordinary exceptions reject preparation; unsupported blocks are
-  reported as partial coverage. Full-list measurements are recorded below.
-* Dynamic firewall/URL/noop/switch rules are captured, **not translated**.
-  `compileStaticNetwork` must not be mistaken for the complete effective policy.
-* Backend party classification versus uBlock's requesting-document classification
-  needs cross-origin frame tests before claiming semantic equivalence.
-* Generic DOM survey, procedural filters, scriptlets, all-frame cosmetics and
-  picker execution still need the isolated content runtime integration. CSS
-  matching dynamic elements does not prove procedural filtering works.
-* Automatic discovery, update generations, navigation preparation and site toggles
-  now operate in production. The complete install/uninstall/private/session
-  lifecycle acceptance matrix is not yet complete.
-* Popup counts, logger entries and page stores are not fabricated. No compiled
-  match-event accounting is implemented here.
-* Private views still reject the persistent filter-store implementation; no
-  private browsing equivalence is claimed.
-* Full default subscriptions now load and block before fetch. Cold policy setup
-  remains expensive; the immutable cache currently lasts only for the process.
-  The full lifecycle/stress matrix remains broader than the completed tests.
+## Compatibility limits
 
-The generic backend has no extension identity knowledge. UXP, bundled WPE/WebKit
-and the XPI remain unchanged. No deferred request broker is implemented.
+This is not complete Gecko content-XPCOM compatibility. Parent-side extensions
+that dereference `browser.contentWindow` or `browser.contentDocument` still
+cannot access a WebKit document through those Gecko objects. The content runtime
+implements content-side interfaces and delegates parent-owned XPCOM services
+through document-scoped handles and asynchronous callbacks. Installed extension
+scripts run in a trusted isolated WebKit world; userscript sandboxes use separate
+worlds. Native service handles are revoked and observers/timers/requests cleaned
+up when their document goes away. Imported modules and observers are shared
+across a page's frames, while frame-script globals belong to the top-level tab.
+The browser's `messageManager` and `frameLoader.messageManager` route to the same
+extension sender. Native frame-loader operations retain the Gecko backing loader;
+SessionStore compares the native loader identity when accepting flush replies.
 
-## Full-list policy preparation fixes (September 2026)
+This does not turn arbitrary parent native services into WebKit DOM services.
+Callbacks that require an immediate synchronous return to a parent native call,
+arbitrary native DOM reflectors, custom extension protocol transports, and full
+Gecko sandbox options/revocation are not yet implemented. `unsafeWindow` can reach
+page globals, but transparent `wantXrays: false` prototype behavior and arbitrary
+cross-engine DOM wrappers do not yet have full Gecko
+semantics. Document styles currently use user origin, including the window-utils
+bridge; agent/author-origin stylesheet behavior is not implemented there.
 
-The reader now merges equal URL/document/party predicates within each precedence
-class by their resource masks, retains document unions as one condition, and maps
-pure domain exclusions to the generic negated union. Mixed inclusion/exclusion
-sets still use the DNS predicate compiler. Fixed-string and hostname classes
-already use the supported regular-expression subset; only general/regex classes
-need finite-pattern lowering. Cooperative translation steps let chrome yield
-between batches. The service discards a result if the extension generation or
-owning window lifetime changed while it was preparing.
+The HTTP channel facade supports the tested observer, header, redirect, cancel,
+and pending-decision suspend/resume operations. It does not expose response-body
+streams, arbitrary Gecko channel internals, or TLS security interfaces. Cancel
+after a policy decision has already been handed back to the transport is not
+equivalent to cancelling a live Gecko channel. These are remaining implementation
+gaps, not guarantees supplied by the passing uBlock audit. The audit exercises
+fixture filters, not every feature or every public filter list.
 
-Popup/popunder, top-document, inline-font/script, data, redirect-replacement and
-WebRTC categories do not belong to the ordinary network resource masks. Their
-exceptions no longer reject unrelated ordinary network policies. This does not
-implement those behavioral features. Generic-hide exceptions are evaluated by
-the extension's own matcher for the top document's cosmetic state.
+## Greasemonkey
 
-Object/plugin attribution is unavailable. Object blocks remain unsupported;
-object exceptions retain their URL/domain/party predicates but conservatively
-allow all ordinary resource types. This can underblock those specific predicates
-and is explicitly reported as partial coverage. An unsupported ordinary network
-exception still rejects preparation rather than silently overblocking.
+The unchanged upstream [Greasemonkey 3.11 source](https://github.com/greasemonkey/greasemonkey/tree/3.11)
+is packaged locally for the audit; this is not an official signed release XPI.
+No source, manifest, or extension preference names are patched to make it run.
+The source archive is
+`https://codeload.github.com/greasemonkey/greasemonkey/tar.gz/refs/tags/3.11`, with
+SHA-256 `975d91383427cca96becba74c0f29e2aec2174f607282a44226196d8da872f91`.
+The deterministic local XPI has SHA-256
+`c591b6704eaa2df512d4cc6ee0ba49b06b348ecf2c86f1d04fb0c2c08e776b66`.
 
-Effective low/high generic declarative selectors now join domain-specific
-selectors, with the extension's exceptions removed. Individual CSS rules prevent
-one unsupported selector from invalidating unrelated selectors. This covers
-matching dynamically inserted elements, not procedural cosmetics or scriptlets.
-Gecko continues using the extension's native content implementation.
+```
+python3 tools/contentengine/greasemonkey/package-upstream.py \
+  greasemonkey-3.11.tar.gz greasemonkey-3.11.xpi
+DISPLAY=:93 python3 tools/contentengine/run-content-tests.py \
+  obj-loongarch64-unknown-linux-gnu greasemonkey --xpi greasemonkey-3.11.xpi
+```
+
+The fixture installs ordinary userscripts through the extension's own installer.
+It tests Gecko and WebKit against the same scripts: DOM changes, `GM_addStyle`,
+script-value storage, cross-origin `GM_xmlhttpRequest` POST callbacks, `@require`,
+resource text, `unsafeWindow`, document-start/end/idle, same-origin/cross-origin
+subframes, `@noframes`, matching-script popup entries, and menu command
+discovery/invocation. It also checks that
+ordinary page code and userscript sandboxes cannot read cross-origin frame DOM,
+and that userscripts cannot obtain privileged native services. Both engines
+passed these probes. Source and installed XPI hashes are checked after each run.
+
+Greasemonkey 3.17 was also tried unchanged. It fails in the Gecko control at its
+WebExtension migration dependency, `LegacyExtensionsUtils.jsm`, which this UXP
+build does not provide. It is not counted as a WebKit compatibility success.

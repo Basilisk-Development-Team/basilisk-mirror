@@ -1,3 +1,5 @@
+> Historical investigation: the uBlock-specific adapter described here has been removed. See [replacement status](ublock-adapter.md). These results do not validate the new extension runtime.
+
 # Engine-local filtering: effective-state acquisition
 
 Scope: use the existing compiled request-policy backend. The deferred request
