@@ -189,18 +189,6 @@ InternalUserscriptsService.prototype = {
 
     try {
       Services.scriptloader.loadSubScript(
-        "chrome://internaluserscripts/content/bundled-scripts/getanimations-polyfill.user.js",
-        contentWin,
-      );
-      if (contentWin.__internalUserscriptsGetAnimationsPolyfill) {
-        logPolyfill("getAnimations", "bundled");
-      }
-    } catch (e) {
-      // ignore
-    }
-
-    try {
-      Services.scriptloader.loadSubScript(
         "chrome://internaluserscripts/content/bundled-scripts/imagedecode-polyfill.user.js",
         contentWin,
       );

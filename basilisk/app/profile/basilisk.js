@@ -485,7 +485,7 @@ pref("dom.enable_performance_observer", true);
 // This pref controls whether getAnimations is enabled or not.
 // We enable it by default, unlike UXP and Pale Moon because several sites are
 // beginning to expect this to be present.
-pref("dom.animations-api.getAnimations", true);
+pref("dom.animations-api.getAnimations.enabled", true);
 
 // Controls Whether <dialog> element support is enabled or not.
 // GitHub is broken without this enabled so we set this to true.
