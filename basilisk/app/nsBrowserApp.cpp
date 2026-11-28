@@ -328,8 +328,6 @@ InitXPCOMGlue(const char *argv0, nsIFile **xreDirectory)
 
 int main(int argc, char* argv[], char* envp[])
 {
-  mozilla::TimeStamp start = mozilla::TimeStamp::Now();
-
 #ifdef HAS_DLL_BLOCKLIST
   DllBlocklist_Initialize();
 
