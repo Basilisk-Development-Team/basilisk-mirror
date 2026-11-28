@@ -90,7 +90,7 @@
   locale/browser-region/region.properties                       (%chrome/browser-region/region.properties)
 # the following files are browser-specific overrides
   locale/browser/netError.dtd                                   (%chrome/overrides/netError.dtd)
-  locale/browser/appstrings.properties                          (%chrome/overrides/appstrings.properties)
+* locale/browser/appstrings.properties                          (%chrome/overrides/appstrings.properties)
   locale/browser/downloads/settingsChange.dtd                   (%chrome/overrides/settingsChange.dtd)
 % override chrome://global/locale/netError.dtd chrome://browser/locale/netError.dtd
 % override chrome://global/locale/appstrings.properties chrome://browser/locale/appstrings.properties

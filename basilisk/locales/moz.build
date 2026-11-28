@@ -3,4 +3,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+DEFINES['MOZ_APP_DISPLAYNAME'] = CONFIG['MOZ_APP_DISPLAYNAME']
+
 JAR_MANIFESTS += ['jar.mn']
